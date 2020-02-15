@@ -169,7 +169,9 @@ func (n *Node) SignChainTransactions(creditTransaction *common.PaymentTransactio
 	return nil
 }
 
-func (n *Node) CommitPaymentTransaction(transaction common.PaymentTransaction) (bool,*errors.Error) {
+func (n *Node) CommitPaymentTransaction(transaction common.PaymentTransaction) (ok bool,err error) {
+
+	ok = false
 
 	t,e := txnbuild.TransactionFromXDR(transaction.XDR)
 
@@ -184,8 +186,10 @@ func (n *Node) CommitPaymentTransaction(transaction common.PaymentTransaction) (
 		log.Error("Error submitting transaction: " + err.Error())
 	}
 
+	ok = true
 	log.Debug("Transaction submitted: " + res.Result)
-	return true,nil
+
+	return
 }
 
 

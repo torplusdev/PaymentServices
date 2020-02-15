@@ -212,7 +212,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 func (client *Client) FinalizePayment(router common.PaymentRouter, transactions *[]common.PaymentTransaction) (bool,error) {
 
-	ok := false
+	ok := true
 
 	// TODO: Refactor to minimize possible mid-chain errors
 	for _,t := range *transactions {
@@ -224,11 +224,15 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 
 		_ = paymentNode
 
-
 		stepNode := node.GetNodeApi(paymentNode.Address,paymentNode.Seed)
 
-		stepNode.CommitPaymentTransaction(t)
+		res,err := stepNode.CommitPaymentTransaction(t)
 
+		if err != nil {
+			log.Fatal("Error committing transaction: " + err.Error())
+		}
+
+		ok = ok && res
 	}
 
 	return ok,nil

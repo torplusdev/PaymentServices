@@ -186,7 +186,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	serviceNode.SignTerminalTransactions(debitTransaction)
 
 	// Consecutive signing process
-	for idx, _ := range transactions[1 :] {
+	for idx := 1; idx < len(transactions); idx++ {
 
 		t := &transactions[idx]
 		//TODO: Remove seed initialization

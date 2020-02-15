@@ -67,81 +67,13 @@ func (api *RootApi) initialize() {
 
 }
 
-func (api RootApi) CreateGateway(gwAddress string){
-
-	account, err := api.client.AccountDetail(
-		horizonclient.AccountRequest{
-			AccountID:gwAddress })
-
-	if err  != nil {
-		txSuccess, errCreate := api.client.Fund(gwAddress)
-
-		if errCreate != nil {
-			log.Fatal(err)
-		}
-
-		log.Printf("Account creation performed using transaction#:",txSuccess)
-	}
-
-	log.Printf("Account:",account)
-
-	/*
-	createAccountOp := txnbuild.CreateAccount{
-		Destination: kp1.Address(),
-		Amount:      "10",
-	}
-
-	client.Fund(pair.Address())
-
-
-	// Get information about the account we just created
-	accountRequest := horizonclient.AccountRequest{AccountID: pair.Address()}
-
-	hAccount0, err := client.AccountDetail(accountRequest)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Generate a second randomly generated address
-	kp1, err := keypair.Random()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println("Seed 1:", kp1.Seed())
-	log.Println("Address 1:", kp1.Address())
-
-	// Construct the operation
-	createAccountOp := txnbuild.CreateAccount{
-		Destination: kp1.Address(),
-		Amount:      "10",
-	}
-
-	// Construct the transaction that will carry the operation
-	tx := txnbuild.Transaction{
-		SourceAccount: &hAccount0,
-		Operations:    []txnbuild.Operation{&createAccountOp},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
-
-	// Sign the transaction, serialise it to XDR, and base 64 encode it
-	txeBase64, err := tx.BuildSignEncode(pair)
-	log.Println("Transaction base64: ", txeBase64)
-
-	// Submit the transaction
-	resp, err := client.SubmitTransactionXDR(txeBase64)
-	if err != nil {
-		hError := err.(*horizonclient.Error)
-		log.Fatal("Error submitting transaction:", hError)
-	}
-
-	log.Println("\nTransaction response: ", resp)
-*/
-}
-
 func getInitialAccountBalance() int {
 	return 100
+}
+
+func (api RootApi) GetClient() *horizonclient.Client {
+
+	return api.client
 }
 
 func (api RootApi) CreateUser(address string, seed string) error {
@@ -152,8 +84,9 @@ func (api RootApi) CreateUser(address string, seed string) error {
 
 	accountData,_ := horizon.DefaultTestNetClient.LoadAccount(api.fullKeyPair.Address())
 
-		if err == nil {
-		log.Fatal("Account already exists")
+	if err == nil {
+		return nil
+		//log.Fatal("Account already exists")
 	}
 
 
@@ -164,17 +97,9 @@ func (api RootApi) CreateUser(address string, seed string) error {
 
 	clientAccount := txnbuild.NewSimpleAccount(address,0)
 
-	setOptionsAddRootSigner := txnbuild.SetOptions{
-		Signer: &txnbuild.Signer{
-			Address: api.fullKeyPair.Address(),
-			Weight:  5,
-		},
-		SourceAccount: &clientAccount,
-	}
-
 	var masterWeight, thresholdLow, thresholdMed, thresholdHigh txnbuild.Threshold
 
-	masterWeight = 5
+	masterWeight = 0
 	thresholdLow = 2
 	thresholdMed = 3
 	thresholdHigh = 4
@@ -183,7 +108,7 @@ func (api RootApi) CreateUser(address string, seed string) error {
 
 	setOptionsChangeWeights := txnbuild.SetOptions{
 		SourceAccount: &clientAccount,
-		//MasterWeight:    &masterWeight,
+		MasterWeight:    &masterWeight,
 		LowThreshold:    &thresholdLow,
 		MediumThreshold: &thresholdMed,
 		HighThreshold:   &thresholdHigh,
@@ -201,10 +126,6 @@ func (api RootApi) CreateUser(address string, seed string) error {
 		Asset:txnbuild.NativeAsset{},
 	}
 
-	_ = payment
-	_ = setOptionsChangeWeights
-	_ = setOptionsAddRootSigner
-
 	// Construct the transaction that will carry the operation
 	tx := txnbuild.Transaction{
 		SourceAccount: &accountData,
@@ -212,8 +133,6 @@ func (api RootApi) CreateUser(address string, seed string) error {
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       network.TestNetworkPassphrase,
 	}
-
-	// Sign the transaction, serialise it to XDR, and base 64 encode it
 
 	clientKey, _ := keypair.ParseFull(seed)
 
@@ -230,33 +149,13 @@ func (api RootApi) CreateUser(address string, seed string) error {
 	clientTrans,er2 := txnbuild.TransactionFromXDR(strTrans)
 
 	if er2 != nil {
-
+		log.Fatal("Cannot deserialize transaction:",er2.Error())
 	}
 	// Work around serialization bug (??): network passphrase isn't serialized
 	clientTrans.Network = network.TestNetworkPassphrase
 
 	clientTrans.Sign(clientKey)
 
-//	txeBase64, err := tx.BuildSignEncode(&api.fullKeyPair )
-//	clientTx,transErr := txnbuild.TransactionFromXDR(txeBase64)
-
-	//bytes,_ := tx.TxEnvelope().MarshalBinary()
-
-
-
-	//txnbuild.TransactionFromXDR(bytes)
-
-	//clientTx,transErr := txnbuild.TransactionFromXDR(txeBase64)
-
-	//if transErr != nil {
-	//	log.Fatal("Error ")
-	//}
-
-	//clientTx.Sign(clientKey)
-	//append(clientTx.TxEnvelope().Signatures, )
-
-	// Submit the transaction
-	//resp, err := api.client.SubmitTransactionXDR(txeBase64)
 	resp, err := api.client.SubmitTransaction(clientTrans)
 	if err != nil {
 		hError := err.(*horizonclient.Error)

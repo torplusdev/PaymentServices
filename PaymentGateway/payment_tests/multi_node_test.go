@@ -4,9 +4,11 @@ import (
 	"github.com/stellar/go/keypair"
 	"github.com/stretchr/testify/assert"
 	"log"
+	"math"
 	"os"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/tests/mocks"
+	"strconv"
 
 	client2 "paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/root"
@@ -28,7 +30,6 @@ const node3Seed = "SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A"
 
 // publc GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7
 const node4Seed = "SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK"
-
 
 func setup() {
 
@@ -54,43 +55,60 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-
 func TestSingleE2EPayment(t *testing.T) {
 
 	// Initialization
 	assert := assert.New(t)
-	keyUser,_ := keypair.ParseFull(user1Seed)
+	keyUser, _ := keypair.ParseFull(user1Seed)
 
-	keyService,_ := keypair.ParseFull(service1Seed)
+	keyService, _ := keypair.ParseFull(service1Seed)
 
 	rootApi := root.CreateRootApi(true)
-	rootApi.CreateUser(keyUser.Address(),keyUser.Seed())
+	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client2.CreateClient(rootApi,user1Seed)
+	var client = client2.CreateClient(rootApi, user1Seed)
 	assert.NotNil(client)
 
-	pr := common.PaymentRequest{
-		Address:keyService.Address(),
-		Amount:100,
-		Asset:"XLM",
-		ServiceRef:"test"}
+	accPre, err := testutils.GetAccount(keyService.Address())
 
-	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed,node1Seed,node2Seed,node3Seed,service1Seed})
+	assert.NoError(err)
+
+	pr := common.PaymentRequest{
+		Address:    keyService.Address(),
+		Amount:     100,
+		Asset:      "XLM",
+		ServiceRef: "test"}
+
+	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 	// Initiate
-	transactions := client.InitiatePayment(nodes,pr)
+	transactions := client.InitiatePayment(nodes, pr)
 	assert.NotNil(transactions)
 
 	// Verify
-	ok,err := client.VerifyTransactions(nodes,pr,transactions)
-	assert.True(ok && err==nil)
+	ok, err := client.VerifyTransactions(nodes, pr, transactions)
+	assert.True(ok && err == nil)
 
 	// Commit
-	ok,err = client.FinalizePayment(nodes,transactions)
+	ok, err = client.FinalizePayment(nodes, transactions)
 
-	for _,t := range *transactions {
+	for _, t := range *transactions {
 		log.Print(testutils.Print(t))
 	}
-	assert.True(ok && err==nil)
+
+	assert.True(ok && err == nil)
+
+	accPost, err := testutils.GetAccount(keyService.Address())
+	assert.NoError(err)
+
+	strPre, _ := accPre.GetNativeBalance()
+	strPost, _ := accPost.GetNativeBalance()
+
+	iPost, _ := strconv.ParseFloat(strPost, 64)
+	iPre, _ := strconv.ParseFloat(strPre, 64)
+
+	delta := iPost - iPre
+
+	assert.True(math.Abs(delta-100) < 1e-3)
 
 }

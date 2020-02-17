@@ -24,7 +24,7 @@ func CreateAndFundAccount(seed string) {
 
 	_, errAccount := client.AccountDetail(
 		horizonclient.AccountRequest{
-			AccountID:pair.Address() })
+			AccountID: pair.Address()})
 
 	if errAccount != nil {
 		txSuccess, errCreate := client.Fund(pair.Address())
@@ -33,19 +33,19 @@ func CreateAndFundAccount(seed string) {
 			log.Fatal(err)
 		}
 
-		log.Printf("Account " + seed + " created - trans#:",txSuccess.Hash)
+		log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
 	}
 }
 
-func GetAccount(address string)  (account horizon.Account, err error) {
+func GetAccount(address string) (account horizon.Account, err error) {
 
 	client := horizonclient.DefaultTestNetClient
 
 	accountDetail, errAccount := client.AccountDetail(
 		horizonclient.AccountRequest{
-			AccountID:address})
+			AccountID: address})
 
-	return accountDetail,errAccount
+	return accountDetail, errAccount
 }
 
 func Print(t common.PaymentTransaction) string {
@@ -56,7 +56,7 @@ func Print(t common.PaymentTransaction) string {
 
 	internalTrans, err := txnbuild.TransactionFromXDR(t.XDR)
 
-	if (err != nil) {
+	if err != nil {
 		return "Err: " + err.Error()
 	}
 

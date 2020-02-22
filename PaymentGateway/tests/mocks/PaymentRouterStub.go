@@ -22,7 +22,7 @@ func CreatePaymentRouterStubFromAddresses(addresses []string) PaymentRouterStub 
 
 	for _,e := range addresses {
 		kp,_ := keypair.ParseFull(e)
-		stub.nodes = append(stub.nodes,common.PaymentNode{ Address: kp.Address(), Seed:kp.Seed(), Fee:10})
+		stub.nodes = append(stub.nodes,common.PaymentNode{ Address: kp.Address(), Fee:10})
 	}
 
 	return stub

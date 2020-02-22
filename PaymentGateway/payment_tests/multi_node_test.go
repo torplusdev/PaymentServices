@@ -7,10 +7,11 @@ import (
 	"math"
 	"os"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/tests/mocks"
 	"strconv"
 
-	client2 "paidpiper.com/payment-gateway/client"
+	client "paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/root"
 	testutils "paidpiper.com/payment-gateway/tests"
 	"testing"
@@ -48,8 +49,41 @@ func shutdown() {
 
 }
 
+var nm *testutils.TestNodeManager
+
+func setupTestNodeManager(m *testing.M) {
+	nm = testutils.CreateTestNodeManager()
+
+	nm.AddNode(node.CreateNode(
+		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+		"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN"))
+
+	nm.AddNode(node.CreateNode(
+		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
+		"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC"))
+
+	nm.AddNode(node.CreateNode(
+		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW",
+		"SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A"))
+
+	nm.AddNode(node.CreateNode(
+		"GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7",
+		"SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK"))
+
+	// service
+	nm.AddNode(node.CreateNode(
+		"GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE",
+		"SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"))
+
+	// client
+	nm.AddNode(node.CreateNode(
+		"GBFQ5SXDQAU5LVJFOUYXZXPUGNJIDHAYIOD4PTJCJJNQSHOWWZF5FQTP",
+		"SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"))
+}
+
 func TestMain(m *testing.M) {
 	setup()
+	setupTestNodeManager(m)
 	code := m.Run()
 	shutdown()
 	os.Exit(code)
@@ -66,7 +100,7 @@ func TestSingleE2EPayment(t *testing.T) {
 	rootApi := root.CreateRootApi(true)
 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client2.CreateClient(rootApi, user1Seed)
+	var client = client.CreateClient(rootApi, user1Seed,nm)
 	assert.NotNil(client)
 
 	accPre, err := testutils.GetAccount(keyService.Address())
@@ -82,11 +116,12 @@ func TestSingleE2EPayment(t *testing.T) {
 	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 	// Initiate
-	transactions := client.InitiatePayment(nodes, pr)
+	transactions,err := client.InitiatePayment(nodes, pr)
 	assert.NotNil(transactions)
 
 	// Verify
 	ok, err := client.VerifyTransactions(nodes, pr, transactions)
+	assert.NoError(err)
 	assert.True(ok && err == nil)
 
 	// Commit
@@ -110,5 +145,40 @@ func TestSingleE2EPayment(t *testing.T) {
 	delta := iPost - iPre
 
 	assert.True(math.Abs(delta-100) < 1e-3)
+}
 
+func TestPaymentByClientWithInsufficientBalanceFails(t *testing.T) {
+
+	// Initialization
+	assert := assert.New(t)
+
+	keyUser, _ := keypair.ParseFull(user1Seed)
+	keyService, _ := keypair.ParseFull(service1Seed)
+
+	rootApi := root.CreateRootApi(true)
+	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
+
+	var client = client.CreateClient(rootApi, user1Seed,nm)
+	assert.NotNil(client)
+
+	accPre, err := testutils.GetAccount(keyService.Address())
+
+	assert.NoError(err)
+
+	currentBalance,err := strconv.ParseFloat(accPre.Balances[0].Balance,32)
+	assert.NoError(err)
+
+	paymentAmount := common.TransactionAmount(currentBalance+100)
+
+	pr := common.PaymentRequest{
+		Address:    keyService.Address(),
+		Amount:     paymentAmount,
+		Asset:      "XLM",
+		ServiceRef: "test"}
+
+	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+
+	transactions,err := client.InitiatePayment(nodes, pr)
+	assert.Error(err,"Client has insufficient account balance")
+	assert.Nil(transactions)
 }

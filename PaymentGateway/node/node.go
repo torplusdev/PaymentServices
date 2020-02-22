@@ -21,6 +21,22 @@ type Node struct {
 	pendingPayment map[string]float64
 }
 
+func CreateNode(address string, seed string) *Node {
+
+	node := Node {
+		Address:address,
+		secretSeed:seed,
+		client:*horizon.DefaultTestNetClient,
+		transactionFee:nodeTransactionFee,
+	}
+
+	return &node
+}
+
+type NodeManager interface {
+	GetNodeByAddress(address string) *Node
+}
+
 func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) common.PaymentTransaction {
 	transaction := common.PaymentTransaction{
 		TransactionSource:n.Address,
@@ -190,18 +206,4 @@ func (n *Node) CommitPaymentTransaction(transaction common.PaymentTransaction) (
 	log.Debug("Transaction submitted: " + res.Result)
 
 	return
-}
-
-
-
-func GetNodeApi(address string, seed string) *Node {
-
-	node := Node {
-		Address:address,
-		secretSeed:seed,
-		client:*horizon.DefaultTestNetClient,
-		transactionFee:nodeTransactionFee,
-	}
-
-	return &node
 }

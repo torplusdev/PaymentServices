@@ -15,17 +15,19 @@ type PaymentTransaction struct {
 	AmountOut         TransactionAmount
 	XDR               string
 	Address           string
-	Seed 			  string
 	Network 		  string
 }
 
 type PaymentNode struct {
 	Address string
 	Fee TransactionAmount
-	Seed string
 }
 
 type PaymentRouter interface {
 	 CreatePaymentRoute(req PaymentRequest) []PaymentNode
 	 GetNodeByAddress( address string) (PaymentNode,error)
 }
+
+
+
+

@@ -19,11 +19,12 @@ type Client struct {
 	client *horizonclient.Client
 	fullKeyPair *keypair.Full
 	account horizon.Account
+	nodeManager node.NodeManager
 }
 
-func CreateClient(rootApi *root.RootApi, cliendSeed string) *Client {
+func CreateClient(rootApi *root.RootApi, cliendSeed string, nm node.NodeManager) *Client {
 
-	client := Client{}
+	client := Client{nodeManager:nm}
 
 	// Initialization
 	apiClient := rootApi.GetClient()
@@ -56,7 +57,7 @@ func reverseAny(s interface{}) {
 	}
 }
 
-func (client *Client) SignInitialTransactions(fundingTransaction *common.PaymentTransaction, expectedDestination string, expectedAmount common.TransactionAmount) *errors.Error {
+func (client *Client) SignInitialTransactions(fundingTransaction *common.PaymentTransaction, expectedDestination string, expectedAmount common.TransactionAmount) error {
 
 
 	t, err := txnbuild.TransactionFromXDR(fundingTransaction.XDR)
@@ -126,22 +127,50 @@ func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentReq
 	return ok,nil
 }
 
-func (client *Client) InitiatePayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) *[]common.PaymentTransaction {
+func (client *Client) InitiatePayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) (*[]common.PaymentTransaction,error) {
 
 	route := router.CreatePaymentRoute(paymentRequest)
 
 	//validate route extremities
-
 	if (strings.Compare(route[0].Address, client.fullKeyPair.Address()) != 0) {
-		log.Fatal("Bad routing: Incorrect starting address ",route[0].Address," != ", client.fullKeyPair.Address())
+		log.Print("Bad routing: Incorrect starting address ",route[0].Address," != ", client.fullKeyPair.Address())
+		return nil,errors.Errorf("Incorrect starting address","")
 	}
 
 	if (strings.Compare(route[len(route)-1].Address, paymentRequest.Address) != 0) {
-		log.Fatal("Bad routing: Incorrect destination address")
+		log.Print("Bad routing: Incorrect destination address")
+		return nil,errors.Errorf("Incorrect destination address","")
+	}
+
+	accountDetail, errAccount := client.client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID:client.fullKeyPair.Address() })
+
+	if errAccount != nil {
+		log.Print("Error retrieving account data: ", errAccount.Error())
+		return nil,errors.Errorf("Account validation error","")
+	}
+
+	balance, err := accountDetail.GetNativeBalance()
+
+	if err!= nil {
+		log.Print("Error reading account balance: ", err.Error())
+		return nil,errors.Errorf("Account balance read error","")
+	}
+
+	numericBalance, err := strconv.ParseFloat(balance,32)
+
+	if (err != nil) {
+		log.Print("Error parsing account balance: ", err.Error())
+		return nil, errors.Errorf("Account balance parse error","")
+	}
+
+	if (paymentRequest.Amount >  uint32(numericBalance)) {
+		log.Print("Insufficient client balance: ")
+		return nil, errors.Errorf("Client has insufficient account balance","")
 	}
 
 	var totalFee common.TransactionAmount = 0
-
 
 	transactions := make([]common.PaymentTransaction,0, len(route))
 
@@ -153,7 +182,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	for i, e := range route[0:len(route)-1] {
 
 		var sourceAddress = route[i+1].Address
-		stepNode := node.GetNodeApi(e.Address, e.Seed)
+		stepNode := client.nodeManager.GetNodeByAddress(e.Address)
 
 		var transactionFee = e.Fee
 
@@ -164,7 +193,6 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 		// Create and store transaction
 		nodeTransaction := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
-		nodeTransaction.Seed = e.Seed
 		transactions = append(transactions,nodeTransaction)
 
 		// Accumulate fees
@@ -182,7 +210,8 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	debitTransaction := &transactions[0]
 
 	// Signing terminal transaction
-	serviceNode := node.GetNodeApi(route[0].Address,route[0].Seed)
+	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
+	//serviceNode := node.GetNodeApi(route[0].Address,route[0].Seed)
 	serviceNode.SignTerminalTransactions(debitTransaction)
 
 	// Consecutive signing process
@@ -190,7 +219,8 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 		t := &transactions[idx]
 		//TODO: Remove seed initialization
-		stepNode := node.GetNodeApi(t.Address, t.Seed)
+		stepNode := client.nodeManager.GetNodeByAddress(t.Address)
+		//stepNode := node.GetNodeApi(t.Address, t.Seed)
 		creditTransaction := t
 
 		stepNode.SignChainTransactions(creditTransaction,debitTransaction)
@@ -199,15 +229,15 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	}
 
-	err := client.SignInitialTransactions(&transactions[len(transactions)-1],route[len(transactions)-1].Address,paymentRequest.Amount + totalFee)
+	err = client.SignInitialTransactions(&transactions[len(transactions)-1],route[len(transactions)-1].Address,paymentRequest.Amount + totalFee)
 
-	if (err != nil) {
+	if err != nil {
 		log.Fatal("Error in transaction: " + err.Error())
 	}
 
 	// At this point all transactions are signed by all parties
 
-	return &transactions
+	return &transactions,nil
 }
 
 func (client *Client) FinalizePayment(router common.PaymentRouter, transactions *[]common.PaymentTransaction) (bool,error) {
@@ -219,12 +249,14 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 		paymentNode,err := router.GetNodeByAddress(t.Address)
 
 		if (err!= nil) {
-			log.Fatal("Error retrieving node object: " + err.Error())
+			log.Print("Error retrieving node object: " + err.Error())
+			return false,errors.Errorf("Error retrieving node object %s",err.Error())
 		}
 
 		_ = paymentNode
 
-		stepNode := node.GetNodeApi(paymentNode.Address,paymentNode.Seed)
+		stepNode := client.nodeManager.GetNodeByAddress(paymentNode.Address)
+		//stepNode := node.GetNodeApi(paymentNode.Address,paymentNode.Seed)
 
 		res,err := stepNode.CommitPaymentTransaction(t)
 

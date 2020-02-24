@@ -3,6 +3,7 @@ package common
 type TransactionAmount = uint32
 
 type PaymentRequest struct {
+	ServiceSessionId string
 	ServiceRef string
 	Address string
 	Amount TransactionAmount
@@ -10,12 +11,13 @@ type PaymentRequest struct {
 }
 
 type PaymentTransaction struct {
-	TransactionSource string
-	ReferenceAmountIn TransactionAmount
-	AmountOut         TransactionAmount
-	XDR               string
-	Address           string
-	Network 		  string
+	TransactionSourceAddress  string
+	ReferenceAmountIn         TransactionAmount
+	AmountOut                 TransactionAmount
+	XDR                       string
+	PaymentSourceAddress	  string
+	PaymentDestinationAddress string
+	StellarNetworkToken       string
 }
 
 type PaymentNode struct {

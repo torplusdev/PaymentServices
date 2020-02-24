@@ -20,11 +20,15 @@ type Client struct {
 	fullKeyPair *keypair.Full
 	account horizon.Account
 	nodeManager node.NodeManager
+	supportAccumulatingTransactions bool
 }
 
 func CreateClient(rootApi *root.RootApi, cliendSeed string, nm node.NodeManager) *Client {
 
-	client := Client{nodeManager:nm}
+	client := Client{
+		nodeManager:nm,
+		supportAccumulatingTransactions:false,
+	}
 
 	// Initialization
 	apiClient := rootApi.GetClient()
@@ -55,6 +59,10 @@ func reverseAny(s interface{}) {
 	for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
 		swap(i, j)
 	}
+}
+
+func (client *Client) SetAccumulatingTransactionSupport(newState bool) {
+	client.supportAccumulatingTransactions = newState
 }
 
 func (client *Client) SignInitialTransactions(fundingTransaction *common.PaymentTransaction, expectedDestination string, expectedAmount common.TransactionAmount) error {
@@ -88,7 +96,7 @@ func (client *Client) SignInitialTransactions(fundingTransaction *common.Payment
 		log.Fatal("Transaction amount is incorrect")
 	}
 
-	t.Network = fundingTransaction.Network
+	t.Network = fundingTransaction.StellarNetworkToken
 
 	err = t.Sign(client.fullKeyPair)
 
@@ -192,7 +200,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 		}
 
 		// Create and store transaction
-		nodeTransaction := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
+		nodeTransaction := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress, client.supportAccumulatingTransactions)
 		transactions = append(transactions,nodeTransaction)
 
 		// Accumulate fees
@@ -200,7 +208,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	}
 /*
 	// Add initial client-originated funding transaction
-	clientNode := node.GetNodeApi(route[len(route)-1].Address,route[len(route)-1].Seed)
+	clientNode := node.GetNodeApi(route[len(route)-1].PaymentDestinationAddress,route[len(route)-1].Seed)
 	clientTransaction := clientNode.CreateTransaction(0, 0, paymentRequest.Amount + totalFee, sourceAddress)
 	clientTransaction.Seed = e.Seed
 	transactions = append(transactions,clientTransaction)
@@ -211,7 +219,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
-	//serviceNode := node.GetNodeApi(route[0].Address,route[0].Seed)
+	//serviceNode := node.GetNodeApi(route[0].PaymentDestinationAddress,route[0].Seed)
 	serviceNode.SignTerminalTransactions(debitTransaction)
 
 	// Consecutive signing process
@@ -219,8 +227,8 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 		t := &transactions[idx]
 		//TODO: Remove seed initialization
-		stepNode := client.nodeManager.GetNodeByAddress(t.Address)
-		//stepNode := node.GetNodeApi(t.Address, t.Seed)
+		stepNode := client.nodeManager.GetNodeByAddress(t.PaymentDestinationAddress)
+		//stepNode := node.GetNodeApi(t.PaymentDestinationAddress, t.Seed)
 		creditTransaction := t
 
 		stepNode.SignChainTransactions(creditTransaction,debitTransaction)
@@ -240,13 +248,13 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	return &transactions,nil
 }
 
-func (client *Client) FinalizePayment(router common.PaymentRouter, transactions *[]common.PaymentTransaction) (bool,error) {
+func (client *Client) FinalizePayment(router common.PaymentRouter, transactions *[]common.PaymentTransaction, pr common.PaymentRequest) (bool, error) {
 
 	ok := true
 
 	// TODO: Refactor to minimize possible mid-chain errors
 	for _,t := range *transactions {
-		paymentNode,err := router.GetNodeByAddress(t.Address)
+		paymentNode,err := router.GetNodeByAddress(t.PaymentDestinationAddress)
 
 		if (err!= nil) {
 			log.Print("Error retrieving node object: " + err.Error())
@@ -256,9 +264,17 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 		_ = paymentNode
 
 		stepNode := client.nodeManager.GetNodeByAddress(paymentNode.Address)
-		//stepNode := node.GetNodeApi(paymentNode.Address,paymentNode.Seed)
+		//stepNode := node.GetNodeApi(paymentNode.PaymentDestinationAddress,paymentNode.Seed)
 
-		res,err := stepNode.CommitPaymentTransaction(t)
+		var res bool = false
+
+		// If this is a payment to the requesting node
+		if t.PaymentDestinationAddress == pr.Address {
+			res,err = stepNode.CommitServiceTransaction(t,pr)
+		} else {
+			res,err = stepNode.CommitPaymentTransaction(t)
+		}
+
 
 		if err != nil {
 			log.Fatal("Error committing transaction: " + err.Error())

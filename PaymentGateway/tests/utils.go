@@ -51,8 +51,8 @@ func GetAccount(address string) (account horizon.Account, err error) {
 func Print(t common.PaymentTransaction) string {
 	b := strings.Builder{}
 
-	b.WriteString("ext.src: " + t.TransactionSource + "\n")
-	b.WriteString("ext.adr: " + t.Address + "\n")
+	b.WriteString("ext.src: " + t.TransactionSourceAddress + "\n")
+	b.WriteString("ext.adr: " + t.PaymentDestinationAddress + "\n")
 
 	internalTrans, err := txnbuild.TransactionFromXDR(t.XDR)
 

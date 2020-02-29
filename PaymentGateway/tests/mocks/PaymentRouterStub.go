@@ -29,7 +29,8 @@ func CreatePaymentRouterStubFromAddresses(addresses []string) PaymentRouterStub 
 }
 
 func (router PaymentRouterStub) CreatePaymentRoute(req common.PaymentRequest) []common.PaymentNode {
-	return router.nodes
+	copyOfNodes := append([]common.PaymentNode(nil), router.nodes...)
+	return copyOfNodes
 }
 
 func (router PaymentRouterStub) GetNodeByAddress( address string) (common.PaymentNode,error) {

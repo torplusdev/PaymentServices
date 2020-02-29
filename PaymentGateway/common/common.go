@@ -20,6 +20,14 @@ type PaymentTransaction struct {
 	StellarNetworkToken       string
 }
 
+type PaymentTransactionPayload interface {
+	GetPaymentTransaction() PaymentTransaction
+	GetPaymentDestinationAddress() string
+	UpdateTransactionXDR(xdr string) error
+	UpdateStellarToken(token string) error
+	Validate() error
+}
+
 type PaymentNode struct {
 	Address string
 	Fee TransactionAmount

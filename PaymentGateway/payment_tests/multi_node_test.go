@@ -58,29 +58,29 @@ func setupTestNodeManager(m *testing.M) {
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-		"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN"))
+		"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN",false))
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
-		"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC"))
+		"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC",false))
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW",
-		"SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A"))
+		"SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A",false))
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7",
-		"SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK"))
+		"SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK",false))
 
 	// service
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE",
-		"SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"))
+		"SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34",false))
 
 	// client
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GBFQ5SXDQAU5LVJFOUYXZXPUGNJIDHAYIOD4PTJCJJNQSHOWWZF5FQTP",
-		"SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"))
+		"SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU",false))
 }
 
 func TestMain(m *testing.M) {
@@ -137,8 +137,8 @@ func TestSingleE2EPaymentNoAccumulation(t *testing.T) {
 	// Commit
 	ok, err = client.FinalizePayment(nodes, transactions,pr)
 
-	for _, t := range *transactions {
-		log.Print(testutils.Print(t))
+	for _, t := range transactions {
+		log.Print(testutils.Print(t.GetPaymentTransaction()))
 	}
 
 	assert.True(ok && err == nil)
@@ -206,6 +206,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	var client = client.CreateClient(rootApi, user1Seed,nm)
 	assert.NotNil(client)
 
+	nm.SetAccumulatingTransactionsMode(true)
 	var servicePayment uint32 = 123
 
 	//Service
@@ -213,10 +214,8 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 
 	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
-	client.SetAccumulatingTransactionSupport(true)
 
 	/*     ******                    Transaction 1			***********				*/
-
 	guid1 := xid.New()
 
 	// Add pending credit
@@ -236,9 +235,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	ok, err = client.FinalizePayment(nodes, transactions,pr1 )
 
 
-
 	/*     ******                    Transaction 2			*************				*/
-
 	guid2 := xid.New()
 
 	// Add pending credit

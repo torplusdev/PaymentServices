@@ -27,3 +27,9 @@ func (nm *TestNodeManager) GetNodeByAddress(address string) (*node.Node) {
 
 	return nm.nodes[address]
 }
+
+func (nm *TestNodeManager) SetAccumulatingTransactionsMode(newMode bool) {
+	for _,n := range nm.nodes {
+		n.SetAccumulatingTransactionsMode(newMode)
+	}
+}

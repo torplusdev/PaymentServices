@@ -20,14 +20,12 @@ type Client struct {
 	fullKeyPair *keypair.Full
 	account horizon.Account
 	nodeManager node.NodeManager
-	supportAccumulatingTransactions bool
 }
 
 func CreateClient(rootApi *root.RootApi, cliendSeed string, nm node.NodeManager) *Client {
 
 	client := Client{
 		nodeManager:nm,
-		supportAccumulatingTransactions:false,
 	}
 
 	// Initialization
@@ -61,14 +59,12 @@ func reverseAny(s interface{}) {
 	}
 }
 
-func (client *Client) SetAccumulatingTransactionSupport(newState bool) {
-	client.supportAccumulatingTransactions = newState
-}
 
-func (client *Client) SignInitialTransactions(fundingTransaction *common.PaymentTransaction, expectedDestination string, expectedAmount common.TransactionAmount) error {
+func (client *Client) SignInitialTransactions(fundingTransactionPayload common.PaymentTransactionPayload, expectedDestination string, expectedAmount common.TransactionAmount) error {
 
+	transaction := fundingTransactionPayload.GetPaymentTransaction()
 
-	t, err := txnbuild.TransactionFromXDR(fundingTransaction.XDR)
+	t, err := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if (err != nil) {
 		log.Fatal("Error parsing transaction: ", err.Error())
@@ -96,30 +92,37 @@ func (client *Client) SignInitialTransactions(fundingTransaction *common.Payment
 		log.Fatal("Transaction amount is incorrect")
 	}
 
-	t.Network = fundingTransaction.StellarNetworkToken
+	t.Network = transaction.StellarNetworkToken
 
 	err = t.Sign(client.fullKeyPair)
 
 	if (err != nil) {
 		log.Fatal("Failed to signed transaction")
 	}
-	fundingTransaction.XDR,err = t.Base64()
+
+	xdr,err := t.Base64()
+
+	if (err != nil) {
+		log.Fatal("Error converting transaction to binary xdr: " + err.Error())
+		return errors.Errorf("Transaction xdr error","")
+	}
+
+	err = fundingTransactionPayload.UpdateTransactionXDR(xdr)
 
 	if (err != nil) {
 		log.Fatal("Error writing transaction envelope: " + err.Error())
 		return errors.Errorf("Transaction envelope error","")
 	}
-
 	return nil
 
 }
 
-func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentRequest common.PaymentRequest, transactions *[]common.PaymentTransaction) (bool,error) {
+func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentRequest common.PaymentRequest, transactions []common.PaymentTransactionPayload) (bool,error) {
 
 	ok := false
 
-	for _,t := range *transactions {
-		trans, e := txnbuild.TransactionFromXDR(t.XDR)
+	for _,t := range transactions {
+		trans, e := txnbuild.TransactionFromXDR(t.GetPaymentTransaction().XDR)
 
 		if (e != nil) {
 			log.Fatal("Error deser xdr: " + e.Error())
@@ -135,7 +138,7 @@ func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentReq
 	return ok,nil
 }
 
-func (client *Client) InitiatePayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) (*[]common.PaymentTransaction,error) {
+func (client *Client) InitiatePayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) ([]common.PaymentTransactionPayload,error) {
 
 	route := router.CreatePaymentRoute(paymentRequest)
 
@@ -180,11 +183,13 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	var totalFee common.TransactionAmount = 0
 
-	transactions := make([]common.PaymentTransaction,0, len(route))
+	transactions := make([]common.PaymentTransactionPayload,0, len(route))
 
 	//Iterating in reverse order
 	reverseAny(route)
 
+	route2 := router.CreatePaymentRoute(paymentRequest)
+	_ = route2
 
 	// Generate initial transaction
 	for i, e := range route[0:len(route)-1] {
@@ -200,7 +205,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 		}
 
 		// Create and store transaction
-		nodeTransaction := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress, client.supportAccumulatingTransactions)
+		nodeTransaction := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
 		transactions = append(transactions,nodeTransaction)
 
 		// Accumulate fees
@@ -215,7 +220,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 */
 
 	// initialize debit with service transaction
-	debitTransaction := &transactions[0]
+	debitTransaction := transactions[0]
 
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
@@ -225,9 +230,9 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	// Consecutive signing process
 	for idx := 1; idx < len(transactions); idx++ {
 
-		t := &transactions[idx]
+		t := transactions[idx]
 		//TODO: Remove seed initialization
-		stepNode := client.nodeManager.GetNodeByAddress(t.PaymentDestinationAddress)
+		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 		//stepNode := node.GetNodeApi(t.PaymentDestinationAddress, t.Seed)
 		creditTransaction := t
 
@@ -237,7 +242,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	}
 
-	err = client.SignInitialTransactions(&transactions[len(transactions)-1],route[len(transactions)-1].Address,paymentRequest.Amount + totalFee)
+	err = client.SignInitialTransactions(transactions[len(transactions)-1],route[len(transactions)-1].Address,paymentRequest.Amount + totalFee)
 
 	if err != nil {
 		log.Fatal("Error in transaction: " + err.Error())
@@ -245,16 +250,17 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	// At this point all transactions are signed by all parties
 
-	return &transactions,nil
+	return transactions,nil
 }
 
-func (client *Client) FinalizePayment(router common.PaymentRouter, transactions *[]common.PaymentTransaction, pr common.PaymentRequest) (bool, error) {
+func (client *Client) FinalizePayment(router common.PaymentRouter, transactions []common.PaymentTransactionPayload, pr common.PaymentRequest) (bool, error) {
 
 	ok := true
 
 	// TODO: Refactor to minimize possible mid-chain errors
-	for _,t := range *transactions {
-		paymentNode,err := router.GetNodeByAddress(t.PaymentDestinationAddress)
+	for _,t := range transactions {
+		trans := t.GetPaymentTransaction()
+		paymentNode,err := router.GetNodeByAddress(trans.PaymentDestinationAddress)
 
 		if (err!= nil) {
 			log.Print("Error retrieving node object: " + err.Error())
@@ -269,7 +275,7 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 		var res bool = false
 
 		// If this is a payment to the requesting node
-		if t.PaymentDestinationAddress == pr.Address {
+		if trans.PaymentDestinationAddress == pr.Address {
 			res,err = stepNode.CommitServiceTransaction(t,pr)
 		} else {
 			res,err = stepNode.CommitPaymentTransaction(t)

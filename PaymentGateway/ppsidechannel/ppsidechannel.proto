@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+message SetUpPeerRequest {
+    string stellarAddress = 1;
+}
+
+message SetUpPeerResponse {
+    enum SetUpStatus {
+        PeerAlreadyExists = 0;
+        PeerAccountCreationRequired = 1;
+        PeerAccountFundingRequired = 2;
+    }
+
+    SetUpStatus status = 1;
+    string transactionXdr = 2;
+}
+
+message CreateOrFundRequest {
+    string transactionXdr = 1;
+}
+
+message CreateOrFundResponse {
+    bool success = 1;
+}
+
+message InitiatePaymentRequest {
+    string fromStellarAddress = 1;
+
+    double amount = 2;
+    string asset = 3;
+    string memo = 4;
+
+    oneof destination {
+        string toStellarAddress = 5;
+        string prevTransactionXdr = 6;
+    }
+}
+
+message InitiatePaymentResponse {
+    string gwPresentTransactionXdr = 1;
+    string gwReimbursementTransactionXdr = 2;
+}
+
+message PaymentCommitRequest {
+    string signedReimbursementTransactionXdr = 1;
+}
+
+message PaymentCommitResponse {
+    string signedDestinationTransactionXdr = 1;
+}
+
+service PPSideChannel {
+    rpc SetUpPeer(SetUpPeerRequest) returns (SetUpPeerResponse);
+
+    rpc CreateOrFund(CreateOrFundRequest) returns (CreateOrFundResponse);
+
+    rpc InitiatePayment(InitiatePaymentRequest) returns (InitiatePaymentResponse);
+
+    rpc PaymentCommit(PaymentCommitRequest) returns (PaymentCommitResponse);
+}
+
+message CommandRequest {
+    int32 commandType = 1;
+    string commandBody = 2;
+}
+
+message CommandReply {
+    string responseBody = 1;
+}
+
+service PPPaymentUtilityServices {
+    rpc ProcessCommand(CommandRequest) returns (CommandReply);
+}

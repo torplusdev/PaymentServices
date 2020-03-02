@@ -68,6 +68,18 @@ message CommandReply {
     string responseBody = 1;
 }
 
+message PaymentRequest {
+
+}
+
+message PaymentReply {
+
+}
+
 service PPPaymentUtilityServices {
     rpc ProcessCommand(CommandRequest) returns (CommandReply);
+}
+
+service PPPaymentGateway {
+    rpc ProcessPayment(PaymentRequest) returns (PaymentReply);
 }

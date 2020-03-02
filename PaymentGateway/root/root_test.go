@@ -33,8 +33,6 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-
-
 func TestUserAccountCreation(t *testing.T) {
 	assert := assert.New(t)
 	k,_ := keypair.Random()

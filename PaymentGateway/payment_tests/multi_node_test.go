@@ -9,7 +9,7 @@ import (
 	"os"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
-	"paidpiper.com/payment-gateway/tests/mocks"
+	"paidpiper.com/payment-gateway/routing"
 	"strconv"
 
 	xid "github.com/rs/xid"
@@ -122,7 +122,7 @@ func TestSingleE2EPaymentNoAccumulation(t *testing.T) {
 	// Client
 	pr,err := serviceNode.CreatePaymentRequest(guid.String())
 
-	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 
 	// Initiate
@@ -186,7 +186,7 @@ func TestPaymentByClientWithInsufficientBalanceFails(t *testing.T) {
 		Asset:      "XLM",
 		ServiceRef: "test"}
 
-	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 	transactions,err := client.InitiatePayment(nodes, pr)
 	assert.Error(err,"Client has insufficient account balance")
@@ -212,7 +212,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	//Service
 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
 
-	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 
 	/*     ******                    Transaction 1			***********				*/

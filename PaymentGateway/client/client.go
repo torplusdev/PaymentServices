@@ -22,7 +22,7 @@ type Client struct {
 	nodeManager node.NodeManager
 }
 
-func CreateClient(rootApi *root.RootApi, cliendSeed string, nm node.NodeManager) *Client {
+func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager) *Client {
 
 	client := Client{
 		nodeManager:nm,
@@ -30,7 +30,7 @@ func CreateClient(rootApi *root.RootApi, cliendSeed string, nm node.NodeManager)
 
 	// Initialization
 	apiClient := rootApi.GetClient()
-	pair, err := keypair.ParseFull(cliendSeed)
+	pair, err := keypair.ParseFull(clientSeed)
 
 	if err != nil {
 		log.Fatal(err)

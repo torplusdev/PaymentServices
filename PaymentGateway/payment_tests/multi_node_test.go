@@ -102,7 +102,7 @@ func TestSingleE2EPaymentNoAccumulation(t *testing.T) {
 	rootApi := root.CreateRootApi(true)
 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client.CreateClient(rootApi, user1Seed,nm)
+	var client = client.CreateClient(rootApi, user1Seed, nm)
 	assert.NotNil(client)
 
 	accPre, err := testutils.GetAccount(keyService.Address())

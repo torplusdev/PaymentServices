@@ -23,7 +23,7 @@ func (nm *TestNodeManager) AddNode(node *node.Node) (*TestNodeManager) {
 	return nm
 }
 
-func (nm *TestNodeManager) GetNodeByAddress(address string) (*node.Node) {
+func (nm *TestNodeManager) GetNodeByAddress(address string) *node.Node {
 
 	return nm.nodes[address]
 }

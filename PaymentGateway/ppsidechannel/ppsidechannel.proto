@@ -69,7 +69,12 @@ message CommandReply {
 }
 
 message PaymentRequest {
-
+    repeated string routeAddresses = 1;
+    string serviceSessionId = 2;
+    string serviceRef = 3;
+    string address = 4;
+    uint32 transactionAmount = 5;
+    string asset = 6;
 }
 
 message PaymentReply {

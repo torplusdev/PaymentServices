@@ -1,5 +1,7 @@
 package common
 
+import "fmt"
+
 type TransactionAmount = uint32
 
 type PaymentRequest struct {
@@ -36,6 +38,14 @@ type PaymentNode struct {
 type PaymentRouter interface {
 	 CreatePaymentRoute(req PaymentRequest) []PaymentNode
 	 GetNodeByAddress( address string) (PaymentNode,error)
+}
+
+type TransactionError struct {
+	error string
+}
+
+func (te *TransactionError) Error() string {
+	return fmt.Sprintf("Error: " + te.error)
 }
 
 

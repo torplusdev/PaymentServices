@@ -1,4 +1,4 @@
-package payment_tests
+package payment_tests_simple
 
 import (
 	"github.com/stellar/go/clients/horizon"

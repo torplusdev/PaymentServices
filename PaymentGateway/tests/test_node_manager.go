@@ -9,7 +9,6 @@ type TestNodeManager struct {
 }
 
 func CreateTestNodeManager() *TestNodeManager {
-
 	nm := TestNodeManager {
 		nodes: make(map[string]*node.Node),
 	}
@@ -17,14 +16,12 @@ func CreateTestNodeManager() *TestNodeManager {
 	return &nm
 }
 
-func (nm *TestNodeManager) AddNode(node *node.Node) (*TestNodeManager) {
-
+func (nm *TestNodeManager) AddNode(node *node.Node) *TestNodeManager {
 	nm.nodes[node.Address] = node
 	return nm
 }
 
-func (nm *TestNodeManager) GetNodeByAddress(address string) *node.Node {
-
+func (nm *TestNodeManager) GetNodeByAddress(address string) node.PPNode {
 	return nm.nodes[address]
 }
 

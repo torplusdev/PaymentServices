@@ -122,12 +122,18 @@ func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentReq
 	ok := false
 
 	for _,t := range transactions {
+		e := t.Validate()
+		if (e != nil) {
+			return false, errors.Errorf("Error validating transaction")
+		}
+
 		trans, e := txnbuild.TransactionFromXDR(t.GetPaymentTransaction().XDR)
 
 		if (e != nil) {
 			log.Fatal("Error deser xdr: " + e.Error())
 
 		}
+
 
 		_ = trans
 	}
@@ -187,9 +193,6 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	//Iterating in reverse order
 	reverseAny(route)
-
-	route2 := router.CreatePaymentRoute(paymentRequest)
-	_ = route2
 
 	// Generate initial transaction
 	for i, e := range route[0:len(route)-1] {

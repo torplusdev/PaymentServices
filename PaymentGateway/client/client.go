@@ -134,7 +134,7 @@ func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentReq
 
 		}
 
-		trans.
+
 		_ = trans
 	}
 

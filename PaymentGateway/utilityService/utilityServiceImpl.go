@@ -20,16 +20,16 @@ type CreateTransactionRequest struct {
 }
 
 type SignTerminalTransactionsRequest struct {
-	Transaction common.PaymentTransactionSimple
+	Transaction common.PaymentTransactionReplacing
 }
 
 type SignChainTransactionsRequest struct {
-	Debit  common.PaymentTransactionSimple
-	Credit common.PaymentTransactionSimple
+	Debit  common.PaymentTransactionReplacing
+	Credit common.PaymentTransactionReplacing
 }
 
 type CommitPaymentTransactionRequest struct {
-	Transaction common.PaymentTransactionSimple
+	Transaction common.PaymentTransactionReplacing
 }
 
 type CommitPaymentTransactionResponse struct {

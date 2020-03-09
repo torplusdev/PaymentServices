@@ -33,12 +33,12 @@ type Node struct {
 type PPNode interface {
 	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount)
 	SetAccumulatingTransactionsMode(accumulateTransactions bool)
-	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest,error)
-	CreateTransaction( totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string ) common.PaymentTransactionPayload
-	SignTerminalTransactions(creditTransactionPayload common.PaymentTransactionPayload) *errors.Error
-	SignChainTransactions(creditTransactionPayload common.PaymentTransactionPayload, debitTransactionPayload common.PaymentTransactionPayload) *errors.Error
-	CommitServiceTransaction(transaction common.PaymentTransactionPayload, pr common.PaymentRequest) (bool, error)
-	CommitPaymentTransaction(transactionPayload common.PaymentTransactionPayload) (ok bool,err error)
+	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
+	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string ) (common.PaymentTransactionReplacing, error)
+	SignTerminalTransactions(creditTransactionPayload common.PaymentTransactionReplacing) *errors.Error
+	SignChainTransactions(creditTransactionPayload common.PaymentTransactionReplacing, debitTransactionPayload common.PaymentTransactionReplacing) *errors.Error
+	CommitServiceTransaction(transaction common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
+	CommitPaymentTransaction(transactionPayload common.PaymentTransactionReplacing) (ok bool, err error)
 }
 
 func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {
@@ -104,18 +104,11 @@ func (n *Node) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequ
 	}
 }
 
-func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransaction) (common.PaymentTransactionPayload, error) {
-
-	if n.accumulatingTransactionsMode {
-		tw, err := common.CreateReferenceTransaction(internalTransaction, n.activeTransactions[internalTransaction.PaymentSourceAddress])
-		return tw, err
-	} else {
-		return common.CreateSimpleTransaction(internalTransaction), nil
-	}
+func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransaction) (common.PaymentTransactionReplacing, error) {
+	return common.CreateReferenceTransaction(internalTransaction, n.activeTransactions[internalTransaction.PaymentSourceAddress])
 }
 
-func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) common.PaymentTransactionPayload {
-
+func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
 	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction {
 		TransactionSourceAddress:  n.Address,
 		ReferenceAmountIn:         totalIn,
@@ -126,6 +119,8 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 
 	if err != nil {
 		log.Fatal("Error creating transaction wrapper: " + err.Error())
+
+		return common.PaymentTransactionReplacing{}, err
 	}
 
 	//Verify fee
@@ -147,6 +142,7 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 
 	if err != nil {
 		log.Fatal("Error creating transaction: " + err.Error())
+		return common.PaymentTransactionReplacing{}, err
 	}
 	if n.client.URL == "https://horizon-testnet.stellar.org" {
 		tx.Mutate(build.TestNetwork)
@@ -158,12 +154,14 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 
 	if err != nil {
 		log.Fatal("Error generating transaction envelope: " + err.Error())
+		return common.PaymentTransactionReplacing{}, err
 	}
 
 	xdr, err := txe.Base64()
 
 	if err != nil {
 		log.Fatal("Error serializing transaction: " + err.Error())
+		return common.PaymentTransactionReplacing{}, err
 	}
 
 	transactionPayload.UpdateTransactionXDR(xdr)
@@ -171,10 +169,10 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 	// TODO: This should be configurable via profile/strategy
 	transactionPayload.UpdateStellarToken(build.TestNetwork.Passphrase)
 
-	return transactionPayload
+	return transactionPayload, nil
 }
 
-func (n *Node) SignTerminalTransactions(creditTransactionPayload common.PaymentTransactionPayload) *errors.Error {
+func (n *Node) SignTerminalTransactions(creditTransactionPayload common.PaymentTransactionReplacing) *errors.Error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 
@@ -217,7 +215,7 @@ func (n *Node) SignTerminalTransactions(creditTransactionPayload common.PaymentT
 	return nil
 }
 
-func (n *Node) SignChainTransactions(creditTransactionPayload common.PaymentTransactionPayload, debitTransactionPayload common.PaymentTransactionPayload) *errors.Error {
+func (n *Node) SignChainTransactions(creditTransactionPayload common.PaymentTransactionReplacing, debitTransactionPayload common.PaymentTransactionReplacing) *errors.Error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()
@@ -278,7 +276,7 @@ func (n *Node) SignChainTransactions(creditTransactionPayload common.PaymentTran
 	return nil
 }
 
-func (n *Node) verifyTransactionSignatures(transactionPayload common.PaymentTransactionPayload) (ok bool, err error) {
+func (n *Node) verifyTransactionSignatures(transactionPayload common.PaymentTransactionReplacing) (ok bool, err error) {
 
 	transaction := transactionPayload.GetPaymentTransaction()
 
@@ -362,7 +360,7 @@ func (n *Node) verifyTransactionSignatures(transactionPayload common.PaymentTran
 	return true, nil
 }
 
-func (n *Node) CommitPaymentTransaction(transactionPayload common.PaymentTransactionPayload) (ok bool, err error) {
+func (n *Node) CommitPaymentTransaction(transactionPayload common.PaymentTransactionReplacing) (ok bool, err error) {
 
 	ok = false
 	transaction := transactionPayload.GetPaymentTransaction()
@@ -397,7 +395,7 @@ func (n *Node) CommitPaymentTransaction(transactionPayload common.PaymentTransac
 	return true, nil
 }
 
-func (n *Node) CommitServiceTransaction(transaction common.PaymentTransactionPayload, pr common.PaymentRequest) (bool, error) {
+func (n *Node) CommitServiceTransaction(transaction common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
 
 	n.pendingPayment[pr.ServiceSessionId] = serviceUsageCredit{
 		amount:  n.pendingPayment[pr.ServiceSessionId].amount - transaction.GetPaymentTransaction().AmountOut,

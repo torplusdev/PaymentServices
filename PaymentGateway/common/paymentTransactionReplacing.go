@@ -10,17 +10,16 @@ type PaymentTransactionReplacing struct {
 	referenceTransaction PaymentTransaction
 }
 
-func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) (*PaymentTransactionReplacing,error) {
-
-	if (ref.XDR != "") {
-		if (pt.PaymentDestinationAddress != ref.PaymentDestinationAddress) {
+func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) (PaymentTransactionReplacing, error) {
+	if ref.XDR != "" {
+		if pt.PaymentDestinationAddress != ref.PaymentDestinationAddress {
 			log.Print("Error creating accumulating transactions, two transactions have different destination addresses")
-			return nil, errors.New("Error creating accumulating transactions, two transactino have different destination addresses")
+			return PaymentTransactionReplacing{}, errors.New("error creating accumulating transactions, two transaction have different destination addresses")
 		}
 
-		if (pt.PaymentSourceAddress != ref.PaymentSourceAddress) {
+		if pt.PaymentSourceAddress != ref.PaymentSourceAddress {
 			log.Print("Error creating accumulating transactions, two transactions have different source addresses")
-			return nil, errors.New("Error creating accumulating transactions, two transactions have different source addresses")
+			return PaymentTransactionReplacing{}, errors.New("error creating accumulating transactions, two transactions have different source addresses")
 		}
 	}
 
@@ -31,7 +30,7 @@ func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) 
 		referenceTransaction:ref,
 	}
 
-	return &transaction,nil
+	return transaction,nil
 }
 
 func (payload *PaymentTransactionReplacing) GetPaymentTransaction() PaymentTransaction {

@@ -11,8 +11,8 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
+	"paidpiper.com/payment-gateway/routing"
 	testutils "paidpiper.com/payment-gateway/tests"
-	"paidpiper.com/payment-gateway/tests/mocks"
 	"reflect"
 	"testing"
 )
@@ -98,11 +98,11 @@ func reverseAny(s interface{}) {
 	}
 }
 
-func createTestPayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) ([]common.PaymentTransactionPayload,error) {
+func createTestPayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) ([]common.PaymentTransactionReplacing, error) {
 
 	route := router.CreatePaymentRoute(paymentRequest)
 
-	transactions := make([]common.PaymentTransactionPayload,0, len(route))
+	transactions := make([]common.PaymentTransactionReplacing, 0, len(route))
 	reverseAny(route)
 
 	// Generate initial transaction
@@ -112,8 +112,8 @@ func createTestPayment(router common.PaymentRouter, paymentRequest common.Paymen
 		stepNode := nm.GetNodeByAddress(e.Address)
 
 		// Create and store transaction
-		nodeTransaction := stepNode.CreateTransaction(paymentRequest.Amount, 0, paymentRequest.Amount, sourceAddress)
-		transactions = append(transactions,nodeTransaction)
+		nodeTransaction, _ := stepNode.CreateTransaction(paymentRequest.Amount, 0, paymentRequest.Amount, sourceAddress)
+		transactions = append(transactions, nodeTransaction)
 	}
 
 	debitTransaction := transactions[0]
@@ -151,11 +151,10 @@ func createTestPayment(router common.PaymentRouter, paymentRequest common.Paymen
 
 	_ = fundingTransaction.UpdateTransactionXDR(xdr)
 
-	return transactions,nil
+	return transactions, nil
 }
 
 func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
-
 	// Initialization
 	assert := assert.New(t)
 
@@ -173,7 +172,7 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 	//Service
 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
 
-	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 	/*     ******                    Transaction 1			***********				*/
 	guid1 := xid.New()

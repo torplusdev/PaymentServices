@@ -116,7 +116,7 @@ func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransa
 
 func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) common.PaymentTransactionPayload {
 
-	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction{
+	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction {
 		TransactionSourceAddress:  n.Address,
 		ReferenceAmountIn:         totalIn,
 		AmountOut:                 totalOut,

@@ -12,18 +12,18 @@ import (
 )
 
 type GatewayServiceImpl struct {
- 	nodeManager node.NodeManager
- 	seed		keypair.Full
+ 	NodeManager node.NodeManager
+ 	Seed		*keypair.Full
 }
 
 func (g *GatewayServiceImpl) ProcessPayment(ctx context.Context, request *ppsidechannel.PaymentRequest) (*ppsidechannel.PaymentReply, error) {
 	rootApi := root.CreateRootApi(true)
 
-	client := client.CreateClient(rootApi, g.seed.Seed(), g.nodeManager)
+	client := client.CreateClient(rootApi, g.Seed.Seed(), g.NodeManager)
 
 	addrs := make([]string, len(request.RouteAddresses) + 2)
 
-	addrs = append(addrs, g.seed.Address())
+	addrs = append(addrs, g.Seed.Address())
 
 	for _, a := range request.RouteAddresses {
 		addrs = append(addrs, a)

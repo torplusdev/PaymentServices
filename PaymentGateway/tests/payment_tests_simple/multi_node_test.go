@@ -232,8 +232,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	assert.True(ok && err == nil)
 
 	// Commit
-	ok, err = client.FinalizePayment(nodes, transactions,pr1 )
-
+	ok, err = client.FinalizePayment(nodes, transactions, pr1)
 
 	/*     ******                    Transaction 2			*************				*/
 	guid2 := xid.New()

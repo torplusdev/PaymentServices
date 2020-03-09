@@ -45,7 +45,11 @@ func (s *UtilityServiceImpl) CreateTransaction(ctx context.Context, commandBody 
 		return nil, err
 	}
 
-	transaction := s.node.CreateTransaction(request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
+	transaction, err := s.node.CreateTransaction(request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
+
+	if err != nil {
+		return nil, err
+	}
 
 	value, err := json.Marshal(&transaction)
 
@@ -73,8 +77,10 @@ func (s *UtilityServiceImpl) SignTerminalTransaction(ctx context.Context, comman
 		return nil, err
 	}
 
+	value, err := json.Marshal(&request)
+
 	return &pp.CommandReply{
-		ResponseBody: "",
+		ResponseBody: string(value),
 	}, nil
 }
 

@@ -18,10 +18,6 @@ func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount comm
 	panic("implement me")
 }
 
-func (n NodeProxy) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
-	panic("implement me")
-}
-
 func (n NodeProxy) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {
 	panic("implement me")
 }
@@ -59,17 +55,17 @@ func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee commo
 	return payload, nil
 }
 
-func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload common.PaymentTransactionReplacing) *errors.Error {
+func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
 //	var request = &utilityService.SignTerminalTransactionsRequest{
 //		Transaction:
 //	}
 	panic("implement me")
 }
 
-func (n NodeProxy) SignChainTransactions(creditTransactionPayload common.PaymentTransactionReplacing, debitTransactionPayload common.PaymentTransactionReplacing) *errors.Error {
+func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
 	var request = &utilityService.SignChainTransactionsRequest{
-		Debit:  debitTransactionPayload,
-		Credit: creditTransactionPayload,
+		Debit:  *debitTransactionPayload,
+		Credit: *creditTransactionPayload,
 	}
 
 	body, err := json.Marshal(request)
@@ -90,13 +86,13 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload common.Payment
 	return nil
 }
 
-func (n NodeProxy) CommitServiceTransaction(transaction common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (n NodeProxy) CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
 	panic("implement me")
 }
 
-func (n NodeProxy) CommitPaymentTransaction(transactionPayload common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n NodeProxy) CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 	var request = &utilityService.CommitPaymentTransactionRequest {
-		Transaction: transactionPayload,
+		Transaction: *transactionPayload,
 	}
 
 	body, err := json.Marshal(request)

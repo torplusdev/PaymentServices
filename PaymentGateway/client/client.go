@@ -228,7 +228,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
 	//serviceNode := node.GetNodeApi(route[0].PaymentDestinationAddress,route[0].Seed)
-	serviceNode.SignTerminalTransactions(debitTransaction)
+	serviceNode.SignTerminalTransactions(&debitTransaction)
 
 	// Consecutive signing process
 	for idx := 1; idx < len(transactions); idx++ {
@@ -239,7 +239,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 		//stepNode := node.GetNodeApi(t.PaymentDestinationAddress, t.Seed)
 		creditTransaction := t
 
-		stepNode.SignChainTransactions(creditTransaction,debitTransaction)
+		stepNode.SignChainTransactions(&creditTransaction, &debitTransaction)
 
 		debitTransaction = creditTransaction
 
@@ -279,9 +279,9 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 
 		// If this is a payment to the requesting node
 		if trans.PaymentDestinationAddress == pr.Address {
-			res,err = stepNode.CommitServiceTransaction(t, pr)
+			res,err = stepNode.CommitServiceTransaction(&t, pr)
 		} else {
-			res,err = stepNode.CommitPaymentTransaction(t)
+			res,err = stepNode.CommitPaymentTransaction(&t)
 		}
 
 		if err != nil {

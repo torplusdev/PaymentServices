@@ -32,13 +32,12 @@ type Node struct {
 
 type PPNode interface {
 	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount)
-	SetAccumulatingTransactionsMode(accumulateTransactions bool)
 	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
-	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string ) (common.PaymentTransactionReplacing, error)
-	SignTerminalTransactions(creditTransactionPayload common.PaymentTransactionReplacing) *errors.Error
-	SignChainTransactions(creditTransactionPayload common.PaymentTransactionReplacing, debitTransactionPayload common.PaymentTransactionReplacing) *errors.Error
-	CommitServiceTransaction(transaction common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
-	CommitPaymentTransaction(transactionPayload common.PaymentTransactionReplacing) (ok bool, err error)
+	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
+	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
+	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
+	CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
+	CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
 }
 
 func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {
@@ -172,7 +171,7 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 	return transactionPayload, nil
 }
 
-func (n *Node) SignTerminalTransactions(creditTransactionPayload common.PaymentTransactionReplacing) *errors.Error {
+func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 
@@ -215,7 +214,7 @@ func (n *Node) SignTerminalTransactions(creditTransactionPayload common.PaymentT
 	return nil
 }
 
-func (n *Node) SignChainTransactions(creditTransactionPayload common.PaymentTransactionReplacing, debitTransactionPayload common.PaymentTransactionReplacing) *errors.Error {
+func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()
@@ -276,7 +275,7 @@ func (n *Node) SignChainTransactions(creditTransactionPayload common.PaymentTran
 	return nil
 }
 
-func (n *Node) verifyTransactionSignatures(transactionPayload common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) verifyTransactionSignatures(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 
 	transaction := transactionPayload.GetPaymentTransaction()
 
@@ -360,7 +359,7 @@ func (n *Node) verifyTransactionSignatures(transactionPayload common.PaymentTran
 	return true, nil
 }
 
-func (n *Node) CommitPaymentTransaction(transactionPayload common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 
 	ok = false
 	transaction := transactionPayload.GetPaymentTransaction()
@@ -395,7 +394,7 @@ func (n *Node) CommitPaymentTransaction(transactionPayload common.PaymentTransac
 	return true, nil
 }
 
-func (n *Node) CommitServiceTransaction(transaction common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (n *Node) CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
 
 	n.pendingPayment[pr.ServiceSessionId] = serviceUsageCredit{
 		amount:  n.pendingPayment[pr.ServiceSessionId].amount - transaction.GetPaymentTransaction().AmountOut,

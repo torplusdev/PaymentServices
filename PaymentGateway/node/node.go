@@ -388,7 +388,7 @@ func (n *Node) CommitPaymentTransaction(transactionPayload *common.PaymentTransa
 		log.Debug("Transaction submitted: " + res.Result)
 	} else {
 		// Save transaction
-		n.activeTransactions[transaction.PaymentSourceAddress] = transaction
+		n.activeTransactions[transaction.PaymentSourceAddress] = *transaction
 	}
 
 	return true, nil

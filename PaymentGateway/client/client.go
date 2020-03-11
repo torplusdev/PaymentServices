@@ -60,7 +60,7 @@ func reverseAny(s interface{}) {
 }
 
 
-func (client *Client) SignInitialTransactions(fundingTransactionPayload common.PaymentTransactionReplacing, expectedDestination string, expectedAmount common.TransactionAmount) error {
+func (client *Client) SignInitialTransactions(fundingTransactionPayload *common.PaymentTransactionReplacing, expectedDestination string, expectedAmount common.TransactionAmount) error {
 
 	transaction := fundingTransactionPayload.GetPaymentTransaction()
 
@@ -223,29 +223,29 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 */
 
 	// initialize debit with service transaction
-	debitTransaction := transactions[0]
+	debitTransaction := &transactions[0]
 
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
 	//serviceNode := node.GetNodeApi(route[0].PaymentDestinationAddress,route[0].Seed)
-	serviceNode.SignTerminalTransactions(&debitTransaction)
+	serviceNode.SignTerminalTransactions(debitTransaction)
 
 	// Consecutive signing process
 	for idx := 1; idx < len(transactions); idx++ {
 
-		t := transactions[idx]
+		t := &transactions[idx]
+
 		//TODO: Remove seed initialization
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 		//stepNode := node.GetNodeApi(t.PaymentDestinationAddress, t.Seed)
 		creditTransaction := t
 
-		stepNode.SignChainTransactions(&creditTransaction, &debitTransaction)
+		stepNode.SignChainTransactions(creditTransaction, debitTransaction)
 
 		debitTransaction = creditTransaction
-
 	}
 
-	err = client.SignInitialTransactions(transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount + totalFee)
+	err = client.SignInitialTransactions(&transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount + totalFee)
 
 	if err != nil {
 		log.Fatal("Error in transaction: " + err.Error())

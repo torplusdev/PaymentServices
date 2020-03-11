@@ -33,8 +33,8 @@ func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) 
 	return transaction,nil
 }
 
-func (payload *PaymentTransactionReplacing) GetPaymentTransaction() PaymentTransaction {
-	return payload.pendingTransaction
+func (payload *PaymentTransactionReplacing) GetPaymentTransaction() *PaymentTransaction {
+	return &payload.pendingTransaction
 }
 
 func (payload *PaymentTransactionReplacing) Validate() error {

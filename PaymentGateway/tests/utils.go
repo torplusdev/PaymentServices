@@ -48,7 +48,7 @@ func GetAccount(address string) (account horizon.Account, err error) {
 	return accountDetail, errAccount
 }
 
-func Print(t common.PaymentTransaction) string {
+func Print(t *common.PaymentTransaction) string {
 	b := strings.Builder{}
 
 	b.WriteString("ext.src: " + t.TransactionSourceAddress + "\n")

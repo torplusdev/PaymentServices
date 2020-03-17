@@ -14,26 +14,26 @@ type UtilityServiceImpl struct {
 }
 
 type CreateTransactionRequest struct {
-	totalIn       uint32
-	totalOut      uint32
-	sourceAddress string
+	TotalIn       uint32
+	TotalOut      uint32
+	SourceAddress string
 }
 
 type SignTerminalTransactionsRequest struct {
-	transaction common.PaymentTransactionSimple
+	Transaction common.PaymentTransactionReplacing
 }
 
 type SignChainTransactionsRequest struct {
-	debit  common.PaymentTransactionSimple
-	credit common.PaymentTransactionSimple
+	Debit  common.PaymentTransactionReplacing
+	Credit common.PaymentTransactionReplacing
 }
 
 type CommitPaymentTransactionRequest struct {
-	transaction common.PaymentTransactionSimple
+	Transaction common.PaymentTransactionReplacing
 }
 
 type CommitPaymentTransactionResponse struct {
-	ok bool
+	Ok bool
 }
 
 func (s *UtilityServiceImpl) CreateTransaction(ctx context.Context, commandBody string) (*pp.CommandReply, error) {
@@ -45,7 +45,11 @@ func (s *UtilityServiceImpl) CreateTransaction(ctx context.Context, commandBody 
 		return nil, err
 	}
 
-	transaction := s.node.CreateTransaction(request.totalIn, request.totalIn-request.totalOut, request.totalOut, request.sourceAddress)
+	transaction, err := s.node.CreateTransaction(request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
+
+	if err != nil {
+		return nil, err
+	}
 
 	value, err := json.Marshal(&transaction)
 
@@ -67,17 +71,13 @@ func (s *UtilityServiceImpl) SignTerminalTransaction(ctx context.Context, comman
 		return nil, err
 	}
 
-	err = s.node.SignTerminalTransactions(&request.transaction)
+	err = s.node.SignTerminalTransactions(&request.Transaction)
 
 	if err != nil {
 		return nil, err
 	}
 
 	value, err := json.Marshal(&request)
-
-	if err != nil {
-		return nil, err
-	}
 
 	return &pp.CommandReply{
 		ResponseBody: string(value),
@@ -93,7 +93,7 @@ func (s *UtilityServiceImpl) SignChainTransactions(ctx context.Context, commandB
 		return nil, err
 	}
 
-	err = s.node.SignChainTransactions(&request.credit, &request.debit)
+	err = s.node.SignChainTransactions(&request.Credit, &request.Debit)
 
 	if err != nil {
 		return nil, err
@@ -119,13 +119,13 @@ func (s *UtilityServiceImpl) CommitPaymentTransaction(ctx context.Context, comma
 		return nil, err
 	}
 
-	ok, err := s.node.CommitPaymentTransaction(&request.transaction)
+	ok, err := s.node.CommitPaymentTransaction(&request.Transaction)
 
 	if err != nil {
 		return nil, err
 	}
 
-	value, err := json.Marshal(&CommitPaymentTransactionResponse{ok: ok})
+	value, err := json.Marshal(&CommitPaymentTransactionResponse{Ok: ok})
 
 	if err != nil {
 		return nil, err

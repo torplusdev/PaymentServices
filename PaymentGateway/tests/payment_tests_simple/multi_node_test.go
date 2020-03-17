@@ -124,7 +124,6 @@ func TestSingleE2EPaymentNoAccumulation(t *testing.T) {
 
 	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
-
 	// Initiate
 	transactions,err := client.InitiatePayment(nodes, pr)
 	assert.NotNil(transactions)
@@ -232,8 +231,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	assert.True(ok && err == nil)
 
 	// Commit
-	ok, err = client.FinalizePayment(nodes, transactions,pr1 )
-
+	ok, err = client.FinalizePayment(nodes, transactions, pr1)
 
 	/*     ******                    Transaction 2			*************				*/
 	guid2 := xid.New()

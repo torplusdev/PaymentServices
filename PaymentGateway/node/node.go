@@ -39,6 +39,7 @@ type PPNode interface {
 	SignChainTransactions(creditTransactionPayload common.PaymentTransactionPayload, debitTransactionPayload common.PaymentTransactionPayload) *errors.Error
 	CommitServiceTransaction(transaction common.PaymentTransactionPayload, pr common.PaymentRequest) (bool, error)
 	CommitPaymentTransaction(transactionPayload common.PaymentTransactionPayload) (ok bool,err error)
+	GetAddress() string
 }
 
 func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {
@@ -104,6 +105,10 @@ func (n *Node) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequ
 	}
 }
 
+func (n *Node) GetAddress() string {
+	return n.Address
+}
+
 func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransaction) (common.PaymentTransactionPayload, error) {
 
 	if n.accumulatingTransactionsMode {
@@ -115,6 +120,13 @@ func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransa
 }
 
 func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) common.PaymentTransactionPayload {
+
+	//Verify fee
+	if totalIn-totalOut != fee {
+		log.Fatal("Incorrect fee requested")
+	}
+
+	var amount = totalIn
 
 	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction{
 		TransactionSourceAddress:  n.Address,
@@ -128,22 +140,28 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 		log.Fatal("Error creating transaction wrapper: " + err.Error())
 	}
 
-	//Verify fee
-	if totalIn-totalOut != fee {
-		log.Fatal("Incorrect fee requested")
+	var tx *build.TransactionBuilder
+
+	if n.accumulatingTransactionsMode {
+
+		tx, err = build.Transaction(
+			build.SourceAccount{n.Address},
+			build.AutoSequence{n.client},
+			build.Payment(
+				build.SourceAccount{sourceAddress},
+				build.Destination{n.Address},
+				build.NativeAmount{strconv.FormatUint(uint64(amount), 10)},
+			),
+		)
+
+		if (err == nil) {
+
+		}
+
 	}
 
-	var amount = totalIn
 
-	tx, err := build.Transaction(
-		build.SourceAccount{n.Address},
-		build.AutoSequence{n.client},
-		build.Payment(
-			build.SourceAccount{sourceAddress},
-			build.Destination{n.Address},
-			build.NativeAmount{strconv.FormatUint(uint64(amount), 10)},
-		),
-	)
+
 
 	if err != nil {
 		log.Fatal("Error creating transaction: " + err.Error())

@@ -55,3 +55,7 @@ func (payload *PaymentTransactionReplacing) UpdateStellarToken(token string) err
 	payload.pendingTransaction.StellarNetworkToken = token
 	return nil
 }
+
+func (payload *PaymentTransactionReplacing) GetReferenceTransaction() PaymentTransaction {
+	return payload.referenceTransaction
+}

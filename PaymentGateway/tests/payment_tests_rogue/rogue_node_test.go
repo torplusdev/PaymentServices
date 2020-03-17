@@ -11,8 +11,8 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
+	"paidpiper.com/payment-gateway/routing"
 	testutils "paidpiper.com/payment-gateway/tests"
-	"paidpiper.com/payment-gateway/tests/mocks"
 	"reflect"
 	"testing"
 )
@@ -156,8 +156,12 @@ func createTestPayment(router common.PaymentRouter, paymentRequest common.Paymen
 
 func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
-	// Initialization
 	assert := assert.New(t)
+
+	nm.ReplaceNode("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
+		CreateRogueNode_NonidenticalSequenceNumbers(horizon.DefaultTestNetClient,
+			"GBFQ5SXDQAU5LVJFOUYXZXPUGNJIDHAYIOD4PTJCJJNQSHOWWZF5FQTP",
+			"SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU",false))
 
 	keyUser, _ := keypair.ParseFull(user1Seed)
 
@@ -168,12 +172,12 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 	assert.NotNil(client)
 
 	nm.SetAccumulatingTransactionsMode(true)
-	var servicePayment uint32 = 123
+	var servicePayment uint32 = 234
 
 	//Service
 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
 
-	nodes := mocks.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 	/*     ******                    Transaction 1			***********				*/
 	guid1 := xid.New()
@@ -204,7 +208,24 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 	pr2,err := serviceNode.CreatePaymentRequest(guid2.String())
 
 	// Initiate
-	transactions,err = createTestPayment(nodes, pr2)
+	transactions,err = client.InitiatePayment(nodes, pr2)
+
+	for _,t := range transactions {
+
+		ptr := t.(*common.PaymentTransactionReplacing)
+		payTrans := ptr.GetPaymentTransaction()
+		refTrans := ptr.GetReferenceTransaction()
+
+		payTransStellar,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
+		refTransStellar,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
+
+		paySequenceNumber,_ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		refSequenceNumber,_ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+
+		_ = paySequenceNumber
+		_ = refSequenceNumber
+	}
+
 
 	// Verify
 	ok, err = client.VerifyTransactions(nodes, pr2, transactions)

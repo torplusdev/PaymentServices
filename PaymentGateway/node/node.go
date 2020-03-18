@@ -32,12 +32,14 @@ type Node struct {
 
 type PPNode interface {
 	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount)
+	SetAccumulatingTransactionsMode(accumulateTransactions bool)
 	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
 	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
 	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
 	CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
 	CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
+	GetAddress() string
 }
 
 func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {
@@ -103,11 +105,33 @@ func (n *Node) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequ
 	}
 }
 
+func (n *Node) GetAddress() string {
+	return n.Address
+}
+
 func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransaction) (common.PaymentTransactionReplacing, error) {
 	return common.CreateReferenceTransaction(internalTransaction, n.activeTransactions[internalTransaction.PaymentSourceAddress])
 }
 
+//func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransaction) (common.PaymentTransactionPayload, error) {
+//
+//	if n.accumulatingTransactionsMode {
+//		tw, err := common.CreateReferenceTransaction(internalTransaction, n.activeTransactions[internalTransaction.PaymentSourceAddress])
+//		return tw, err
+//	} else {
+//		return common.CreateSimpleTransaction(internalTransaction), nil
+//	}
+//}
+
 func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+
+	//Verify fee
+	if totalIn-totalOut != fee {
+		log.Fatal("Incorrect fee requested")
+	}
+
+	var amount = totalIn
+
 	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction {
 		TransactionSourceAddress:  n.Address,
 		ReferenceAmountIn:         totalIn,
@@ -118,20 +142,35 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 
 	if err != nil {
 		log.Fatal("Error creating transaction wrapper: " + err.Error())
-
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	//Verify fee
-	if totalIn-totalOut != fee {
-		log.Fatal("Incorrect fee requested")
+	var sequenceProvider build.SequenceProvider
+
+	// If this is the first transaction for the node+client pair and there's no reference transaction
+	if transactionPayload.GetReferenceTransaction() == (common.PaymentTransaction{}) {
+		sequenceProvider = build.AutoSequence{n.client}
+
+	} else {
+		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
+
+		referenceTransaction,err := txnbuild.TransactionFromXDR(referenceTransactionPayload.XDR)
+
+		if err != nil {
+			return common.PaymentTransactionReplacing{}, errors.Errorf("Error deserializing XDR transaction: %s",err.Error())
+		}
+
+		referenceSequenceNumber,err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+
+		_ = referenceSequenceNumber
+		sequenceProvider = build.AutoSequence{common.CreateStaticSequence(uint64(referenceSequenceNumber - 1))}
+
 	}
 
-	var amount = totalIn
 
 	tx, err := build.Transaction(
 		build.SourceAccount{n.Address},
-		build.AutoSequence{n.client},
+		build.AutoSequence{sequenceProvider},
 		build.Payment(
 			build.SourceAccount{sourceAddress},
 			build.Destination{n.Address},
@@ -168,7 +207,7 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 	// TODO: This should be configurable via profile/strategy
 	transactionPayload.UpdateStellarToken(build.TestNetwork.Passphrase)
 
-	return transactionPayload, nil
+	return transactionPayload,nil
 }
 
 func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {

@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/rs/xid v1.2.1
-	github.com/stellar/go v0.0.0-20200116182239-2a7c16b0b50a
+	github.com/stellar/go v0.0.0-20200306220739-bfc713ce1dad
 	github.com/stretchr/testify v1.4.0
 	google.golang.org/grpc v1.20.1
 )

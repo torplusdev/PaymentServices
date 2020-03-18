@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	client "paidpiper.com/payment-gateway/client"
-	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
@@ -57,29 +56,29 @@ func setupTestNodeManager(m *testing.M) {
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-		"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN",false))
+		"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN",true))
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
-		"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC",false))
+		"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC",true))
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW",
-		"SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A",false))
+		"SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A",true))
 
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7",
-		"SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK",false))
+		"SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK",true))
 
 	// service
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE",
-		"SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34",false))
+		"SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34",true))
 
 	// client
 	nm.AddNode(node.CreateNode(horizon.DefaultTestNetClient,
 		"GBFQ5SXDQAU5LVJFOUYXZXPUGNJIDHAYIOD4PTJCJJNQSHOWWZF5FQTP",
-		"SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU",false))
+		"SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU",true))
 }
 
 func TestMain(m *testing.M) {
@@ -98,70 +97,14 @@ func reverseAny(s interface{}) {
 	}
 }
 
-func createTestPayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) ([]common.PaymentTransactionPayload,error) {
-
-	route := router.CreatePaymentRoute(paymentRequest)
-
-	transactions := make([]common.PaymentTransactionPayload,0, len(route))
-	reverseAny(route)
-
-	// Generate initial transaction
-	for i, e := range route[0:len(route)-1] {
-
-		var sourceAddress = route[i+1].Address
-		stepNode := nm.GetNodeByAddress(e.Address)
-
-		// Create and store transaction
-		nodeTransaction := stepNode.CreateTransaction(paymentRequest.Amount, 0, paymentRequest.Amount, sourceAddress)
-		transactions = append(transactions,nodeTransaction)
-	}
-
-	debitTransaction := transactions[0]
-
-	serviceNode := nm.GetNodeByAddress(route[0].Address)
-	serviceNode.SignTerminalTransactions(debitTransaction)
-
-	for idx := 1; idx < len(transactions); idx++ {
-
-		t := transactions[idx]
-		stepNode := nm.GetNodeByAddress(t.GetPaymentDestinationAddress())
-		creditTransaction := t
-
-		stepNode.SignChainTransactions(creditTransaction,debitTransaction)
-		debitTransaction = creditTransaction
-	}
-
-	fundingTransaction := transactions[len(transactions)-1]
-	//address := route[len(transactions)-1].Address
-
-	transaction := fundingTransaction.GetPaymentTransaction()
-
-	t, _ := txnbuild.TransactionFromXDR(transaction.XDR)
-
-	//op, _ := t.Operations[0].(*txnbuild.Payment)
-
-	t.Network = transaction.StellarNetworkToken
-
-	fullKeyPair,_ := keypair.ParseFull("SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU")
-
-	_ = t.Sign(fullKeyPair)
-
-	xdr,_ := t.Base64()
-
-
-	_ = fundingTransaction.UpdateTransactionXDR(xdr)
-
-	return transactions,nil
-}
-
 func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
 	assert := assert.New(t)
 
 	nm.ReplaceNode("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
 		CreateRogueNode_NonidenticalSequenceNumbers(horizon.DefaultTestNetClient,
-			"GBFQ5SXDQAU5LVJFOUYXZXPUGNJIDHAYIOD4PTJCJJNQSHOWWZF5FQTP",
-			"SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU",false))
+			"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
+			"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC",false))
 
 	keyUser, _ := keypair.ParseFull(user1Seed)
 
@@ -212,7 +155,7 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
 	for _,t := range transactions {
 
-		ptr := t.(*common.PaymentTransactionReplacing)
+		ptr := t
 		payTrans := ptr.GetPaymentTransaction()
 		refTrans := ptr.GetReferenceTransaction()
 

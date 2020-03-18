@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"github.com/stellar/go/txnbuild"
 	"log"
 )
 
@@ -37,7 +38,49 @@ func (payload *PaymentTransactionReplacing) GetPaymentTransaction() *PaymentTran
 	return &payload.pendingTransaction
 }
 
+func (payload *PaymentTransactionReplacing) validateSingleTransaction(transaction *PaymentTransaction) error {
+
+	//TODO: Add transaction validation
+
+	return nil
+}
+
 func (payload *PaymentTransactionReplacing) Validate() error {
+
+	// Check that the transactions carry the same sequnce id
+	payTrans := payload.GetPaymentTransaction()
+	refTrans := payload.GetReferenceTransaction()
+
+	payTransStellar,err := txnbuild.TransactionFromXDR(payTrans.XDR)
+
+	if err != nil {
+		return errors.New("validation error: couldn't deserialize payment transaction")
+	}
+
+	err = payload.validateSingleTransaction(payTrans)
+
+	if err != nil {
+		return errors.New("validation error: error validating payment transaction: " + err.Error())
+	}
+
+	if refTrans != (PaymentTransaction{}) {
+		refTransStellar,err := txnbuild.TransactionFromXDR(refTrans.XDR)
+
+		if err != nil {
+			return errors.New("validation error: couldn't deserialize reference transaction")
+		}
+
+		paySequenceNumber,_ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		refSequenceNumber,_ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+
+		if paySequenceNumber != refSequenceNumber {
+			return errors.New("validation error: different sequence numbers between transactions")
+		}
+
+		//TODO: Check signatures
+		//payTransStellar.TxEnvelope().Signatures[0]
+	}
+
 	return nil
 }
 

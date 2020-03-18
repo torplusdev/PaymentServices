@@ -145,11 +145,32 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 		return common.PaymentTransactionReplacing{}, err
 	}
 
+	var sequenceProvider build.SequenceProvider
+
+	// If this is the first transaction for the node+client pair and there's no reference transaction
+	if transactionPayload.GetReferenceTransaction() == (common.PaymentTransaction{}) {
+		sequenceProvider = build.AutoSequence{n.client}
+
+	} else {
+		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
+
+		referenceTransaction,err := txnbuild.TransactionFromXDR(referenceTransactionPayload.XDR)
+
+		if err != nil {
+			return common.PaymentTransactionReplacing{}, errors.Errorf("Error deserializing XDR transaction: %s",err.Error())
+		}
+
+		referenceSequenceNumber,err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+
+		_ = referenceSequenceNumber
+		sequenceProvider = build.AutoSequence{common.CreateStaticSequence(uint64(referenceSequenceNumber - 1))}
+
+	}
 
 
 	tx, err := build.Transaction(
 		build.SourceAccount{n.Address},
-		build.AutoSequence{n.client},
+		build.AutoSequence{sequenceProvider},
 		build.Payment(
 			build.SourceAccount{sourceAddress},
 			build.Destination{n.Address},
@@ -232,7 +253,7 @@ func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.Payment
 	return nil
 }
 
-func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload common.PaymentTransactionReplacing) *errors.Error {
+func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()

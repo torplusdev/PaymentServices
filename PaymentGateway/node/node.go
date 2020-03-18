@@ -41,7 +41,6 @@ type PPNode interface {
 }
 
 func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {
-
 	node := Node{
 		Address:                      address,
 		secretSeed:                   seed,

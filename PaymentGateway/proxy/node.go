@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"net/http"
 	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/utilityService"
+	"paidpiper.com/payment-gateway/models"
 	"strconv"
 )
 
@@ -56,7 +56,7 @@ func (n NodeProxy) CreatePaymentRequest(serviceSessionId string) (common.Payment
 }
 
 func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
-	var request = &utilityService.CreateTransactionRequest{
+	var request = &models.CreateTransactionCommand{
 		TotalIn:       totalIn,
 		TotalOut:      totalOut,
 		SourceAddress: sourceAddress,
@@ -74,26 +74,49 @@ func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee commo
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	var payload common.PaymentTransactionReplacing
+	response := &models.CreateTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply), &payload)
+	err = json.Unmarshal([]byte(reply), response)
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	return payload, nil
+	return response.Transaction, nil
 }
 
 func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
-//	var request = &utilityService.SignTerminalTransactionsRequest{
-//		Transaction:
-//	}
-	panic("implement me")
+	var request = &models.SignTerminalTransactionCommand{
+		Transaction: *creditTransactionPayload,
+	}
+
+	body, err := json.Marshal(request)
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	reply, err := n.ProcessCommand(1,  string(body))
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	var response = &models.SignTerminalTransactionResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	creditTransactionPayload = &response.Transaction
+
+	return nil
 }
 
 func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
-	var request = &utilityService.SignChainTransactionsRequest{
+	var request = &models.SignChainTransactionsCommand{
 		Debit:  *debitTransactionPayload,
 		Credit: *creditTransactionPayload,
 	}
@@ -104,21 +127,57 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.Paymen
 		return errors.Errorf(err.Error())
 	}
 
-	_, err = n.ProcessCommand(2,  string(body))
+	reply, err := n.ProcessCommand(2,  string(body))
 
 	if err != nil {
 		return errors.Errorf(err.Error())
 	}
 
+	var response = &models.SignChainTransactionsResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	creditTransactionPayload = &response.Credit
+	debitTransactionPayload = &response.Debit
+
 	return nil
 }
 
 func (n NodeProxy) CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
-	panic("implement me")
+	var request = &models.CommitServiceTransactionCommand {
+		Transaction: *transaction,
+		PaymentRequest: pr,
+	}
+
+	body, err := json.Marshal(request)
+
+	if err != nil {
+		return false, errors.Errorf(err.Error())
+	}
+
+	reply, err := n.ProcessCommand(4, string(body))
+
+	if err != nil {
+		return false, errors.Errorf(err.Error())
+	}
+
+	var response = &models.CommitServiceTransactionResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return false, errors.Errorf(err.Error())
+	}
+
+	return response.Ok, nil
 }
 
 func (n NodeProxy) CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
-	var request = &utilityService.CommitPaymentTransactionRequest {
+	var request = &models.CommitPaymentTransactionCommand {
 		Transaction: *transactionPayload,
 	}
 
@@ -134,15 +193,15 @@ func (n NodeProxy) CommitPaymentTransaction(transactionPayload *common.PaymentTr
 		return false, errors.Errorf(err.Error())
 	}
 
-	var payload utilityService.CommitPaymentTransactionResponse
+	var response = &models.CommitPaymentTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply), &payload)
+	err = json.Unmarshal([]byte(reply), response)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
 	}
 
-	return payload.Ok, nil
+	return response.Ok, nil
 }
 
 

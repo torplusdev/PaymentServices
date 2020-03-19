@@ -32,14 +32,15 @@ type Node struct {
 
 type PPNode interface {
 	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount)
-	SetAccumulatingTransactionsMode(accumulateTransactions bool)
 	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
 	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
 	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
 	CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
 	CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
-	GetAddress() string
+
+	//	SetAccumulatingTransactionsMode(accumulateTransactions bool)
+	//	GetAddress() string
 }
 
 func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {

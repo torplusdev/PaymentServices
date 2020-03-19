@@ -1,6 +1,7 @@
 package payment_tests_rogue
 
 import (
+	"errors"
 	xid "github.com/rs/xid"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	client "paidpiper.com/payment-gateway/client"
+	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
@@ -172,11 +174,53 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
 	// Verify
 	ok, err = client.VerifyTransactions(nodes, pr2, transactions)
+	var e *common.TransactionValidationError
+	assert.True(errors.As(err,&e), e.Error())
+
+}
+
+func TestAccumulatingTransactionWithBadSignatureShouldFail(t *testing.T) {
+
+	assert := assert.New(t)
+
+	nm.ReplaceNode("GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+		CreateRogueNode_BadSignature(horizon.DefaultTestNetClient,
+			"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+			"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN",false))
+
+	keyUser, _ := keypair.ParseFull(user1Seed)
+
+	rootApi := root.CreateRootApi(true)
+	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
+
+	var client = client.CreateClient(rootApi, user1Seed,nm)
+	assert.NotNil(client)
+
+	nm.SetAccumulatingTransactionsMode(true)
+	var servicePayment uint32 = 234
+
+	//Service
+	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
+
+	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+
+	/*     ******                    Transaction 1			***********				*/
+	guid1 := xid.New()
+
+	// Add pending credit
+	serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
+	pr1,err := serviceNode.CreatePaymentRequest(guid1.String())
+
+	// Initiate
+	transactions,err := client.InitiatePayment(nodes, pr1)
+	assert.NotNil(transactions)
+
+	// Verify
+	ok, err := client.VerifyTransactions(nodes, pr1, transactions)
 	assert.NoError(err)
 	assert.True(ok && err == nil)
 
 	// Commit
-	ok, err = client.FinalizePayment(nodes, transactions, pr2)
-	assert.True(ok && err == nil)
-
+	ok, err = client.FinalizePayment(nodes, transactions,pr1 )
+	assert.Error(err)
 }

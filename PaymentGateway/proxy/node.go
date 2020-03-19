@@ -52,7 +52,31 @@ func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount comm
 }
 
 func (n NodeProxy) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {
-	panic("implement me")
+	var request = &models.CreatePaymentRequestCommand{
+		ServiceSessionId: serviceSessionId,
+	}
+
+	body, err := json.Marshal(request)
+
+	if err != nil {
+		return common.PaymentRequest{}, err
+	}
+
+	reply, err := n.ProcessCommand(0, string(body))
+
+	if err != nil {
+		return common.PaymentRequest{}, err
+	}
+
+	response := &models.CreatePaymentRequestResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return common.PaymentRequest{}, err
+	}
+
+	return response.PaymentRequest, nil
 }
 
 func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {

@@ -148,6 +148,34 @@ func (u *UtilityController) CommitPaymentTransaction(commandBody string) (string
 	return string(value), nil
 }
 
+func (u *UtilityController) CreatePaymentRequest(commandBody string) (string, error) {
+	request := &models.CreatePaymentRequestCommand{}
+
+	err := json.Unmarshal([]byte(commandBody), request)
+
+	if err != nil {
+		return "", err
+	}
+
+	pr, err := u.Node.CreatePaymentRequest(request.ServiceSessionId)
+
+	if err != nil {
+		return "", err
+	}
+
+	response := &models.CreatePaymentRequestResponse{
+		PaymentRequest: pr,
+	}
+
+	value, err := json.Marshal(response)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(value), nil
+}
+
 func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Request) {
 	command := &models.UtilityCommand{}
 	err := json.NewDecoder(r.Body).Decode(command)
@@ -170,6 +198,8 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		reply, err = u.CommitPaymentTransaction(command.CommandBody)
 	case 4:
 		reply, err = u.CommitServiceTransaction(command.CommandBody)
+	case 5:
+		reply, err = u.CreatePaymentRequest(command.CommandBody)
 	}
 
 	if err != nil {

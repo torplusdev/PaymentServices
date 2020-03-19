@@ -53,3 +53,11 @@ type CommitServiceTransactionCommand struct {
 type CommitServiceTransactionResponse struct {
 	Ok bool	`json:"ok"`
 }
+
+type CreatePaymentRequestCommand struct {
+	ServiceSessionId string	`json:"serviceSessionId"`
+}
+
+type CreatePaymentRequestResponse struct {
+	PaymentRequest common.PaymentRequest	`json:"paymentRequest"`
+}

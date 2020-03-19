@@ -38,7 +38,7 @@ func (payload *PaymentTransactionReplacing) GetPaymentTransaction() *PaymentTran
 	return &payload.pendingTransaction
 }
 
-func (payload *PaymentTransactionReplacing) validateSingleTransaction(transaction *PaymentTransaction) error {
+func (payload *PaymentTransactionReplacing) validateSingleTransaction() error {
 
 	//TODO: Add transaction validation
 
@@ -54,27 +54,35 @@ func (payload *PaymentTransactionReplacing) Validate() error {
 	payTransStellar,err := txnbuild.TransactionFromXDR(payTrans.XDR)
 
 	if err != nil {
-		return errors.New("validation error: couldn't deserialize payment transaction")
+		return &TransactionValidationError{Source: "PaymentTransaction",
+			Err: errors.New("validation error: couldn't deserialize payment transaction"),
+		}
 	}
 
-	err = payload.validateSingleTransaction(payTrans)
+	err = payload.validateSingleTransaction()
 
 	if err != nil {
-		return errors.New("validation error: error validating payment transaction: " + err.Error())
+		return &TransactionValidationError{Source: "TransactionPayload",
+			Err: errors.New("validation error: error validating transaction: " + err.Error()),
+		}
 	}
 
 	if refTrans != (PaymentTransaction{}) {
 		refTransStellar,err := txnbuild.TransactionFromXDR(refTrans.XDR)
 
 		if err != nil {
-			return errors.New("validation error: couldn't deserialize reference transaction")
+			return &TransactionValidationError{Source: "PaymentTransaction",
+				Err: errors.New("validation error: couldn't deserialize reference transaction"),
+			}
 		}
 
 		paySequenceNumber,_ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 		refSequenceNumber,_ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 
 		if paySequenceNumber != refSequenceNumber {
-			return errors.New("validation error: different sequence numbers between transactions")
+			return &TransactionValidationError{Source: "TransactionPayload",
+				Err: errors.New("validation error: different sequence numbers between transactions"),
+			}
 		}
 
 		//TODO: Check signatures

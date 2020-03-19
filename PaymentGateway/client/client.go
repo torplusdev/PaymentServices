@@ -123,18 +123,18 @@ func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentReq
 
 	for _,t := range transactions {
 		e := t.Validate()
+
 		if (e != nil) {
-			return false, errors.Errorf("Error validating transaction")
+			log.Print("Error validating transaction: " + e.Error())
+			return false, e
 		}
 
 		trans, e := txnbuild.TransactionFromXDR(t.GetPaymentTransaction().XDR)
 
 		if (e != nil) {
-			log.Fatal("Error deser xdr: " + e.Error())
-
+			log.Print("Error deserializing xdr: " + e.Error())
+			return false, e
 		}
-
-
 		_ = trans
 	}
 
@@ -227,7 +227,6 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
-	//serviceNode := node.GetNodeApi(route[0].PaymentDestinationAddress,route[0].Seed)
 	serviceNode.SignTerminalTransactions(debitTransaction)
 
 	// Consecutive signing process
@@ -235,9 +234,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 		t := &transactions[idx]
 
-		//TODO: Remove seed initialization
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
-		//stepNode := node.GetNodeApi(t.PaymentDestinationAddress, t.Seed)
 		creditTransaction := t
 
 		stepNode.SignChainTransactions(creditTransaction, debitTransaction)
@@ -248,7 +245,9 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	err = client.SignInitialTransactions(&transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount + totalFee)
 
 	if err != nil {
-		log.Fatal("Error in transaction: " + err.Error())
+		log.Print("Error in transaction: " + err.Error())
+		return nil, errors.Errorf("Error signing initial transaction has insufficient account balance","")
+
 	}
 
 	// At this point all transactions are signed by all parties
@@ -273,7 +272,6 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 		_ = paymentNode
 
 		stepNode := client.nodeManager.GetNodeByAddress(paymentNode.Address)
-		//stepNode := node.GetNodeApi(paymentNode.PaymentDestinationAddress,paymentNode.Seed)
 
 		var res = false
 
@@ -285,7 +283,7 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 		}
 
 		if err != nil {
-			log.Fatal("Error committing transaction: " + err.Error())
+			log.Print("Error committing transaction: " + err.Error())
 			return false, errors.Errorf("Error committing transaction %s",err.Error())
 		}
 

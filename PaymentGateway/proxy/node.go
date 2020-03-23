@@ -17,6 +17,18 @@ type NodeProxy struct {
 	commandChannel map[string]chan string
 }
 
+func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) (error) {
+	id := uuid.New().String()
+
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}
+
+	jsonValue, _ := json.Marshal(values)
+
+	_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
+
+	return err
+}
+
 func (n NodeProxy) ProcessCommand(commandType int, commandBody string) (string, error) {
 	id := uuid.New().String()
 
@@ -47,8 +59,21 @@ func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
 	n.commandChannel[commandId] <- responseBody
 }
 
-func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
-	panic("implement me")
+func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) error {
+	var request = &models.AddPendingServicePaymentCommand{
+		ServiceSessionId: serviceSessionId,
+		Amount: amount,
+	}
+
+	body, err := json.Marshal(request)
+
+	if err != nil {
+		return err
+	}
+
+	err = n.ProcessCommandNoReply(0, string(body))
+
+	return err
 }
 
 func (n NodeProxy) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {

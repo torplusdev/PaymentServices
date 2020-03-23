@@ -61,3 +61,8 @@ type CreatePaymentRequestCommand struct {
 type CreatePaymentRequestResponse struct {
 	PaymentRequest common.PaymentRequest	`json:"paymentRequest"`
 }
+
+type AddPendingServicePaymentCommand struct {
+	ServiceSessionId string 					`json:"serviceSessionId"`
+	Amount           common.TransactionAmount	`json:"amount"`
+}

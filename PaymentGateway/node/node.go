@@ -31,7 +31,7 @@ type Node struct {
 }
 
 type PPNode interface {
-	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount)
+	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount) (err error)
 	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
 	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
@@ -61,7 +61,7 @@ type NodeManager interface {
 	GetNodeByAddress(address string) PPNode
 }
 
-func (n *Node) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
+func (n *Node) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) error {
 
 	if n.pendingPayment[serviceSessionId].updated.IsZero() {
 		n.pendingPayment[serviceSessionId] = serviceUsageCredit{
@@ -74,6 +74,8 @@ func (n *Node) AddPendingServicePayment(serviceSessionId string, amount common.T
 			updated: time.Now(),
 		}
 	}
+
+	return nil
 }
 
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {

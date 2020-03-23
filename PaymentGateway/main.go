@@ -1,34 +1,45 @@
 package PaymentGateway
 
 import (
+	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/stellar/go/keypair"
-	"google.golang.org/grpc"
-	"log"
-	"net"
+	"net/http"
+	"paidpiper.com/payment-gateway/controllers"
+	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/proxy"
-	gw "paidpiper.com/payment-gateway/gatewayService"
-	pb "paidpiper.com/payment-gateway/ppsidechannel"
-	us "paidpiper.com/payment-gateway/utilityService"
 )
 
 func main() {
-	lis, err := net.Listen("tcp", ":28080")
+	seed, err := keypair.ParseFull("")
 
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		fmt.Print(err)
+		return
 	}
 
-	s := grpc.NewServer()
+	proxyNodeManager := &proxy.NodeManager{}
 
-	key, _ := keypair.ParseFull("")
+	utilityController := &controllers.UtilityController {
+		Node: &node.Node{
+			Address: seed.Address(),
+		},
+	}
 
-	pb.RegisterPPPaymentUtilityServicesServer(s, &us.UtilityServiceImpl{})
-	pb.RegisterPPPaymentGatewayServer(s, &gw.GatewayServiceImpl{
-		NodeManager: &proxy.NodeManager{},
-		Seed: key,
-	})
+	gatewayController := &controllers.GatewayController{
+		NodeManager: proxyNodeManager,
+		Seed:        seed,
+	}
 
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+	router := mux.NewRouter()
+
+	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
+	router.HandleFunc("/api/utility/processResponse", proxyNodeManager.ProcessResponse).Methods("POST")
+	router.HandleFunc("/api/gateway/processPayment", gatewayController.ProcessPayment).Methods("POST")
+
+	err = http.ListenAndServe(":28080", router) //Launch the app, visit localhost:8000/api
+
+	if err != nil {
+		fmt.Print(err)
 	}
 }

@@ -1,17 +1,50 @@
 package proxy
 
 import (
-	"context"
+	"bytes"
 	"encoding/json"
 	"github.com/go-errors/errors"
+	"github.com/google/uuid"
+	"net/http"
 	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/ppsidechannel"
-	"paidpiper.com/payment-gateway/utilityService"
+	"paidpiper.com/payment-gateway/models"
+	"strconv"
 )
 
 type NodeProxy struct {
 	id string
-	client ppsidechannel.PPPaymentUtilityServicesClient
+	torUrl string
+	commandChannel map[string]chan string
+}
+
+func (n NodeProxy) ProcessCommand(commandType int, commandBody string) (string, error) {
+	id := uuid.New().String()
+
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}
+
+	jsonValue, _ := json.Marshal(values)
+
+	ch := make(chan string, 2)
+
+	n.commandChannel[id] = ch
+
+	defer delete (n.commandChannel, id)
+	defer close (ch)
+
+	_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
+
+	if err != nil {
+		return "", err
+	}
+
+	// Wait
+	responseBody := <- ch
+
+	return responseBody, nil
+}
+
+func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
+	n.commandChannel[commandId] <- responseBody
 }
 
 func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
@@ -19,11 +52,35 @@ func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount comm
 }
 
 func (n NodeProxy) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {
-	panic("implement me")
+	var request = &models.CreatePaymentRequestCommand{
+		ServiceSessionId: serviceSessionId,
+	}
+
+	body, err := json.Marshal(request)
+
+	if err != nil {
+		return common.PaymentRequest{}, err
+	}
+
+	reply, err := n.ProcessCommand(0, string(body))
+
+	if err != nil {
+		return common.PaymentRequest{}, err
+	}
+
+	response := &models.CreatePaymentRequestResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return common.PaymentRequest{}, err
+	}
+
+	return response.PaymentRequest, nil
 }
 
 func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
-	var request = &utilityService.CreateTransactionRequest{
+	var request = &models.CreateTransactionCommand{
 		TotalIn:       totalIn,
 		TotalOut:      totalOut,
 		SourceAddress: sourceAddress,
@@ -35,35 +92,55 @@ func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee commo
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	reply, err := n.client.ProcessCommand(context.Background(), &ppsidechannel.CommandRequest {
-		CommandType:          0,
-		CommandBody:          string(body),
-	})
+	reply, err := n.ProcessCommand(0, string(body))
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	var payload common.PaymentTransactionReplacing
+	response := &models.CreateTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply.ResponseBody), &payload)
+	err = json.Unmarshal([]byte(reply), response)
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	return payload, nil
+	return response.Transaction, nil
 }
 
 func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
-//	var request = &utilityService.SignTerminalTransactionsRequest{
-//		Transaction:
-//	}
-	panic("implement me")
+	var request = &models.SignTerminalTransactionCommand{
+		Transaction: *creditTransactionPayload,
+	}
+
+	body, err := json.Marshal(request)
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	reply, err := n.ProcessCommand(1,  string(body))
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	var response = &models.SignTerminalTransactionResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	creditTransactionPayload = &response.Transaction
+
+	return nil
 }
 
 func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
-	var request = &utilityService.SignChainTransactionsRequest{
+	var request = &models.SignChainTransactionsCommand{
 		Debit:  *debitTransactionPayload,
 		Credit: *creditTransactionPayload,
 	}
@@ -74,24 +151,57 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.Paymen
 		return errors.Errorf(err.Error())
 	}
 
-	_, err = n.client.ProcessCommand(context.Background(), &ppsidechannel.CommandRequest {
-		CommandType:          2,
-		CommandBody:          string(body),
-	})
+	reply, err := n.ProcessCommand(2,  string(body))
 
 	if err != nil {
 		return errors.Errorf(err.Error())
 	}
 
+	var response = &models.SignChainTransactionsResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return errors.Errorf(err.Error())
+	}
+
+	creditTransactionPayload = &response.Credit
+	debitTransactionPayload = &response.Debit
+
 	return nil
 }
 
 func (n NodeProxy) CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
-	panic("implement me")
+	var request = &models.CommitServiceTransactionCommand {
+		Transaction: *transaction,
+		PaymentRequest: pr,
+	}
+
+	body, err := json.Marshal(request)
+
+	if err != nil {
+		return false, errors.Errorf(err.Error())
+	}
+
+	reply, err := n.ProcessCommand(4, string(body))
+
+	if err != nil {
+		return false, errors.Errorf(err.Error())
+	}
+
+	var response = &models.CommitServiceTransactionResponse{}
+
+	err = json.Unmarshal([]byte(reply), response)
+
+	if err != nil {
+		return false, errors.Errorf(err.Error())
+	}
+
+	return response.Ok, nil
 }
 
 func (n NodeProxy) CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
-	var request = &utilityService.CommitPaymentTransactionRequest {
+	var request = &models.CommitPaymentTransactionCommand {
 		Transaction: *transactionPayload,
 	}
 
@@ -101,24 +211,21 @@ func (n NodeProxy) CommitPaymentTransaction(transactionPayload *common.PaymentTr
 		return false, errors.Errorf(err.Error())
 	}
 
-	reply, err := n.client.ProcessCommand(context.Background(), &ppsidechannel.CommandRequest {
-		CommandType:          3,
-		CommandBody:          string(body),
-	})
+	reply, err := n.ProcessCommand(3, string(body))
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
 	}
 
-	var payload utilityService.CommitPaymentTransactionResponse
+	var response = &models.CommitPaymentTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply.ResponseBody), &payload)
+	err = json.Unmarshal([]byte(reply), response)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
 	}
 
-	return payload.Ok, nil
+	return response.Ok, nil
 }
 
 

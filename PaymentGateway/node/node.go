@@ -171,6 +171,7 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 	tx, err := build.Transaction(
 		build.SourceAccount{n.Address},
 		build.AutoSequence{sequenceProvider},
+		build.MemoText{Value:"PiedPiperTestTransaction"},
 		build.Payment(
 			build.SourceAccount{sourceAddress},
 			build.Destination{n.Address},

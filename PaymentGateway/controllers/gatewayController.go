@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"github.com/stellar/go/keypair"
 	"net/http"
 	"paidpiper.com/payment-gateway/client"
@@ -18,6 +19,13 @@ type GatewayController struct {
 
 func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	request := &models.ProcessPaymentRequest{}
+
+	err := json.NewDecoder(r.Body).Decode(request)
+
+	if err != nil {
+		Respond(500, w, Message("Bad request"))
+		return
+	}
 
 	rootApi := root.CreateRootApi(true)
 
@@ -47,7 +55,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	transactions, err := c.InitiatePayment(router, pr)
 
 	if err != nil {
-		Respond(w, Message(false, "Init failed"))
+		Respond(500, w, Message("Init failed"))
 		return
 	}
 
@@ -55,7 +63,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	ok, err := c.VerifyTransactions(router, pr, transactions)
 
 	if !ok {
-		Respond(w, Message(false, "Verification failed"))
+		Respond(500, w, Message("Verification failed"))
 		return
 	}
 
@@ -63,7 +71,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	ok, err = c.FinalizePayment(router, transactions, pr)
 
 	if !ok {
-		Respond(w, Message(false, "Finalize failed"))
+		Respond(500, w, Message("Finalize failed"))
 		return
 	}
 }

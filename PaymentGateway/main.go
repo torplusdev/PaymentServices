@@ -1,4 +1,4 @@
-package PaymentGateway
+package main
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	seed, err := keypair.ParseFull("")
+	seed, err := keypair.ParseFull("SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC")
 
 	if err != nil {
 		fmt.Print(err)

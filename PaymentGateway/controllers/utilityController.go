@@ -181,7 +181,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {
-		Respond(w, Message(false, "Invalid request"))
+		Respond(500, w, Message("Invalid request"))
 		return
 	}
 
@@ -203,7 +203,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err != nil {
-		Respond(w, Message(false, "Invalid request"))
+		Respond(500, w, Message("Invalid request"))
 		return
 	}
 

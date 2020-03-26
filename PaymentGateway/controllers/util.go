@@ -5,17 +5,18 @@ import (
 	"net/http"
 )
 
-func Message(status bool, message string) map[string]interface{} {
-	return map[string]interface{}{"status": status, "message": message}
+func Message(message string) map[string]interface{} {
+	return map[string]interface{}{"message": message}
 }
 
-func Respond(w http.ResponseWriter, data map[string]interface{}) {
+func Respond(status int, w http.ResponseWriter, data map[string]interface{}) {
+	w.WriteHeader(status)
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
 
 func RespondValue(w http.ResponseWriter, name string, value interface{}) {
-	Respond(w, map[string]interface{}{name: value})
+	Respond(200, w, map[string]interface{}{name: value})
 }
 
 

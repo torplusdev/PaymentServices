@@ -22,7 +22,7 @@ func (m *NodeManager) ProcessResponse(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(response)
 
 	if err != nil {
-		controllers.Respond(w, controllers.Message(false, "Invalid request"))
+		controllers.Respond(500, w, controllers.Message("Invalid request"))
 		return
 	}
 

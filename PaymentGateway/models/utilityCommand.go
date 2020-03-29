@@ -66,3 +66,7 @@ type AddPendingServicePaymentCommand struct {
 	ServiceSessionId string 					`json:"serviceSessionId"`
 	Amount           common.TransactionAmount	`json:"amount"`
 }
+
+type GetStellarAddressResponse struct {
+	Address	string
+}

@@ -12,12 +12,20 @@ func Message(message string) map[string]interface{} {
 func Respond(status int, w http.ResponseWriter, data map[string]interface{}) {
 	w.WriteHeader(status)
 	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	err := json.NewEncoder(w).Encode(data)
+
+	if err != nil {
+		// Log
+	}
 }
 
-func RespondValue(w http.ResponseWriter, name string, value interface{}) {
-	Respond(200, w, map[string]interface{}{name: value})
+func RespondObject(w http.ResponseWriter, data interface{}) {
+	w.WriteHeader(200)
+	w.Header().Add("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(data)
+
+	if err != nil {
+		// Log
+	}
 }
-
-
 

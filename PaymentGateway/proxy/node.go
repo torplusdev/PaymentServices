@@ -17,6 +17,14 @@ type NodeProxy struct {
 	commandChannel map[string]chan string
 }
 
+func NewProxy(address string, torUrl string) *NodeProxy  {
+	return &NodeProxy{
+		id:             address,
+		torUrl:         torUrl,
+		commandChannel: make(map[string]chan string),
+	}
+}
+
 func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) (error) {
 	id := uuid.New().String()
 

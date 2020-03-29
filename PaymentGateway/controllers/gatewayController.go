@@ -31,7 +31,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	c := client.CreateClient(rootApi, g.Seed.Seed(), g.NodeManager)
 
-	addr := make([]string, len(request.RouteAddresses) + 2)
+	addr := make([]string, 0)
 
 	addr = append(addr, g.Seed.Address())
 

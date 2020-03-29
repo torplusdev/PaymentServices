@@ -43,7 +43,7 @@ type PPNode interface {
 	//	GetAddress() string
 }
 
-func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {
+func CreateNode(client *horizon.Client, address string, seed string, accumulateTransactions bool) *Node {
 	node := Node{
 		Address:                      address,
 		secretSeed:                   seed,

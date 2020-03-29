@@ -9,11 +9,33 @@ import (
 )
 
 type NodeManager struct {
-	nodes map[string]NodeProxy
+	nodes map[string]node.PPNode
+	torUrl string
 }
 
-func (m *NodeManager) GetNodeByAddress(id string) node.PPNode {
-	return m.nodes[id]
+func New(localNode *node.Node, torUrl string) *NodeManager {
+	manager := &NodeManager{
+		make(map[string]node.PPNode),
+		torUrl,
+	}
+
+	manager.nodes[localNode.Address] = localNode
+
+	return manager
+}
+
+func (m *NodeManager) GetNodeByAddress(address string) node.PPNode {
+	node, ok := m.nodes[address]
+
+	if ok {
+		return node
+	}
+
+	node = NewProxy(address, m.torUrl)
+
+	m.nodes[address] = node
+
+	return node
 }
 
 func (m *NodeManager) ProcessResponse(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +48,7 @@ func (m *NodeManager) ProcessResponse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proxy := m.nodes[response.NodeId]
+	proxy := m.nodes[response.NodeId].(NodeProxy)
 
 	proxy.ProcessResponse(response.CommandId, response.ResponseBody)
 }

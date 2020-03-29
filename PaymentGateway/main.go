@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
 	"net/http"
 	"paidpiper.com/payment-gateway/controllers"
@@ -11,14 +12,16 @@ import (
 )
 
 func main() {
-	seed, err := keypair.ParseFull("SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC")
+	seed, err := keypair.ParseFull("SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU")
 
 	if err != nil {
 		fmt.Print(err)
 		return
 	}
 
-	proxyNodeManager := &proxy.NodeManager{}
+	localNode := node.CreateNode(horizon.DefaultTestNetClient, seed.Address(), seed.Seed(),true)
+
+	proxyNodeManager := proxy.New(localNode, "http://localhost:57842/api/command")
 
 	utilityController := &controllers.UtilityController {
 		Node: &node.Node{
@@ -33,6 +36,7 @@ func main() {
 
 	router := mux.NewRouter()
 
+	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
 	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
 	router.HandleFunc("/api/utility/processResponse", proxyNodeManager.ProcessResponse).Methods("POST")
 	router.HandleFunc("/api/gateway/processPayment", gatewayController.ProcessPayment).Methods("POST")

@@ -7,14 +7,30 @@ import (
 	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
-	"paidpiper.com/payment-gateway/node"
+	"paidpiper.com/payment-gateway/proxy"
 	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
 )
 
 type GatewayController struct {
-	NodeManager node.NodeManager
+	NodeManager *proxy.NodeManager
 	Seed		*keypair.Full
+}
+
+
+func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Request) {
+	response := &models.UtilityResponse{}
+
+	err := json.NewDecoder(r.Body).Decode(response)
+
+	if err != nil {
+		Respond(500, w, Message("Invalid request"))
+		return
+	}
+
+	pNode := g.NodeManager.GetProxyNode(response.NodeId)
+
+	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
 
 func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {

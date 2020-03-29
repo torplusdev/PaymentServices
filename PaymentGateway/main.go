@@ -6,13 +6,20 @@ import (
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
 	"net/http"
+	"os"
 	"paidpiper.com/payment-gateway/controllers"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/proxy"
 )
 
 func main() {
-	seed, err := keypair.ParseFull("SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU")
+	s := os.Args[1]
+	port := os.Args[2]
+
+	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
+	//port := 28080
+
+	seed, err := keypair.ParseFull(s)
 
 	if err != nil {
 		fmt.Print(err)
@@ -38,10 +45,10 @@ func main() {
 
 	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
 	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
-	router.HandleFunc("/api/utility/processResponse", proxyNodeManager.ProcessResponse).Methods("POST")
+	router.HandleFunc("/api/gateway/processResponse", gatewayController.ProcessResponse).Methods("POST")
 	router.HandleFunc("/api/gateway/processPayment", gatewayController.ProcessPayment).Methods("POST")
 
-	err = http.ListenAndServe(":28080", router) //Launch the app, visit localhost:8000/api
+	err = http.ListenAndServe(":" + port, router) //Launch the app, visit localhost:8000/api
 
 	if err != nil {
 		fmt.Print(err)

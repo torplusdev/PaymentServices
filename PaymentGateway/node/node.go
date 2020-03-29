@@ -162,13 +162,11 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 			return common.PaymentTransactionReplacing{}, errors.Errorf("Error deserializing XDR transaction: %s",err.Error())
 		}
 
-		referenceSequenceNumber,err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		referenceSequenceNumber, err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 
 		_ = referenceSequenceNumber
 		sequenceProvider = build.AutoSequence{common.CreateStaticSequence(uint64(referenceSequenceNumber - 1))}
-
 	}
-
 
 	tx, err := build.Transaction(
 		build.SourceAccount{n.Address},

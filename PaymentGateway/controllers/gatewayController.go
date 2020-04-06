@@ -13,10 +13,22 @@ import (
 )
 
 type GatewayController struct {
-	NodeManager *proxy.NodeManager
-	Seed		*keypair.Full
+	nodeManager 	*proxy.NodeManager
+	seed			*keypair.Full
+	torCommandUrl	string
+	torRouteUrl		string
 }
 
+func New(nodeManager *proxy.NodeManager, seed *keypair.Full, torCommandUrl string, torRouteUrl string) *GatewayController {
+	manager := &GatewayController {
+		nodeManager,
+		seed,
+		torCommandUrl,
+		torRouteUrl,
+	}
+
+	return manager
+}
 
 func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Request) {
 	response := &models.UtilityResponse{}
@@ -28,7 +40,7 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	pNode := g.NodeManager.GetProxyNode(response.NodeId)
+	pNode := g.nodeManager.GetProxyNode(response.NodeId)
 
 	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
@@ -45,17 +57,51 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	rootApi := root.CreateRootApi(true)
 
-	c := client.CreateClient(rootApi, g.Seed.Seed(), g.NodeManager)
+	c := client.CreateClient(rootApi, g.seed.Seed(), g.nodeManager)
 
 	addr := make([]string, 0)
 
-	addr = append(addr, g.Seed.Address())
+	addr = append(addr, g.seed.Address())
+
+	if len(request.RouteAddresses) == 0 {
+		resp, err := http.Get(g.torRouteUrl)
+
+		if err != nil {
+			Respond(500, w, Message("Cant get payment route"))
+			return
+		}
+
+		routeResponse := &models.RouteResponse{}
+
+		err = json.NewDecoder(resp.Body).Decode(routeResponse)
+
+		if err != nil {
+			Respond(500, w, Message("Cant get payment route"))
+			return
+		}
+
+		request.RouteAddresses = routeResponse.RouteAddresses
+	}
 
 	for _, a := range request.RouteAddresses {
 		addr = append(addr, a)
+
+		n := proxy.NewProxy(a, g.torCommandUrl)
+
+		g.nodeManager.AddNode(a, n)
 	}
 
 	addr = append(addr, request.Address)
+
+	if request.CallbackUrl == "" {
+		n := proxy.NewProxy(request.Address, request.CallbackUrl)
+
+		g.nodeManager.AddNode(request.Address, n)
+	} else {
+		n := proxy.NewProxy(request.Address, g.torCommandUrl)
+
+		g.nodeManager.AddNode(request.Address, n)
+	}
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 

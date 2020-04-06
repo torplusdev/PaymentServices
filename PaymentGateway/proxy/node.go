@@ -12,9 +12,9 @@ import (
 )
 
 type NodeProxy struct {
-	id string
-	torUrl string
-	commandChannel map[string]chan string
+	id 				string
+	torUrl 			string
+	commandChannel 	map[string]chan string
 }
 
 func NewProxy(address string, torUrl string) *NodeProxy  {
@@ -25,7 +25,7 @@ func NewProxy(address string, torUrl string) *NodeProxy  {
 	}
 }
 
-func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) (error) {
+func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) error {
 	id := uuid.New().String()
 
 	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}

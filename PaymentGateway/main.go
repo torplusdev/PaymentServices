@@ -28,7 +28,7 @@ func main() {
 
 	localNode := node.CreateNode(horizon.DefaultTestNetClient, seed.Address(), seed.Seed(),true)
 
-	proxyNodeManager := proxy.New(localNode, "http://localhost:57842/api/command")
+	proxyNodeManager := proxy.New(localNode)
 
 	utilityController := &controllers.UtilityController {
 		Node: &node.Node{
@@ -36,10 +36,12 @@ func main() {
 		},
 	}
 
-	gatewayController := &controllers.GatewayController{
-		NodeManager: proxyNodeManager,
-		Seed:        seed,
-	}
+	gatewayController := controllers.New(
+		proxyNodeManager,
+		seed,
+		"http://localhost:57842/api/command",
+		"http://localhost:57842/api/paymentRoute",
+	)
 
 	router := mux.NewRouter()
 

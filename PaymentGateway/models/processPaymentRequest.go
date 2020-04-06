@@ -7,4 +7,5 @@ type ProcessPaymentRequest struct {
 	Address              string
 	TransactionAmount    uint32
 	Asset                string
+	CallbackUrl			 string
 }

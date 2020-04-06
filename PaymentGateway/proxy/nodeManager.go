@@ -6,13 +6,11 @@ import (
 
 type NodeManager struct {
 	nodes map[string]node.PPNode
-	torUrl string
 }
 
-func New(localNode *node.Node, torUrl string) *NodeManager {
+func New(localNode *node.Node) *NodeManager {
 	manager := &NodeManager{
 		make(map[string]node.PPNode),
-		torUrl,
 	}
 
 	manager.nodes[localNode.Address] = localNode
@@ -27,11 +25,11 @@ func (m *NodeManager) GetNodeByAddress(address string) node.PPNode {
 		return n
 	}
 
-	n = NewProxy(address, m.torUrl)
+	return nil
+}
 
-	m.nodes[address] = n
-
-	return n
+func (m *NodeManager) AddNode(address string, node node.PPNode) {
+	m.nodes[address] = node
 }
 
 func (m *NodeManager) GetProxyNode(address string) NodeProxy {

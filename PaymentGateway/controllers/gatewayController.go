@@ -73,7 +73,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	addr = append(addr, g.seed.Address())
 
 	if len(request.RouteAddresses) == 0 {
-		resp, err := http.Get(g.torRouteUrl)
+		resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
 		if err != nil {
 			Respond(500, w, Message("Cant get payment route"))

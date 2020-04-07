@@ -31,16 +31,14 @@ func main() {
 	proxyNodeManager := proxy.New(localNode)
 
 	utilityController := &controllers.UtilityController {
-		Node: &node.Node{
-			Address: seed.Address(),
-		},
+		Node: localNode,
 	}
 
 	gatewayController := controllers.New(
 		proxyNodeManager,
 		seed,
 		"http://localhost:57842/api/command",
-		"http://localhost:57842/api/paymentRoute",
+		"http://localhost:57842/api/paymentRoute/",
 	)
 
 	router := mux.NewRouter()

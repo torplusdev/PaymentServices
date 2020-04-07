@@ -8,20 +8,21 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/proxy"
-	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
 )
 
 type GatewayController struct {
 	nodeManager 	*proxy.NodeManager
+	client *client.Client
 	seed			*keypair.Full
 	torCommandUrl	string
 	torRouteUrl		string
 }
 
-func New(nodeManager *proxy.NodeManager, seed *keypair.Full, torCommandUrl string, torRouteUrl string) *GatewayController {
+func New(nodeManager *proxy.NodeManager, client *client.Client, seed *keypair.Full, torCommandUrl string, torRouteUrl string) *GatewayController {
 	manager := &GatewayController {
 		nodeManager,
+		client,
 		seed,
 		torCommandUrl,
 		torRouteUrl,
@@ -64,10 +65,6 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	rootApi := root.CreateRootApi(true)
-
-	c := client.CreateClient(rootApi, g.seed.Seed(), g.nodeManager)
-
 	addr := make([]string, 0)
 
 	addr = append(addr, g.seed.Address())
@@ -102,20 +99,20 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	addr = append(addr, paymentRequest.Address)
 
-	if request.CallbackUrl == "" {
-		n := proxy.NewProxy(paymentRequest.Address, request.CallbackUrl)
+	url := request.CallbackUrl
 
-		g.nodeManager.AddNode(paymentRequest.Address, n)
-	} else {
-		n := proxy.NewProxy(paymentRequest.Address, g.torCommandUrl)
-
-		g.nodeManager.AddNode(paymentRequest.Address, n)
+	if url == "" {
+		url = g.torCommandUrl
 	}
+
+	n := proxy.NewProxy(paymentRequest.Address, url)
+
+	g.nodeManager.AddNode(paymentRequest.Address, n)
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
 	// Initiate
-	transactions, err := c.InitiatePayment(router, *paymentRequest)
+	transactions, err := g.client.InitiatePayment(router, *paymentRequest)
 
 	if err != nil {
 		Respond(500, w, Message("Init failed"))
@@ -123,7 +120,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Verify
-	ok, err := c.VerifyTransactions(router, *paymentRequest, transactions)
+	ok, err := g.client.VerifyTransactions(router, *paymentRequest, transactions)
 
 	if !ok {
 		Respond(500, w, Message("Verification failed"))
@@ -131,7 +128,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Commit
-	ok, err = c.FinalizePayment(router, transactions, *paymentRequest)
+	ok, err = g.client.FinalizePayment(router, transactions, *paymentRequest)
 
 	if !ok {
 		Respond(500, w, Message("Finalize failed"))

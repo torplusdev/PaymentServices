@@ -7,9 +7,11 @@ import (
 	"github.com/stellar/go/keypair"
 	"net/http"
 	"os"
+	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/controllers"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/proxy"
+	"paidpiper.com/payment-gateway/root"
 )
 
 func main() {
@@ -34,8 +36,14 @@ func main() {
 		Node: localNode,
 	}
 
+	rootApi := root.CreateRootApi(true)
+	rootApi.CreateUser(seed.Address(), seed.Seed())
+
+	c := client.CreateClient(rootApi, seed.Seed(), proxyNodeManager)
+
 	gatewayController := controllers.New(
 		proxyNodeManager,
+		c,
 		seed,
 		"http://localhost:57842/api/command",
 		"http://localhost:57842/api/paymentRoute/",

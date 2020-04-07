@@ -55,6 +55,15 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	paymentRequest := &common.PaymentRequest{}
+
+	err = json.Unmarshal([]byte(request.PaymentRequest), paymentRequest)
+
+	if err != nil {
+		Respond(500, w, Message("Unknown payment request"))
+		return
+	}
+
 	rootApi := root.CreateRootApi(true)
 
 	c := client.CreateClient(rootApi, g.seed.Seed(), g.nodeManager)
@@ -91,30 +100,22 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		g.nodeManager.AddNode(a, n)
 	}
 
-	addr = append(addr, request.Address)
+	addr = append(addr, paymentRequest.Address)
 
 	if request.CallbackUrl == "" {
-		n := proxy.NewProxy(request.Address, request.CallbackUrl)
+		n := proxy.NewProxy(paymentRequest.Address, request.CallbackUrl)
 
-		g.nodeManager.AddNode(request.Address, n)
+		g.nodeManager.AddNode(paymentRequest.Address, n)
 	} else {
-		n := proxy.NewProxy(request.Address, g.torCommandUrl)
+		n := proxy.NewProxy(paymentRequest.Address, g.torCommandUrl)
 
-		g.nodeManager.AddNode(request.Address, n)
+		g.nodeManager.AddNode(paymentRequest.Address, n)
 	}
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
-	pr := common.PaymentRequest{
-		ServiceSessionId: request.ServiceSessionId,
-		ServiceRef:       request.ServiceRef,
-		Address:          request.Address,
-		Amount:           request.TransactionAmount,
-		Asset:            request.Asset,
-	}
-
 	// Initiate
-	transactions, err := c.InitiatePayment(router, pr)
+	transactions, err := c.InitiatePayment(router, *paymentRequest)
 
 	if err != nil {
 		Respond(500, w, Message("Init failed"))
@@ -122,7 +123,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Verify
-	ok, err := c.VerifyTransactions(router, pr, transactions)
+	ok, err := c.VerifyTransactions(router, *paymentRequest, transactions)
 
 	if !ok {
 		Respond(500, w, Message("Verification failed"))
@@ -130,7 +131,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Commit
-	ok, err = c.FinalizePayment(router, transactions, pr)
+	ok, err = c.FinalizePayment(router, transactions, *paymentRequest)
 
 	if !ok {
 		Respond(500, w, Message("Finalize failed"))

@@ -2,9 +2,12 @@ package controllers
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
+	"github.com/rs/xid"
 	"net/http"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
+	"strconv"
 )
 
 type UtilityController struct {
@@ -122,27 +125,37 @@ func (u *UtilityController) CommitPaymentTransaction(commandBody string) (interf
 	return response, nil
 }
 
-func (u *UtilityController) CreatePaymentRequest(commandBody string) (interface{}, error) {
-	request := &models.CreatePaymentRequestCommand{}
+func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
 
-	err := json.Unmarshal([]byte(commandBody), request)
+	strAmount := params["amount"]
 
-	if err != nil {
-		return nil, err
-	}
+	serviceSessionId := xid.New().String()
 
-	pr, err := u.Node.CreatePaymentRequest(request.ServiceSessionId)
+	amount, err := strconv.Atoi(strAmount)
 
 	if err != nil {
-		return nil, err
+		Respond(500, w, Message("Invalid request"))
+		return
 	}
 
-	response := &models.CreatePaymentRequestResponse{
-		PaymentRequest: pr,
+	err = u.Node.AddPendingServicePayment(serviceSessionId, uint32(amount))
+
+	if err != nil {
+		Respond(500, w, Message("Invalid request"))
+		return
 	}
 
-	return response, nil
+	pr, err := u.Node.CreatePaymentRequest(serviceSessionId)
+
+	if err != nil {
+		Respond(500, w, Message("Invalid request"))
+		return
+	}
+
+	RespondObject(w, pr)
 }
+
 
 func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Request) {
 	response := &models.GetStellarAddressResponse {
@@ -174,8 +187,6 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		reply, err = u.CommitPaymentTransaction(command.CommandBody)
 	case 4:
 		reply, err = u.CommitServiceTransaction(command.CommandBody)
-	case 5:
-		reply, err = u.CreatePaymentRequest(command.CommandBody)
 	}
 
 	if err != nil {

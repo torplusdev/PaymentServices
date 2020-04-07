@@ -1,11 +1,9 @@
 package models
 
 type ProcessPaymentRequest struct {
-	RouteAddresses       []string
-	ServiceSessionId     string
-	ServiceRef           string
-	Address              string
-	TransactionAmount    uint32
-	Asset                string
-	CallbackUrl			 string
+	RouteAddresses       []string	// stellar addresses
+
+	CallbackUrl			 string 	// process command url
+
+	PaymentRequest		 string 	// json body
 }

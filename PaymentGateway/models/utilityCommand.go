@@ -52,19 +52,6 @@ type CommitServiceTransactionResponse struct {
 	Ok bool	`json:"ok"`
 }
 
-type CreatePaymentRequestCommand struct {
-	ServiceSessionId string	`json:"serviceSessionId"`
-}
-
-type CreatePaymentRequestResponse struct {
-	PaymentRequest common.PaymentRequest	`json:"paymentRequest"`
-}
-
-type AddPendingServicePaymentCommand struct {
-	ServiceSessionId string 					`json:"serviceSessionId"`
-	Amount           common.TransactionAmount	`json:"amount"`
-}
-
 type GetStellarAddressResponse struct {
 	Address	string
 }

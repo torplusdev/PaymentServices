@@ -31,8 +31,8 @@ type Node struct {
 }
 
 type PPNode interface {
-	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount) (err error)
-	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
+	//AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount) (err error)
+	//CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
 	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
 	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error

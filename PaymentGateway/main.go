@@ -45,6 +45,7 @@ func main() {
 
 	router := mux.NewRouter()
 
+	router.HandleFunc("/api/utility/createPaymentInfo/{amount}", utilityController.CreatePaymentInfo).Methods("GET")
 	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
 	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
 	router.HandleFunc("/api/gateway/processResponse", gatewayController.ProcessResponse).Methods("POST")

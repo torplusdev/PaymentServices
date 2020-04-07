@@ -67,51 +67,6 @@ func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
 	n.commandChannel[commandId] <- responseBody
 }
 
-func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) error {
-	var request = &models.AddPendingServicePaymentCommand{
-		ServiceSessionId: serviceSessionId,
-		Amount: amount,
-	}
-
-	body, err := json.Marshal(request)
-
-	if err != nil {
-		return err
-	}
-
-	err = n.ProcessCommandNoReply(0, string(body))
-
-	return err
-}
-
-func (n NodeProxy) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {
-	var request = &models.CreatePaymentRequestCommand{
-		ServiceSessionId: serviceSessionId,
-	}
-
-	body, err := json.Marshal(request)
-
-	if err != nil {
-		return common.PaymentRequest{}, err
-	}
-
-	reply, err := n.ProcessCommand(0, string(body))
-
-	if err != nil {
-		return common.PaymentRequest{}, err
-	}
-
-	response := &models.CreatePaymentRequestResponse{}
-
-	err = json.Unmarshal([]byte(reply), response)
-
-	if err != nil {
-		return common.PaymentRequest{}, err
-	}
-
-	return response.PaymentRequest, nil
-}
-
 func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
 	var request = &models.CreateTransactionCommand{
 		TotalIn:       totalIn,

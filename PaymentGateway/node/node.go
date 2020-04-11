@@ -31,18 +31,20 @@ type Node struct {
 }
 
 type PPNode interface {
-	AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount)
-	CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
 	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
 	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
 	CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
 	CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
 
-	GetAddress() string
+	// TODO: Remove from PPNode interface
+	// AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount) (err error)
+	// CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
+	//	SetAccumulatingTransactionsMode(accumulateTransactions bool)
+	//	GetAddress() string
 }
 
-func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {
+func CreateNode(client *horizon.Client, address string, seed string, accumulateTransactions bool) *Node {
 	node := Node{
 		Address:                      address,
 		secretSeed:                   seed,
@@ -60,7 +62,7 @@ type NodeManager interface {
 	GetNodeByAddress(address string) PPNode
 }
 
-func (n *Node) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
+func (n *Node) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) error {
 
 	if n.pendingPayment[serviceSessionId].updated.IsZero() {
 		n.pendingPayment[serviceSessionId] = serviceUsageCredit{
@@ -73,6 +75,8 @@ func (n *Node) AddPendingServicePayment(serviceSessionId string, amount common.T
 			updated: time.Now(),
 		}
 	}
+
+	return nil
 }
 
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
@@ -159,18 +163,15 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 			return common.PaymentTransactionReplacing{}, errors.Errorf("Error deserializing XDR transaction: %s",err.Error())
 		}
 
-		referenceSequenceNumber,err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		referenceSequenceNumber, err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 
 		_ = referenceSequenceNumber
 		sequenceProvider = build.AutoSequence{common.CreateStaticSequence(uint64(referenceSequenceNumber - 1))}
-
 	}
-
 
 	tx, err := build.Transaction(
 		build.SourceAccount{n.Address},
 		build.AutoSequence{sequenceProvider},
-		build.MemoText{Value:"PiedPiperTestTransaction"},
 		build.Payment(
 			build.SourceAccount{sourceAddress},
 			build.Destination{n.Address},

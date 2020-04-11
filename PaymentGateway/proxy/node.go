@@ -12,9 +12,29 @@ import (
 )
 
 type NodeProxy struct {
-	id string
-	torUrl string
-	commandChannel map[string]chan string
+	id 				string
+	torUrl 			string
+	commandChannel 	map[string]chan string
+}
+
+func NewProxy(address string, torUrl string) *NodeProxy  {
+	return &NodeProxy{
+		id:             address,
+		torUrl:         torUrl,
+		commandChannel: make(map[string]chan string),
+	}
+}
+
+func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) error {
+	id := uuid.New().String()
+
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}
+
+	jsonValue, _ := json.Marshal(values)
+
+	_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
+
+	return err
 }
 
 func (n NodeProxy) ProcessCommand(commandType int, commandBody string) (string, error) {
@@ -45,38 +65,6 @@ func (n NodeProxy) ProcessCommand(commandType int, commandBody string) (string, 
 
 func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
 	n.commandChannel[commandId] <- responseBody
-}
-
-func (n NodeProxy) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
-	panic("implement me")
-}
-
-func (n NodeProxy) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {
-	var request = &models.CreatePaymentRequestCommand{
-		ServiceSessionId: serviceSessionId,
-	}
-
-	body, err := json.Marshal(request)
-
-	if err != nil {
-		return common.PaymentRequest{}, err
-	}
-
-	reply, err := n.ProcessCommand(0, string(body))
-
-	if err != nil {
-		return common.PaymentRequest{}, err
-	}
-
-	response := &models.CreatePaymentRequestResponse{}
-
-	err = json.Unmarshal([]byte(reply), response)
-
-	if err != nil {
-		return common.PaymentRequest{}, err
-	}
-
-	return response.PaymentRequest, nil
 }
 
 func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {

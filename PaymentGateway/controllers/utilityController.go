@@ -2,80 +2,75 @@ package controllers
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
+	"github.com/rs/xid"
 	"net/http"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
+	"strconv"
 )
 
 type UtilityController struct {
-	Node node.PPNode
+	Node *node.Node
 }
 
-func (u *UtilityController) CreateTransaction(commandBody string) (string, error) {
+func (u *UtilityController) CreateTransaction(commandBody string) (interface{}, error) {
 	request := &models.CreateTransactionCommand{}
 
 	err := json.Unmarshal([]byte(commandBody), request)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	transaction, err := u.Node.CreateTransaction(request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	response := &models.CreateTransactionResponse{
 		Transaction: transaction,
 	}
 
-	value, err := json.Marshal(&response)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(value), nil
+	return response, nil
 }
 
-func (u *UtilityController) SignTerminalTransaction(commandBody string) (string, error) {
+func (u *UtilityController) SignTerminalTransaction(commandBody string) (interface{}, error) {
 	request := &models.SignTerminalTransactionCommand{}
 
 	err := json.Unmarshal([]byte(commandBody), request)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	err = u.Node.SignTerminalTransactions(&request.Transaction)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	response := models.SignTerminalTransactionResponse{
 		Transaction: request.Transaction,
 	}
 
-	value, err := json.Marshal(&response)
-
-	return string(value), nil
+	return response, nil
 }
 
-func (u *UtilityController) SignChainTransactions(commandBody string) (string, error) {
+func (u *UtilityController) SignChainTransactions(commandBody string) (interface{}, error) {
 	request :=  &models.SignChainTransactionsCommand{}
 
 	err := json.Unmarshal([]byte(commandBody), request)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	err = u.Node.SignChainTransactions(&request.Credit, &request.Debit)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	response :=  &models.SignChainTransactionsResponse{
@@ -83,97 +78,91 @@ func (u *UtilityController) SignChainTransactions(commandBody string) (string, e
 		Credit: request.Credit,
 	}
 
-	value, err := json.Marshal(&response)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(value), nil
+	return response, nil
 }
 
-func (u *UtilityController) CommitServiceTransaction(commandBody string) (string, error) {
+func (u *UtilityController) CommitServiceTransaction(commandBody string) (interface{}, error) {
 	request := &models.CommitServiceTransactionCommand{}
 
 	err := json.Unmarshal([]byte(commandBody), request)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	ok, err := u.Node.CommitServiceTransaction(&request.Transaction, request.PaymentRequest)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	response := &models.CommitServiceTransactionResponse{
 		Ok: ok,
 	}
 
-	value, err := json.Marshal(response)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(value), nil
+	return response, nil
 }
 
-func (u *UtilityController) CommitPaymentTransaction(commandBody string) (string, error) {
+func (u *UtilityController) CommitPaymentTransaction(commandBody string) (interface{}, error) {
 	request := &models.CommitPaymentTransactionCommand{}
 
 	err := json.Unmarshal([]byte(commandBody), request)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	ok, err := u.Node.CommitPaymentTransaction(&request.Transaction)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	response := &models.CommitPaymentTransactionResponse{
 		Ok: ok,
 	}
 
-	value, err := json.Marshal(response)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(value), nil
+	return response, nil
 }
 
-func (u *UtilityController) CreatePaymentRequest(commandBody string) (string, error) {
-	request := &models.CreatePaymentRequestCommand{}
+func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
 
-	err := json.Unmarshal([]byte(commandBody), request)
+	strAmount := params["amount"]
 
-	if err != nil {
-		return "", err
-	}
+	serviceSessionId := xid.New().String()
 
-	pr, err := u.Node.CreatePaymentRequest(request.ServiceSessionId)
+	amount, err := strconv.Atoi(strAmount)
 
 	if err != nil {
-		return "", err
+		Respond(500, w, Message("Invalid request"))
+		return
 	}
 
-	response := &models.CreatePaymentRequestResponse{
-		PaymentRequest: pr,
-	}
-
-	value, err := json.Marshal(response)
+	err = u.Node.AddPendingServicePayment(serviceSessionId, uint32(amount))
 
 	if err != nil {
-		return "", err
+		Respond(500, w, Message("Invalid request"))
+		return
 	}
 
-	return string(value), nil
+	pr, err := u.Node.CreatePaymentRequest(serviceSessionId)
+
+	if err != nil {
+		Respond(500, w, Message("Invalid request"))
+		return
+	}
+
+	RespondObject(w, pr)
+}
+
+
+func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Request) {
+	response := &models.GetStellarAddressResponse {
+		Address: u.Node.Address,
+	}
+
+	RespondObject(w, response)
 }
 
 func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Request) {
@@ -181,11 +170,11 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {
-		Respond(w, Message(false, "Invalid request"))
+		Respond(500, w, Message("Invalid request"))
 		return
 	}
 
-	var reply string
+	var reply interface{}
 
 	switch command.CommandType {
 	case 0:
@@ -198,14 +187,12 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		reply, err = u.CommitPaymentTransaction(command.CommandBody)
 	case 4:
 		reply, err = u.CommitServiceTransaction(command.CommandBody)
-	case 5:
-		reply, err = u.CreatePaymentRequest(command.CommandBody)
 	}
 
 	if err != nil {
-		Respond(w, Message(false, "Invalid request"))
+		Respond(500, w, Message("Request process failed"))
 		return
 	}
 
-	RespondValue(w, "ResponseBody", reply)
+	RespondObject(w, reply)
 }

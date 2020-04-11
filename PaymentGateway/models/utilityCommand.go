@@ -3,10 +3,8 @@ package models
 import "paidpiper.com/payment-gateway/common"
 
 type UtilityCommand struct {
-	CommandId	string 	`json:"commandId"`
 	CommandType int		`json:"commandType"`
 	CommandBody	string	`json:"commandBody"`
-	NodeId      string  `json:"nodeId"`
 }
 
 type CreateTransactionCommand struct {
@@ -54,10 +52,6 @@ type CommitServiceTransactionResponse struct {
 	Ok bool	`json:"ok"`
 }
 
-type CreatePaymentRequestCommand struct {
-	ServiceSessionId string	`json:"serviceSessionId"`
-}
-
-type CreatePaymentRequestResponse struct {
-	PaymentRequest common.PaymentRequest	`json:"paymentRequest"`
+type GetStellarAddressResponse struct {
+	Address	string
 }

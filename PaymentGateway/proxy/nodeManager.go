@@ -1,32 +1,37 @@
 package proxy
 
 import (
-	"encoding/json"
-	"net/http"
-	"paidpiper.com/payment-gateway/controllers"
-	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
 )
 
 type NodeManager struct {
-	nodes map[string]NodeProxy
+	nodes map[string]node.PPNode
 }
 
-func (m *NodeManager) GetNodeByAddress(id string) node.PPNode {
-	return m.nodes[id]
-}
-
-func (m *NodeManager) ProcessResponse(w http.ResponseWriter, r *http.Request) {
-	response := &models.UtilityResponse{}
-
-	err := json.NewDecoder(r.Body).Decode(response)
-
-	if err != nil {
-		controllers.Respond(w, controllers.Message(false, "Invalid request"))
-		return
+func New(localNode *node.Node) *NodeManager {
+	manager := &NodeManager{
+		make(map[string]node.PPNode),
 	}
 
-	proxy := m.nodes[response.NodeId]
+	manager.nodes[localNode.Address] = localNode
 
-	proxy.ProcessResponse(response.CommandId, response.ResponseBody)
+	return manager
+}
+
+func (m *NodeManager) GetNodeByAddress(address string) node.PPNode {
+	n, ok := m.nodes[address]
+
+	if ok {
+		return n
+	}
+
+	return nil
+}
+
+func (m *NodeManager) AddNode(address string, node node.PPNode) {
+	m.nodes[address] = node
+}
+
+func (m *NodeManager) GetProxyNode(address string) NodeProxy {
+	return m.nodes[address].(NodeProxy)
 }

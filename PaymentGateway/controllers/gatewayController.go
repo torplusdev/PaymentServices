@@ -1,69 +1,137 @@
 package controllers
 
 import (
+	"encoding/json"
 	"github.com/stellar/go/keypair"
 	"net/http"
 	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
-	"paidpiper.com/payment-gateway/node"
-	"paidpiper.com/payment-gateway/root"
+	"paidpiper.com/payment-gateway/proxy"
 	"paidpiper.com/payment-gateway/routing"
 )
 
 type GatewayController struct {
-	NodeManager node.NodeManager
-	Seed		*keypair.Full
+	nodeManager 	*proxy.NodeManager
+	client *client.Client
+	seed			*keypair.Full
+	torCommandUrl	string
+	torRouteUrl		string
+}
+
+func New(nodeManager *proxy.NodeManager, client *client.Client, seed *keypair.Full, torCommandUrl string, torRouteUrl string) *GatewayController {
+	manager := &GatewayController {
+		nodeManager,
+		client,
+		seed,
+		torCommandUrl,
+		torRouteUrl,
+	}
+
+	return manager
+}
+
+func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Request) {
+	response := &models.UtilityResponse{}
+
+	err := json.NewDecoder(r.Body).Decode(response)
+
+	if err != nil {
+		Respond(500, w, Message("Invalid request"))
+		return
+	}
+
+	pNode := g.nodeManager.GetProxyNode(response.NodeId)
+
+	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
 
 func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	request := &models.ProcessPaymentRequest{}
 
-	rootApi := root.CreateRootApi(true)
+	err := json.NewDecoder(r.Body).Decode(request)
 
-	c := client.CreateClient(rootApi, g.Seed.Seed(), g.NodeManager)
+	if err != nil {
+		Respond(500, w, Message("Bad request"))
+		return
+	}
 
-	addr := make([]string, len(request.RouteAddresses) + 2)
+	paymentRequest := &common.PaymentRequest{}
 
-	addr = append(addr, g.Seed.Address())
+	err = json.Unmarshal([]byte(request.PaymentRequest), paymentRequest)
+
+	if err != nil {
+		Respond(500, w, Message("Unknown payment request"))
+		return
+	}
+
+	addr := make([]string, 0)
+
+	addr = append(addr, g.seed.Address())
+
+	if len(request.RouteAddresses) == 0 {
+		resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
+
+		if err != nil {
+			Respond(500, w, Message("Cant get payment route"))
+			return
+		}
+
+		routeResponse := &models.RouteResponse{}
+
+		err = json.NewDecoder(resp.Body).Decode(routeResponse)
+
+		if err != nil {
+			Respond(500, w, Message("Cant get payment route"))
+			return
+		}
+
+		request.RouteAddresses = routeResponse.RouteAddresses
+	}
 
 	for _, a := range request.RouteAddresses {
 		addr = append(addr, a)
+
+		n := proxy.NewProxy(a, g.torCommandUrl)
+
+		g.nodeManager.AddNode(a, n)
 	}
 
-	addr = append(addr, request.Address)
+	addr = append(addr, paymentRequest.Address)
+
+	url := request.CallbackUrl
+
+	if url == "" {
+		url = g.torCommandUrl
+	}
+
+	n := proxy.NewProxy(paymentRequest.Address, url)
+
+	g.nodeManager.AddNode(paymentRequest.Address, n)
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
-	pr := common.PaymentRequest{
-		ServiceSessionId: request.ServiceSessionId,
-		ServiceRef:       request.ServiceRef,
-		Address:          request.Address,
-		Amount:           request.TransactionAmount,
-		Asset:            request.Asset,
-	}
-
 	// Initiate
-	transactions, err := c.InitiatePayment(router, pr)
+	transactions, err := g.client.InitiatePayment(router, *paymentRequest)
 
 	if err != nil {
-		Respond(w, Message(false, "Init failed"))
+		Respond(500, w, Message("Init failed"))
 		return
 	}
 
 	// Verify
-	ok, err := c.VerifyTransactions(router, pr, transactions)
+	ok, err := g.client.VerifyTransactions(router, *paymentRequest, transactions)
 
 	if !ok {
-		Respond(w, Message(false, "Verification failed"))
+		Respond(500, w, Message("Verification failed"))
 		return
 	}
 
 	// Commit
-	ok, err = c.FinalizePayment(router, transactions, pr)
+	ok, err = g.client.FinalizePayment(router, transactions, *paymentRequest)
 
 	if !ok {
-		Respond(w, Message(false, "Finalize failed"))
+		Respond(500, w, Message("Finalize failed"))
 		return
 	}
 }

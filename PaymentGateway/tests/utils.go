@@ -3,6 +3,7 @@ package testutils
 import (
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
+	"github.com/stellar/go/network"
 	"github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
@@ -37,6 +38,47 @@ func CreateAndFundAccount(seed string) {
 	}
 }
 
+func SetSigners(seed string, signerSeed string) {
+
+	client := horizonclient.DefaultTestNetClient
+
+	pair, err := keypair.ParseFull(seed)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	signerPair, err := keypair.ParseFull(signerSeed)
+	if err != nil { log.Fatal(err) 	}
+
+	clientAccount := txnbuild.NewSimpleAccount(pair.Address(),0)
+
+	setOptionsChangeWeights := txnbuild.SetOptions{
+		SourceAccount: &clientAccount,
+		Signer: &txnbuild.Signer{
+			Address: signerPair.Address(),
+			Weight:  10,
+		},
+	}
+
+	tx := txnbuild.Transaction{
+		SourceAccount: &clientAccount,
+		Operations:    []txnbuild.Operation{ &setOptionsChangeWeights},
+		Timebounds:    txnbuild.NewTimeout(300),
+		Network:       network.TestNetworkPassphrase,
+	}
+
+	tx.Build()
+	tx.Sign(pair)
+
+	resp, err := client.SubmitTransaction(tx)
+	if err != nil {
+		hError := err.(*horizonclient.Error)
+		log.Fatal("Error submitting transaction:", hError,hError.Problem)
+	}
+
+	_ = resp
+}
 func GetAccount(address string) (account horizon.Account, err error) {
 
 	client := horizonclient.DefaultTestNetClient

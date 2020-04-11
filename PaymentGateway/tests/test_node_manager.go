@@ -29,9 +29,10 @@ func (nm *TestNodeManager) GetNodeByAddress(address string) node.PPNode {
 
 func (nm *TestNodeManager) SetAccumulatingTransactionsMode(newMode bool) *TestNodeManager {
 
-	for _,n := range nm.nodes {
-		n.SetAccumulatingTransactionsMode(newMode)
-	}
+	//for _,n := range nm.nodes {
+	//
+	//	//n.SetAccumulatingTransactionsMode(newMode)
+	//}
 
 	return nm
 }

@@ -39,8 +39,7 @@ type PPNode interface {
 	CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
 	CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
 
-	//	SetAccumulatingTransactionsMode(accumulateTransactions bool)
-	//	GetAddress() string
+	GetAddress() string
 }
 
 func CreateNode(client *horizon.Client,address string, seed string, accumulateTransactions bool) *Node {

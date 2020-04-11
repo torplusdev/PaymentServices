@@ -32,6 +32,12 @@ func (m *NodeManager) AddNode(address string, node node.PPNode) {
 	m.nodes[address] = node
 }
 
-func (m *NodeManager) GetProxyNode(address string) NodeProxy {
-	return m.nodes[address].(NodeProxy)
+func (m *NodeManager) GetProxyNode(address string) *NodeProxy {
+	n, ok := m.nodes[address]
+
+	if ok {
+		return n.(*NodeProxy)
+	}
+
+	return nil
 }

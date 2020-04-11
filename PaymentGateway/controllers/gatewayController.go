@@ -13,7 +13,7 @@ import (
 
 type GatewayController struct {
 	nodeManager 	*proxy.NodeManager
-	client *client.Client
+	client 			*client.Client
 	seed			*keypair.Full
 	torCommandUrl	string
 	torRouteUrl		string
@@ -111,28 +111,32 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
-	// Initiate
-	transactions, err := g.client.InitiatePayment(router, *paymentRequest)
+	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest) {
+		// Initiate
+		transactions, err := c.InitiatePayment(r, pr)
 
-	if err != nil {
-		Respond(500, w, Message("Init failed"))
-		return
-	}
+		if err != nil {
+			//Respond(500, w, Message("Init failed"))
+			return
+		}
 
-	// Verify
-	ok, err := g.client.VerifyTransactions(router, *paymentRequest, transactions)
+		// Verify
+		ok, err := c.VerifyTransactions(r, pr, transactions)
 
-	if !ok {
-		Respond(500, w, Message("Verification failed"))
-		return
-	}
+		if !ok {
+			//Respond(500, w, Message("Verification failed"))
+			return
+		}
 
-	// Commit
-	ok, err = g.client.FinalizePayment(router, transactions, *paymentRequest)
+		// Commit
+		ok, err = c.FinalizePayment(r, transactions, pr)
 
-	if !ok {
-		Respond(500, w, Message("Finalize failed"))
-		return
-	}
+		if !ok {
+			//Respond(500, w, Message("Finalize failed"))
+			return
+		}
+	}(g.client, router, *paymentRequest)
+
+	Respond(201, w, Message("Payment in process"))
 }
 

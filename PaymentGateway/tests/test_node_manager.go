@@ -23,7 +23,6 @@ func (nm *TestNodeManager) AddNode(node *node.Node) *TestNodeManager {
 }
 
 func (nm *TestNodeManager) GetNodeByAddress(address string) node.PPNode {
-
 	return nm.nodes[address]
 }
 

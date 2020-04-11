@@ -97,7 +97,7 @@ func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee commo
 	return response.Transaction, nil
 }
 
-func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
+func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) error {
 	var request = &models.SignTerminalTransactionCommand{
 		Transaction: *creditTransactionPayload,
 	}
@@ -105,13 +105,13 @@ func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.Pay
 	body, err := json.Marshal(request)
 
 	if err != nil {
-		return errors.Errorf(err.Error())
+		return err
 	}
 
 	reply, err := n.ProcessCommand(1,  string(body))
 
 	if err != nil {
-		return errors.Errorf(err.Error())
+		return err
 	}
 
 	var response = &models.SignTerminalTransactionResponse{}
@@ -119,7 +119,7 @@ func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.Pay
 	err = json.Unmarshal([]byte(reply), response)
 
 	if err != nil {
-		return errors.Errorf(err.Error())
+		return err
 	}
 
 	creditTransactionPayload = &response.Transaction
@@ -127,7 +127,7 @@ func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.Pay
 	return nil
 }
 
-func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
+func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
 	var request = &models.SignChainTransactionsCommand{
 		Debit:  *debitTransactionPayload,
 		Credit: *creditTransactionPayload,
@@ -136,13 +136,13 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.Paymen
 	body, err := json.Marshal(request)
 
 	if err != nil {
-		return errors.Errorf(err.Error())
+		return err
 	}
 
 	reply, err := n.ProcessCommand(2,  string(body))
 
 	if err != nil {
-		return errors.Errorf(err.Error())
+		return err
 	}
 
 	var response = &models.SignChainTransactionsResponse{}
@@ -150,7 +150,7 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.Paymen
 	err = json.Unmarshal([]byte(reply), response)
 
 	if err != nil {
-		return errors.Errorf(err.Error())
+		return err
 	}
 
 	creditTransactionPayload = &response.Credit

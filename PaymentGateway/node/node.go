@@ -32,8 +32,8 @@ type Node struct {
 
 type PPNode interface {
 	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
-	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
-	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error
+	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) error
+	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error
 	CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
 	CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
 
@@ -211,21 +211,21 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 	return transactionPayload,nil
 }
 
-func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
+func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 
 	// Validate
 	if creditTransaction.PaymentDestinationAddress != n.Address {
 		log.Fatal("Transaction destination is incorrect ", creditTransaction.PaymentDestinationAddress)
-		return errors.Errorf("Transaction destination error", "")
+		return errors.New("Transaction destination error")
 	}
 
 	kp, err := keypair.ParseFull(n.secretSeed)
 
 	if err != nil {
 		log.Fatal("Error parsing keypair: ", err.Error())
-		return errors.Errorf("Runtime key error", "")
+		return err
 	}
 
 	t, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
@@ -233,20 +233,21 @@ func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.Payment
 
 	if err != nil {
 		log.Fatal("Error parsing transaction: ", err.Error())
-		return errors.Errorf("Transaction parse error", "")
+		return err
 	}
 
 	err = t.Sign(kp)
 
 	if err != nil {
 		log.Fatal("Failed to signed transaction")
+		return err
 	}
 
 	creditTransaction.XDR, err = t.Base64()
 
 	if err != nil {
 		log.Fatal("Error writing transaction envelope: " + err.Error())
-		return errors.Errorf("Transaction envelope error", "")
+		return err
 	}
 
 	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
@@ -254,7 +255,7 @@ func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.Payment
 	return nil
 }
 
-func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
+func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()
@@ -263,7 +264,7 @@ func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTra
 
 	if err != nil {
 		log.Fatal("Error parsing keypair: ", err.Error())
-		return errors.Errorf("Runtime key error", "")
+		return err
 	}
 
 	credit, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
@@ -271,7 +272,7 @@ func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTra
 
 	if err != nil {
 		log.Fatal("Error parsing credit transaction: ", err.Error())
-		return errors.Errorf("Transaction parse error", "")
+		return err
 	}
 
 	debit, err := txnbuild.TransactionFromXDR(debitTransaction.XDR)
@@ -279,26 +280,28 @@ func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTra
 
 	if err != nil {
 		log.Fatal("Error parsing debit transaction: ", err.Error())
-		return errors.Errorf("Transaction parse error", "")
+		return err
 	}
 
 	err = credit.Sign(kp)
 
 	if err != nil {
 		log.Fatal("Failed to signed transaction")
+		return err
 	}
 
 	err = debit.Sign(kp)
 
 	if err != nil {
 		log.Fatal("Failed to signed transaction")
+		return err
 	}
 
 	creditTransaction.XDR, err = credit.Base64()
 
 	if err != nil {
 		log.Fatal("Error writing credit transaction envelope: " + err.Error())
-		return errors.Errorf("Transaction envelope error", "")
+		return err
 	}
 
 	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
@@ -307,7 +310,7 @@ func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTra
 
 	if err != nil {
 		log.Fatal("Error writing debit transaction envelope: " + err.Error())
-		return errors.Errorf("Transaction envelope error", "")
+		return err
 	}
 
 	debitTransactionPayload.UpdateTransactionXDR(debitTransaction.XDR)

@@ -12,6 +12,7 @@ import (
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/proxy"
 	"paidpiper.com/payment-gateway/root"
+	testutils "paidpiper.com/payment-gateway/tests"
 )
 
 func main() {
@@ -40,6 +41,16 @@ func main() {
 	rootApi.CreateUser(seed.Address(), seed.Seed())
 
 	c := client.CreateClient(rootApi, seed.Seed(), proxyNodeManager)
+
+	account, err := testutils.GetAccount(seed.Address())
+
+	if err != nil {
+		fmt.Print(err)
+
+		return
+	}
+
+	fmt.Print(account.GetNativeBalance())
 
 	gatewayController := controllers.New(
 		proxyNodeManager,

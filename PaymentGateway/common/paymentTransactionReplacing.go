@@ -7,8 +7,8 @@ import (
 )
 
 type PaymentTransactionReplacing struct {
-	pendingTransaction PaymentTransaction
-	referenceTransaction PaymentTransaction
+	PendingTransaction   PaymentTransaction
+	ReferenceTransaction PaymentTransaction
 }
 
 func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) (PaymentTransactionReplacing, error) {
@@ -27,15 +27,15 @@ func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) 
 	pt.AmountOut = ref.AmountOut + pt.AmountOut
 
 	transaction := PaymentTransactionReplacing{
-		pendingTransaction:pt,
-		referenceTransaction:ref,
+		PendingTransaction:   pt,
+		ReferenceTransaction: ref,
 	}
 
 	return transaction,nil
 }
 
 func (payload *PaymentTransactionReplacing) GetPaymentTransaction() *PaymentTransaction {
-	return &payload.pendingTransaction
+	return &payload.PendingTransaction
 }
 
 func (payload *PaymentTransactionReplacing) validateSingleTransaction() error {
@@ -93,19 +93,19 @@ func (payload *PaymentTransactionReplacing) Validate() error {
 }
 
 func (payload *PaymentTransactionReplacing) GetPaymentDestinationAddress() string {
-	return payload.pendingTransaction.PaymentDestinationAddress
+	return payload.PendingTransaction.PaymentDestinationAddress
 }
 
 func (payload *PaymentTransactionReplacing) UpdateTransactionXDR(xdr string) error {
-	payload.pendingTransaction.XDR = xdr
+	payload.PendingTransaction.XDR = xdr
 	return nil
 }
 
 func (payload *PaymentTransactionReplacing) UpdateStellarToken(token string) error {
-	payload.pendingTransaction.StellarNetworkToken = token
+	payload.PendingTransaction.StellarNetworkToken = token
 	return nil
 }
 
 func (payload *PaymentTransactionReplacing) GetReferenceTransaction() PaymentTransaction {
-	return payload.referenceTransaction
+	return payload.ReferenceTransaction
 }

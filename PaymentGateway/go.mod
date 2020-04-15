@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/go-errors/errors v0.0.0-20150906023321-a41850380601
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.3.1
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4

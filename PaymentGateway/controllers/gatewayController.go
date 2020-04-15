@@ -37,7 +37,7 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 	err := json.NewDecoder(r.Body).Decode(response)
 
 	if err != nil {
-		Respond(500, w, Message("Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Invalid request"))
 		return
 	}
 
@@ -52,7 +52,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(request)
 
 	if err != nil {
-		Respond(500, w, Message("Bad request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Bad request"))
 		return
 	}
 
@@ -61,7 +61,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	err = json.Unmarshal([]byte(request.PaymentRequest), paymentRequest)
 
 	if err != nil {
-		Respond(500, w, Message("Unknown payment request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Unknown payment request"))
 		return
 	}
 
@@ -73,7 +73,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
 		if err != nil {
-			Respond(500, w, Message("Cant get payment route"))
+			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Cant get payment route"))
 			return
 		}
 
@@ -82,7 +82,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		err = json.NewDecoder(resp.Body).Decode(routeResponse)
 
 		if err != nil {
-			Respond(500, w, Message("Cant get payment route"))
+			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Cant get payment route"))
 			return
 		}
 
@@ -111,12 +111,20 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
+	future := make (chan ResponseMessage)
+	returnAsyncImmediately := false
+
 	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest) {
+
+		if returnAsyncImmediately {
+			future <- Message("Payment in process")
+		}
 		// Initiate
 		transactions, err := c.InitiatePayment(r, pr)
 
 		if err != nil {
-			//Respond(500, w, Message("Init failed"))
+			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Init failed") }
+
 			return
 		}
 
@@ -124,7 +132,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err := c.VerifyTransactions(r, pr, transactions)
 
 		if !ok {
-			//Respond(500, w, Message("Verification failed"))
+			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Verification failed") }
 			return
 		}
 
@@ -132,11 +140,13 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err = c.FinalizePayment(r, transactions, pr)
 
 		if !ok {
-			//Respond(500, w, Message("Finalize failed"))
+			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Finalize failed") }
 			return
 		}
+
+		if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusOK,"Payment processing completed") }
 	}(g.client, router, *paymentRequest)
 
-	Respond(201, w, Message("Payment in process"))
+	Respond(w, future)
 }
 

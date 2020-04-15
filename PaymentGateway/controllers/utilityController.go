@@ -135,25 +135,25 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 	amount, err := strconv.Atoi(strAmount)
 
 	if err != nil {
-		Respond(500, w, Message("Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
 		return
 	}
 
 	err = u.Node.AddPendingServicePayment(serviceSessionId, uint32(amount))
 
 	if err != nil {
-		Respond(500, w, Message("Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
 		return
 	}
 
 	pr, err := u.Node.CreatePaymentRequest(serviceSessionId)
 
 	if err != nil {
-		Respond(500, w, Message("Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
 		return
 	}
 
-	RespondObject(w, pr)
+	Respond(w, pr)
 }
 
 
@@ -162,7 +162,7 @@ func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Req
 		Address: u.Node.Address,
 	}
 
-	RespondObject(w, response)
+	Respond(w, response)
 }
 
 func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +170,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {
-		Respond(500, w, Message("Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
 		return
 	}
 
@@ -190,9 +190,9 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err != nil {
-		Respond(500, w, Message("Request process failed"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Request process failed"))
 		return
 	}
 
-	RespondObject(w, reply)
+	Respond(w, reply)
 }

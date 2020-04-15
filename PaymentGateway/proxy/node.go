@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
+	testutils "paidpiper.com/payment-gateway/tests"
 	"strconv"
 )
 
@@ -122,7 +123,7 @@ func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.Pay
 		return err
 	}
 
-	creditTransactionPayload = &response.Transaction
+	*creditTransactionPayload = response.Transaction
 
 	return nil
 }
@@ -153,8 +154,11 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.Paymen
 		return err
 	}
 
-	creditTransactionPayload = &response.Credit
-	debitTransactionPayload = &response.Debit
+	testutils.Print(&response.Credit.PendingTransaction)
+	testutils.Print(&response.Debit.PendingTransaction)
+
+	*creditTransactionPayload = response.Credit
+	*debitTransactionPayload = response.Debit
 
 	return nil
 }

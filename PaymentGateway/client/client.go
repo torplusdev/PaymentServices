@@ -10,6 +10,7 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
+	testutils "paidpiper.com/payment-gateway/tests"
 	"reflect"
 	"strconv"
 	"strings"
@@ -208,7 +209,13 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 		}
 
 		// Create and store transaction
-		nodeTransaction, _ := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
+		nodeTransaction, err := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
+
+		if err  != nil {
+			log.Print("Error creating transaction for node " + sourceAddress + " : " + err.Error())
+			return nil, errors.Errorf("Error creating transaction for node %v: %w",sourceAddress,err)
+		}
+
 		transactions = append(transactions, nodeTransaction)
 
 		// Accumulate fees
@@ -227,7 +234,14 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
-	serviceNode.SignTerminalTransactions(debitTransaction)
+
+
+	err = serviceNode.SignTerminalTransactions(debitTransaction)
+
+	if err  != nil {
+		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())
+		return nil, errors.Errorf("Error signing terminal transaction (%v): %w",debitTransaction, err)
+	}
 
 	// Consecutive signing process
 	for idx := 1; idx < len(transactions); idx++ {
@@ -237,7 +251,9 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 		creditTransaction := t
 
+		testutils.Print(&creditTransaction.PendingTransaction)
 		stepNode.SignChainTransactions(creditTransaction, debitTransaction)
+		testutils.Print(&creditTransaction.PendingTransaction)
 
 		debitTransaction = creditTransaction
 	}

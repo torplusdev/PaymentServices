@@ -1,18 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/stellar/go/clients/horizon"
-	"github.com/stellar/go/keypair"
-	"net/http"
+	"context"
+	"log"
 	"os"
-	"paidpiper.com/payment-gateway/client"
-	"paidpiper.com/payment-gateway/controllers"
-	"paidpiper.com/payment-gateway/node"
-	"paidpiper.com/payment-gateway/proxy"
-	"paidpiper.com/payment-gateway/root"
-	testutils "paidpiper.com/payment-gateway/tests"
+	"paidpiper.com/payment-gateway/serviceNode"
+	"strconv"
+	"time"
 )
 
 func main() {
@@ -22,55 +16,27 @@ func main() {
 	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 	//port := 28080
 
-	seed, err := keypair.ParseFull(s)
+	numericPort,err := strconv.Atoi(port)
 
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Panic("Error parsing port number: %v",err.Error())
 	}
 
-	localNode := node.CreateNode(horizon.DefaultTestNetClient, seed.Address(), seed.Seed(),true)
+	// Set up signal channel
+	stop := make(chan os.Signal, 1)
 
-	proxyNodeManager := proxy.New(localNode)
-
-	utilityController := &controllers.UtilityController {
-		Node: localNode,
-	}
-
-	rootApi := root.CreateRootApi(true)
-	rootApi.CreateUser(seed.Address(), seed.Seed())
-
-	c := client.CreateClient(rootApi, seed.Seed(), proxyNodeManager)
-
-	account, err := testutils.GetAccount(seed.Address())
+	server,err := serviceNode.StartServiceNode(s,numericPort,"http://localhost:57842")
 
 	if err != nil {
-		fmt.Print(err)
-
-		return
+		log.Panic("Error starting serviceNode: %v",err.Error())
 	}
 
-	fmt.Print(account.GetNativeBalance())
+	<-stop
 
-	gatewayController := controllers.New(
-		proxyNodeManager,
-		c,
-		seed,
-		"http://localhost:57842/api/command",
-		"http://localhost:57842/api/paymentRoute/",
-	)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	router := mux.NewRouter()
-
-	router.HandleFunc("/api/utility/createPaymentInfo/{amount}", utilityController.CreatePaymentInfo).Methods("GET")
-	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
-	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
-	router.HandleFunc("/api/gateway/processResponse", gatewayController.ProcessResponse).Methods("POST")
-	router.HandleFunc("/api/gateway/processPayment", gatewayController.ProcessPayment).Methods("POST")
-
-	err = http.ListenAndServe(":" + port, router) //Launch the app, visit localhost:8000/api
-
-	if err != nil {
-		fmt.Print(err)
+	if err := server.Shutdown(ctx); err != nil {
+		log.Panic("Error shutting down server: %v",err.Error())
 	}
 }

@@ -7,16 +7,14 @@ import (
 	"github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
+	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/exporters/trace/jaeger"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"log"
-	"math"
 	"paidpiper.com/payment-gateway/common"
 	"strconv"
 	"strings"
-	"context"
-
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/exporters/trace/stdout"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 
@@ -36,21 +34,25 @@ const Node3Seed = "SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A"
 // publc GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7
 const Node4Seed = "SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK"
 
-func AreBalancesEqual(balance1 float64 ,balance2 float64) bool {
-	return math.Abs(balance1 - balance2) < 1E-8
-}
+func InitGlobalTracer() func() {
 
-func InitGlobalTracer() {
-	exporter, err := stdout.NewExporter(stdout.Options{PrettyPrint: true})
+	// Create and install Jaeger export pipeline
+	_, flush, err := jaeger.NewExportPipeline(
+		jaeger.WithCollectorEndpoint("http://192.168.162.128:14268/api/traces"),
+		jaeger.WithProcess(jaeger.Process{
+			ServiceName: "tests",
+			Tags: []core.KeyValue{
+				key.String("exporter", "jaeger"),
+			},
+		}),
+		jaeger.RegisterAsGlobal(),
+		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
-		sdktrace.WithSyncer(exporter))
-	if err != nil {
-		log.Fatal(err)
-	}
-	global.SetTraceProvider(tp)
+
+	return flush
 }
 
 func GetAccountBalance(seed string) float64 {

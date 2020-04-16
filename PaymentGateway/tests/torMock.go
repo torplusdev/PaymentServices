@@ -7,8 +7,13 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel/api/correlation"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/plugin/httptrace"
 	"io/ioutil"
 	"net/http"
+	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"strconv"
 	"time"
@@ -46,7 +51,31 @@ func respondObject(w http.ResponseWriter, data interface{}) {
 		// Log
 	}
 }
+
+func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.Span) {
+
+	tracer := global.Tracer("paidpiper/tor-mock")
+	attrs, entries, spanCtx := httptrace.Extract(r.Context(), r)
+
+	r = r.WithContext(correlation.ContextWithMap(r.Context(), correlation.NewMap(correlation.MapUpdate{
+		MultiKV: entries,
+	})))
+
+	ctx, span := tracer.Start(
+		trace.ContextWithRemoteSpanContext(r.Context(), spanCtx),
+		spanName,
+		trace.WithAttributes(attrs...),
+	)
+
+	return ctx,span
+}
+
 func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
+
+	ctx, span := spanFromRequest(req,"tor-processCommand")
+
+	defer span.End()
+
 	command := &torCommand{}
 	err := json.NewDecoder(req.Body).Decode(command)
 
@@ -71,7 +100,10 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 	cmdBytes,err := json.Marshal(utilityCmd)
 
-	response,err := http.Post(fmt.Sprintf("http://localhost:%d/api/utility/processCommand",port),"application/json",bytes.NewReader(cmdBytes))
+	response,err  := common.HttpPostWithContext(ctx,fmt.Sprintf("http://localhost:%d/api/utility/processCommand",port),bytes.NewReader(cmdBytes))
+
+	//response,err := http.Post(fmt.Sprintf("http://localhost:%d/api/utility/processCommand",port),"application/json",bytes.NewReader(cmdBytes))
+
 	respBytes, err := ioutil.ReadAll(response.Body)
 
 	utilityResponse := models.UtilityResponse{
@@ -82,13 +114,19 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 	responseBytes,err := json.Marshal(utilityResponse)
 
-	response,err = http.Post("http://localhost:28080/api/gateway/processResponse","application/json",bytes.NewReader(responseBytes))
+	response,err  = common.HttpPostWithContext(ctx,fmt.Sprintf("http://localhost:%d/api/gateway/processResponse",28080),bytes.NewReader(responseBytes))
+	//response,err = http.Post("http://localhost:28080/api/gateway/processResponse","application/json",bytes.NewReader(responseBytes))
 	respBytes, err = ioutil.ReadAll(response.Body)
 
 	w.WriteHeader(200)
 }
 
 func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request) {
+
+	_, span := spanFromRequest(req,"tor-processPaymentRoute")
+
+	defer span.End()
+
 	params := mux.Vars(req)
 
 	node := params["nodeAddress"]
@@ -149,7 +187,9 @@ func CreateTorMock(torPort int)  (*TorMock) {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			glog.Fatal("Error starting tor mock: %v",err)
+			if (err.Error() != "http: Server closed") {
+				glog.Fatal("Error starting tor mock: %v",err)
+			}
 		}
 	}()
 

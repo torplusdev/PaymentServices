@@ -46,7 +46,11 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
 
-func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {
+func (g *GatewayController) ProcessPayment( w http.ResponseWriter, r *http.Request) {
+
+	ctx, span := spanFromRequest(r,"ProcessPayment")
+	defer span.End()
+
 	request := &models.ProcessPaymentRequest{}
 
 	err := json.NewDecoder(r.Body).Decode(request)
@@ -70,7 +74,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	addr = append(addr, g.seed.Address())
 
 	if len(request.RouteAddresses) == 0 {
-		resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
+		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl + paymentRequest.Address)
+		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
 		if err != nil {
 			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Cant get payment route"))
@@ -120,7 +125,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 			future <- MessageWithStatus(http.StatusCreated,"Payment in process")
 		}
 		// Initiate
-		transactions, err := c.InitiatePayment(r, pr)
+		transactions, err := c.InitiatePayment(ctx, r, pr)
 
 		if err != nil {
 			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Init failed") }
@@ -129,7 +134,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Verify
-		ok, err := c.VerifyTransactions(r, pr, transactions)
+		ok, err := c.VerifyTransactions(ctx, r, pr, transactions)
 
 		if !ok {
 			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Verification failed") }
@@ -137,7 +142,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Commit
-		ok, err = c.FinalizePayment(r, transactions, pr)
+		ok, err = c.FinalizePayment(ctx, r, transactions, pr)
 
 		if !ok {
 			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Finalize failed") }
@@ -149,4 +154,5 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	Respond(w, future)
 }
+
 

@@ -16,12 +16,14 @@ type CreateTransactionCommand struct {
 	SourceAddress string	`json:"sourceAddress"`
 }
 
+
 type CreateTransactionResponse struct {
 	Transaction common.PaymentTransactionReplacing	`json:"transaction"`
 }
 
 type SignTerminalTransactionCommand struct {
 	Transaction common.PaymentTransactionReplacing	`json:"transaction"`
+	Context common.TraceContext						`json:"context"`
 }
 
 type SignTerminalTransactionResponse struct {
@@ -29,8 +31,9 @@ type SignTerminalTransactionResponse struct {
 }
 
 type SignChainTransactionsCommand struct {
-	Debit  common.PaymentTransactionReplacing	`json:"debit"`
-	Credit common.PaymentTransactionReplacing	`json:"credit"`
+	Debit   common.PaymentTransactionReplacing	`json:"debit"`
+	Credit  common.PaymentTransactionReplacing	`json:"credit"`
+	Context common.TraceContext					`json:"context"`
 }
 
 type SignChainTransactionsResponse struct {
@@ -40,6 +43,7 @@ type SignChainTransactionsResponse struct {
 
 type CommitPaymentTransactionCommand struct {
 	Transaction common.PaymentTransactionReplacing	`json:"transaction"`
+	Context common.TraceContext						`json:"context"`
 }
 
 type CommitPaymentTransactionResponse struct {
@@ -49,6 +53,7 @@ type CommitPaymentTransactionResponse struct {
 type CommitServiceTransactionCommand struct {
 	Transaction common.PaymentTransactionReplacing	`json:"transaction"`
 	PaymentRequest common.PaymentRequest			`json:"paymentRequest"`
+	Context common.TraceContext						`json:"context"`
 }
 
 type CommitServiceTransactionResponse struct {

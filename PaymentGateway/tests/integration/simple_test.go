@@ -3,7 +3,9 @@ package integration_tests
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/key"
 	"os"
 	testutils "paidpiper.com/payment-gateway/tests"
 	"testing"
@@ -16,9 +18,11 @@ func setup() {
 
 var testSetup *TestSetup
 
+var tracerShutdown func()
+
 func init() {
 
-	testutils.InitGlobalTracer()
+	tracerShutdown = testutils.InitGlobalTracer()
 
 	// Addresses reused from other tests
 	testutils.CreateAndFundAccount(testutils.User1Seed)
@@ -39,11 +43,11 @@ func init() {
 	tr := global.Tracer("TestInit")
 	ctx,span := tr.Start(context.Background(),"NodeInitialization")
 
-	testSetup.StartUserNode(testutils.User1Seed,28080)
-	testSetup.StartTorNode(testutils.Node1Seed,28081)
-	testSetup.StartTorNode(testutils.Node2Seed,28082)
-	testSetup.StartTorNode(testutils.Node3Seed,28083)
-	testSetup.StartServiceNode(testutils.Service1Seed,28084)
+	testSetup.StartUserNode(ctx,testutils.User1Seed,28080)
+	testSetup.StartTorNode(ctx, testutils.Node1Seed,28081)
+	testSetup.StartTorNode(ctx, testutils.Node2Seed,28082)
+	testSetup.StartTorNode(ctx, testutils.Node3Seed,28083)
+	testSetup.StartServiceNode(ctx, testutils.Service1Seed,28084)
 
 	span.End()
 
@@ -53,7 +57,8 @@ func init() {
 }
 
 func shutdown() {
-
+	testSetup.Shutdown()
+	tracerShutdown()
 }
 
 func TestMain(m *testing.M) {
@@ -63,30 +68,44 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestSimple(t *testing.T) {
+func TestEndToEndSinglePayment(t *testing.T) {
 
 	assert := assert.New(t)
+
+	tr := global.Tracer("test")
+
+	ctx := correlation.NewContext(context.Background(),
+		key.String("user", "test123"),
+	)
+
+
+	ctx,span := tr.Start(ctx,"TestEndToEndSinglePayment")
+	defer span.End()
+
 
 	userBalancePre := testutils.GetAccountBalance(testutils.User1Seed)
 	serviceBalancePre := testutils.GetAccountBalance(testutils.Service1Seed)
 
-	pr,err := testSetup.CreatePaymentInfo(testutils.Service1Seed,10)
+	pr,err := testSetup.CreatePaymentInfo(ctx, testutils.Service1Seed,10)
 	assert.NoError(err)
 
-	result, err := testSetup.ProcessPayment(testutils.User1Seed,pr)
+	result, err := testSetup.ProcessPayment(ctx, testutils.User1Seed,pr)
 	assert.NoError(err)
 	assert.Contains(result,"Payment processing completed")
 
 
-	err = testSetup.FlushTransactions()
+	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
 	userBalancePost := testutils.GetAccountBalance(testutils.User1Seed)
 	serviceBalancePost := testutils.GetAccountBalance(testutils.Service1Seed)
 
-	v := testutils.AreBalancesEqual(userBalancePre-10, userBalancePost)
-	assert.True(v, "Incorrect user balance")
-	assert.True(testutils.AreBalancesEqual(serviceBalancePre+10, serviceBalancePost),"Incorrect service balance")
 
+	if (!assert.InEpsilon(userBalancePre-10,userBalancePost,1E-6,"Incorrect user balance")) {
+		t.Fail()
+	}
 
+	if (!assert.InEpsilon(serviceBalancePre+10,serviceBalancePost,1E-6,"Incorrect service balance")) {
+		t.Fail()
+	}
 }

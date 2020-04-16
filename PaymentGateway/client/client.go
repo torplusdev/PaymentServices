@@ -1,11 +1,14 @@
 package client
 
 import (
+	"context"
 	"github.com/go-errors/errors"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
 	"log"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
@@ -21,12 +24,14 @@ type Client struct {
 	fullKeyPair *keypair.Full
 	account horizon.Account
 	nodeManager node.NodeManager
+	tracer trace.Tracer
 }
 
 func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager) *Client {
 
 	client := Client{
-		nodeManager:nm,
+		nodeManager : nm,
+		tracer 		: global.Tracer("client"),
 	}
 
 	// Initialization
@@ -61,7 +66,10 @@ func reverseAny(s interface{}) {
 }
 
 
-func (client *Client) SignInitialTransactions(fundingTransactionPayload *common.PaymentTransactionReplacing, expectedDestination string, expectedAmount common.TransactionAmount) error {
+func (client *Client) SignInitialTransactions(context context.Context, fundingTransactionPayload *common.PaymentTransactionReplacing, expectedDestination string, expectedAmount common.TransactionAmount) error {
+
+	_,span := client.tracer.Start(context,"client-SignInitialTransactions")
+	defer span.End()
 
 	transaction := fundingTransactionPayload.GetPaymentTransaction()
 
@@ -118,7 +126,10 @@ func (client *Client) SignInitialTransactions(fundingTransactionPayload *common.
 	return nil
 }
 
-func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentRequest common.PaymentRequest, transactions []common.PaymentTransactionReplacing) (bool,error) {
+func (client *Client) VerifyTransactions(context context.Context, router common.PaymentRouter, paymentRequest common.PaymentRequest, transactions []common.PaymentTransactionReplacing) (bool,error) {
+
+	_,span := client.tracer.Start(context,"client-VerifyTransactions")
+	defer span.End()
 
 	ok := false
 
@@ -145,7 +156,10 @@ func (client *Client) VerifyTransactions(router common.PaymentRouter, paymentReq
 	return ok,nil
 }
 
-func (client *Client) InitiatePayment(router common.PaymentRouter, paymentRequest common.PaymentRequest) ([]common.PaymentTransactionReplacing, error) {
+func (client *Client) InitiatePayment(context context.Context,router common.PaymentRouter, paymentRequest common.PaymentRequest) ([]common.PaymentTransactionReplacing, error) {
+
+	ctx,span := client.tracer.Start(context,"client-InitiatePayment")
+	defer span.End()
 
 	route := router.CreatePaymentRoute(paymentRequest)
 
@@ -209,7 +223,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 		}
 
 		// Create and store transaction
-		nodeTransaction, err := stepNode.CreateTransaction(paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
+		nodeTransaction, err := stepNode.CreateTransaction(ctx, paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
 
 		if err  != nil {
 			log.Print("Error creating transaction for node " + sourceAddress + " : " + err.Error())
@@ -236,7 +250,7 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
 
 
-	err = serviceNode.SignTerminalTransactions(debitTransaction)
+	err = serviceNode.SignTerminalTransactions(ctx, debitTransaction)
 
 	if err  != nil {
 		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())
@@ -252,13 +266,13 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 		creditTransaction := t
 
 		testutils.Print(&creditTransaction.PendingTransaction)
-		stepNode.SignChainTransactions(creditTransaction, debitTransaction)
+		stepNode.SignChainTransactions(ctx, creditTransaction, debitTransaction)
 		testutils.Print(&creditTransaction.PendingTransaction)
 
 		debitTransaction = creditTransaction
 	}
 
-	err = client.SignInitialTransactions(&transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount + totalFee)
+	err = client.SignInitialTransactions(ctx, &transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount + totalFee)
 
 	if err != nil {
 		log.Print("Error in transaction: " + err.Error())
@@ -271,7 +285,10 @@ func (client *Client) InitiatePayment(router common.PaymentRouter, paymentReques
 	return transactions,nil
 }
 
-func (client *Client) FinalizePayment(router common.PaymentRouter, transactions []common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (client *Client) FinalizePayment(context context.Context, router common.PaymentRouter, transactions []common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+
+	ctx,span := client.tracer.Start(context,"client-FinalizePayment")
+	defer span.End()
 
 	ok := true
 
@@ -293,9 +310,9 @@ func (client *Client) FinalizePayment(router common.PaymentRouter, transactions 
 
 		// If this is a payment to the requesting node
 		if trans.PaymentDestinationAddress == pr.Address {
-			res,err = stepNode.CommitServiceTransaction(&t, pr)
+			res,err = stepNode.CommitServiceTransaction(ctx, &t, pr)
 		} else {
-			res,err = stepNode.CommitPaymentTransaction(&t)
+			res,err = stepNode.CommitPaymentTransaction(ctx, &t)
 		}
 
 		if err != nil {

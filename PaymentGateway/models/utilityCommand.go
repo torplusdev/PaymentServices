@@ -1,6 +1,9 @@
 package models
 
-import "paidpiper.com/payment-gateway/common"
+import (
+	"paidpiper.com/payment-gateway/common"
+	"time"
+)
 
 type UtilityCommand struct {
 	CommandType int		`json:"commandType"`
@@ -54,4 +57,10 @@ type CommitServiceTransactionResponse struct {
 
 type GetStellarAddressResponse struct {
 	Address	string
+}
+
+type GetPendingPaymentResponse struct {
+	Address	string
+	PendingBalance common.TransactionAmount
+	Timestamp time.Time
 }

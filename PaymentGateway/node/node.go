@@ -4,6 +4,7 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
+	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/support/log"
 	"github.com/stellar/go/txnbuild"
@@ -447,4 +448,23 @@ func (n *Node) CommitServiceTransaction(transaction *common.PaymentTransactionRe
 	n.CommitPaymentTransaction(transaction)
 
 	return true, nil
+}
+
+func (n *Node) FlushTransactions() (map[string]interface{},error) {
+
+	resultsMap := make(map[string]interface{})
+
+	for a,t := range n.activeTransactions {
+
+		txSuccess,err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+
+		resultsMap[a] = txSuccess.TransactionSuccessToString()
+
+		if err != nil {
+			log.Errorf("Error submitting transaction for %v: %w",a,err)
+			resultsMap[a] =  err
+		}
+	}
+
+	return resultsMap,nil
 }

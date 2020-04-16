@@ -122,6 +122,14 @@ func (tor *TorMock) RegisterNode( address string, port int) {
 	tor.nodes[address] = port
 }
 
+func (tor *TorMock) GetNodePort( address string) int {
+	return tor.nodes[address]
+}
+
+func (tor *TorMock) GetNodes() map[string]int {
+	return tor.nodes
+}
+
 func CreateTorMock(torPort int)  (*TorMock) {
 
 	tor := TorMock{

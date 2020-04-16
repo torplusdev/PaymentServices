@@ -8,9 +8,15 @@ import (
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
 	"log"
+	"math"
 	"paidpiper.com/payment-gateway/common"
 	"strconv"
 	"strings"
+	"context"
+
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/exporters/trace/stdout"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 
@@ -29,6 +35,35 @@ const Node3Seed = "SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A"
 
 // publc GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7
 const Node4Seed = "SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK"
+
+func AreBalancesEqual(balance1 float64 ,balance2 float64) bool {
+	return math.Abs(balance1 - balance2) < 1E-8
+}
+
+func InitGlobalTracer() {
+	exporter, err := stdout.NewExporter(stdout.Options{PrettyPrint: true})
+	if err != nil {
+		log.Fatal(err)
+	}
+	tp, err := sdktrace.NewProvider(sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+		sdktrace.WithSyncer(exporter))
+	if err != nil {
+		log.Fatal(err)
+	}
+	global.SetTraceProvider(tp)
+}
+
+func GetAccountBalance(seed string) float64 {
+
+	key,_ := keypair.ParseFull(seed)
+	acc, _ := GetAccount(key.Address())
+
+	strBalance,_ := acc.GetNativeBalance()
+
+	floatBalance,_ := strconv.ParseFloat(strBalance,64)
+
+	return floatBalance
+}
 
 func CreateAndFundAccount(seed string) {
 

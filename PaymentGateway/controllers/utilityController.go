@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/rs/xid"
+	"log"
 	"net/http"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
@@ -154,6 +155,26 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 	}
 
 	Respond(w, pr)
+}
+
+
+func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Request) {
+
+	results,err := u.Node.FlushTransactions()
+
+	if err != nil {
+		Respond(w,MessageWithStatus(http.StatusInternalServerError,"Error in FlushTransactions:..."))
+	}
+
+	for k,v := range results {
+		switch v.(type) {
+			case error:
+				log.Printf("Error in transaction for node %s: %w",k,v)
+			default:
+		}
+	}
+
+	Respond(w, MessageWithStatus(http.StatusOK,"Transactions committed"))
 }
 
 

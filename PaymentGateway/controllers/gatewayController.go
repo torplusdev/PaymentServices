@@ -117,7 +117,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest) {
 
 		if returnAsyncImmediately {
-			future <- Message("Payment in process")
+			future <- MessageWithStatus(http.StatusCreated,"Payment in process")
 		}
 		// Initiate
 		transactions, err := c.InitiatePayment(r, pr)

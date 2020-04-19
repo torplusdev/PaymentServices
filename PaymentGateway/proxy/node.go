@@ -16,20 +16,28 @@ type NodeProxy struct {
 	id 				string
 	torUrl 			string
 	commandChannel 	map[string]chan string
+	reference string
 }
 
-func NewProxy(address string, torUrl string) *NodeProxy  {
+func NewProxy(address string, torUrl string, reference string) *NodeProxy  {
 	return &NodeProxy{
 		id:             address,
 		torUrl:         torUrl,
 		commandChannel: make(map[string]chan string),
+		reference:		reference,
 	}
 }
 
 func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) error {
 	id := uuid.New().String()
 
-	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}
+	nodeId := n.reference
+
+	if nodeId == "" {
+		nodeId = n.id
+	}
+
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": nodeId}
 
 	jsonValue, _ := json.Marshal(values)
 

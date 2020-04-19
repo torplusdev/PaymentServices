@@ -92,11 +92,12 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	for _, a := range request.RouteAddresses {
 		addr = append(addr, a)
 
-		n := proxy.NewProxy(a, g.torCommandUrl)
+		n := proxy.NewProxy(a, g.torCommandUrl, a)
 
 		g.nodeManager.AddNode(a, n)
 	}
 
+	// Create destination node
 	addr = append(addr, paymentRequest.Address)
 
 	url := request.CallbackUrl
@@ -105,7 +106,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		url = g.torCommandUrl
 	}
 
-	n := proxy.NewProxy(paymentRequest.Address, url)
+	n := proxy.NewProxy(paymentRequest.Address, url, request.RequestReference)
 
 	g.nodeManager.AddNode(paymentRequest.Address, n)
 

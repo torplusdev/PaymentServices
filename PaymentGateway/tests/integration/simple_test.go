@@ -65,10 +65,11 @@ func TestMain(m *testing.M) {
 	setup()
 	code := m.Run()
 	shutdown()
+	_ = code
 	os.Exit(code)
 }
 
-func TestEndToEndSinglePayment(t *testing.T) {
+func TestSingleChainPayment(t *testing.T) {
 
 	assert := assert.New(t)
 
@@ -83,10 +84,13 @@ func TestEndToEndSinglePayment(t *testing.T) {
 	defer span.End()
 
 
-	userBalancePre := testutils.GetAccountBalance(testutils.User1Seed)
-	serviceBalancePre := testutils.GetAccountBalance(testutils.Service1Seed)
+	paymentAmount := 300.0
 
-	pr,err := testSetup.CreatePaymentInfo(ctx, testutils.Service1Seed,10)
+	balancesPre := testutils.GetAccountBalances([]string {testutils.User1Seed,testutils.Service1Seed,testutils.Node1Seed,testutils.Node2Seed,testutils.Node3Seed})
+
+	assert.Fail("oopsie")
+
+	pr,err := testSetup.CreatePaymentInfo(ctx, testutils.Service1Seed,int(paymentAmount))
 	assert.NoError(err)
 
 	result, err := testSetup.ProcessPayment(ctx, testutils.User1Seed,pr)
@@ -97,15 +101,16 @@ func TestEndToEndSinglePayment(t *testing.T) {
 	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
-	userBalancePost := testutils.GetAccountBalance(testutils.User1Seed)
-	serviceBalancePost := testutils.GetAccountBalance(testutils.Service1Seed)
+	balancesPost := testutils.GetAccountBalances([]string {testutils.User1Seed,testutils.Service1Seed,testutils.Node1Seed,testutils.Node2Seed,testutils.Node3Seed})
 
+	paymentRoutingFees := float64(3*10)
 
-	if (!assert.InEpsilon(userBalancePre-10,userBalancePost,1E-6,"Incorrect user balance")) {
-		t.Fail()
-	}
+	assert.InEpsilon(balancesPre[0] - paymentAmount - paymentRoutingFees,balancesPost[0],1E-6,"Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+paymentAmount,balancesPost[1],1E-6,"Incorrect service balance")
 
-	if (!assert.InEpsilon(serviceBalancePre+10,serviceBalancePost,1E-6,"Incorrect service balance")) {
-		t.Fail()
-	}
+	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount)/3
+
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee,balancesPost[2],1E-6,"Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+nodePaymentFee,balancesPost[3],1E-6,"Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+nodePaymentFee,balancesPost[4],1E-6,"Incorrect node3 balance")
 }

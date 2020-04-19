@@ -10,6 +10,7 @@ import (
 	"github.com/stellar/go/support/log"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
+	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
@@ -135,6 +136,11 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 
 	var amount = totalIn
 
+	span.SetAttributes(core.KeyValue{ Key:"payment.source-address",Value: core.String(sourceAddress) })
+	span.SetAttributes(core.KeyValue{ Key:"payment.destination-address",Value: core.String(n.Address) })
+	span.SetAttributes(core.KeyValue{ Key:"payment.amount-in",Value: core.Uint32(totalIn) })
+	span.SetAttributes(core.KeyValue{ Key:"payment.amount-out",Value: core.Uint32(totalIn) })
+
 	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction {
 		TransactionSourceAddress:  n.Address,
 		ReferenceAmountIn:         totalIn,
@@ -208,6 +214,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	// TODO: This should be configurable via profile/strategy
 	transactionPayload.UpdateStellarToken(build.TestNetwork.Passphrase)
 
+	transactionPayload.ToSpanAttributes(span,"credit")
 	return transactionPayload,nil
 }
 
@@ -254,6 +261,7 @@ func (n *Node) SignTerminalTransactions(context context.Context, creditTransacti
 	}
 
 	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
+	creditTransactionPayload.ToSpanAttributes(span,"credit")
 
 	return nil
 }
@@ -321,6 +329,8 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 
 	debitTransactionPayload.UpdateTransactionXDR(debitTransaction.XDR)
 
+	creditTransactionPayload.ToSpanAttributes(span,"credit")
+	debitTransactionPayload.ToSpanAttributes(span,"debit")
 	return nil
 }
 
@@ -446,6 +456,8 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 		// Save transaction
 		n.activeTransactions[transaction.PaymentSourceAddress] = *transaction
 	}
+
+	transactionPayload.ToSpanAttributes(span,"single")
 
 	return true, nil
 }

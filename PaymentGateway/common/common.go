@@ -44,6 +44,10 @@ type TransactionError struct {
 	error string
 }
 
+type PaymentRequestValidator interface {
+	Validate(pr PaymentRequest) (bool, string)
+}
+
 func (te *TransactionError) Error() string {
 	return fmt.Sprintf("Error: " + te.error)
 }

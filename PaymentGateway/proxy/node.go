@@ -18,14 +18,16 @@ type NodeProxy struct {
 	id 				string
 	torUrl 			string
 	commandChannel 	map[string]chan string
+	reference 		string
 	tracer 			trace.Tracer
 }
 
-func NewProxy(address string, torUrl string) *NodeProxy  {
+func NewProxy(address string, torUrl string, reference string) *NodeProxy  {
 	return &NodeProxy{
 		id:             address,
 		torUrl:         torUrl,
 		commandChannel: make(map[string]chan string),
+		reference:		reference,
 		tracer: 		global.Tracer("nodeProxy"),
 	}
 }
@@ -33,7 +35,13 @@ func NewProxy(address string, torUrl string) *NodeProxy  {
 func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType int, commandBody string) error {
 	id := uuid.New().String()
 
-	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}
+	nodeId := n.reference
+
+	if nodeId == "" {
+		nodeId = n.id
+	}
+
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": nodeId}
 
 	jsonValue, _ := json.Marshal(values)
 

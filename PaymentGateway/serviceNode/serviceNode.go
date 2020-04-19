@@ -69,7 +69,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/api/utility/createPaymentInfo/{amount}", utilityController.CreatePaymentInfo).Methods("GET")
+	router.HandleFunc("/api/utility/createPaymentInfo", utilityController.CreatePaymentInfo).Methods("POST")
 	router.HandleFunc("/api/utility/flushTransactions", utilityController.FlushTransactions).Methods("GET")
 	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
 	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"github.com/rs/xid"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
@@ -16,7 +15,6 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
-	"strconv"
 )
 
 type UtilityController struct {
@@ -196,25 +194,21 @@ func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.S
 }
 
 func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Request) {
-
 	ctx,span := spanFromRequest(r,"requesthandler:CreatePaymentInfo")
 
 	defer span.End()
 
-	params := mux.Vars(r)
-
-	strAmount := params["amount"]
-
 	serviceSessionId := xid.New().String()
 
-	amount, err := strconv.Atoi(strAmount)
+	request := &models.CreatePaymentInfo{}
+	err := json.NewDecoder(r.Body).Decode(request)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
 		return
 	}
 
-	err = u.Node.AddPendingServicePayment(ctx, serviceSessionId, uint32(amount))
+	err = u.Node.AddPendingServicePayment(ctx, serviceSessionId, request.Amount)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))

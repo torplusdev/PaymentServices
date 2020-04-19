@@ -1,10 +1,11 @@
 package testutils
 
 import (
+	"github.com/stellar/go/build"
+	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/network"
-	"github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
 	"go.opentelemetry.io/otel/api/core"
@@ -55,16 +56,20 @@ func InitGlobalTracer() func() {
 	return flush
 }
 
-func GetAccountBalance(seed string) float64 {
+func GetAccountBalances(seeds []string) []float64 {
 
-	key,_ := keypair.ParseFull(seed)
-	acc, _ := GetAccount(key.Address())
+	balances := make([]float64,len(seeds))
 
-	strBalance,_ := acc.GetNativeBalance()
+	for i,seed := range seeds {
+		key, _ := keypair.ParseFull(seed)
+		acc, _ := GetAccount(key.Address())
 
-	floatBalance,_ := strconv.ParseFloat(strBalance,64)
+		strBalance, _ := acc.GetNativeBalance()
 
-	return floatBalance
+		balances[i], _ = strconv.ParseFloat(strBalance, 64)
+	}
+
+	return balances
 }
 
 func CreateAndFundAccount(seed string) {
@@ -77,11 +82,12 @@ func CreateAndFundAccount(seed string) {
 		log.Fatal(err)
 	}
 
-	_, errAccount := client.AccountDetail(
+	detail, errAccount := client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: pair.Address()})
 
 	if errAccount != nil {
+
 		txSuccess, errCreate := client.Fund(pair.Address())
 
 		if errCreate != nil {
@@ -90,6 +96,55 @@ func CreateAndFundAccount(seed string) {
 
 		log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
 	}
+
+	strBalance,_ := detail.GetNativeBalance()
+	balance,_ := strconv.ParseFloat(strBalance,32)
+
+	if balance < 10000 {
+		injectFunds(pair.Address())
+
+	}
+}
+
+func injectFunds(address string) error {
+
+	client := horizonclient.DefaultTestNetClient
+	pair, _ := keypair.Random()
+
+	_, errCreate := client.Fund(pair.Address())
+
+	if errCreate != nil { return errCreate}
+
+	account, _ := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: pair.Address()})
+
+	currentBalance,_ :=account.GetNativeBalance()
+	_ = currentBalance
+
+	amount := 9900
+
+	tx, err := build.Transaction(
+		build.TestNetwork,
+		build.SourceAccount{pair.Seed()},
+		build.AutoSequence{horizon.DefaultTestNetClient},
+		build.Payment(
+			build.Destination{address},
+			build.NativeAmount{strconv.Itoa(amount)},
+		),
+	)
+
+	if err != nil { return err}
+
+	txe, err := tx.Sign(pair.Seed())
+
+	txeB64, err := txe.Base64()
+
+	resp, err := horizon.DefaultTestNetClient.SubmitTransaction(txeB64)
+
+	_ = resp.Hash
+
+	return nil
 }
 
 func SetSigners(seed string, signerSeed string) {

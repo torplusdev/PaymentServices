@@ -2,8 +2,13 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"github.com/stellar/go/txnbuild"
+	"github.com/stellar/go/xdr"
+	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/trace"
 	"log"
+	"strconv"
 )
 
 type PaymentTransactionReplacing struct {
@@ -36,6 +41,56 @@ func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) 
 
 func (payload *PaymentTransactionReplacing) GetPaymentTransaction() *PaymentTransaction {
 	return &payload.PendingTransaction
+}
+
+func (payload *PaymentTransactionReplacing) ToSpanAttributes(span trace.Span, transactionName string) {
+	transaction := payload.PendingTransaction
+
+	name := fmt.Sprintf("transaction.%s",transactionName)
+
+	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".source-address"),Value: core.String(transaction.TransactionSourceAddress) })
+
+	xdrTrans, _ := txnbuild.TransactionFromXDR(transaction.XDR)
+
+
+	for i,op := range xdrTrans.Operations {
+		xdrOp, _ := op.BuildXDR()
+
+		key := fmt.Sprintf("%s.xdr.op-%d-%s",name, i, xdrOp.Body.Type.String())
+
+		span.SetAttributes(core.KeyValue{Key: core.Key(key), Value: core.String(xdrOp.Body.Type.String())})
+
+		switch xdrOp.Body.Type {
+		case xdr.OperationTypePayment:
+
+			payment := &txnbuild.Payment{}
+
+			err := payment.FromXDR(xdrOp)
+
+			if err != nil {
+				span.SetAttributes(core.KeyValue{Key: core.Key(key + ".error"), Value: core.String(err.Error())})
+			}
+
+			span.SetAttributes(core.KeyValue{Key: core.Key(key + ".from"), Value: core.String(payment.SourceAccount.GetAccountID())})
+			span.SetAttributes(core.KeyValue{Key: core.Key(key + ".to"), Value: core.String(payment.Destination)})
+			span.SetAttributes(core.KeyValue{Key: core.Key(key + ".amount"), Value: core.String(payment.Amount)})
+			span.SetAttributes(core.KeyValue{Key: core.Key(key + ".asset"), Value: core.String(payment.Asset.GetCode())})
+		default:
+			span.SetAttributes(core.KeyValue{Key: core.Key(key + ".error"), Value: core.String("Unexpected operation type")})
+		}
+	}
+
+	for i, signature := range xdrTrans.TxEnvelope().Signatures {
+		span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.signature" + strconv.Itoa(i)),
+			Value: core.String("Signature [" + strconv.Itoa(signature.Signature.XDRMaxSize()) + "]") })
+	}
+
+	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.sourceAccount"),Value: core.String(xdrTrans.SourceAccount.GetAccountID()) })
+	xdrTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+
+	seq,_ := xdrTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.sequence"),Value: core.Int64(int64(seq)) })
+	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.network"),Value: core.String(xdrTrans.Network) })
 }
 
 func (payload *PaymentTransactionReplacing) validateSingleTransaction() error {

@@ -27,10 +27,9 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 	seed, err := keypair.ParseFull(keySeed)
 
 	if err != nil {
-		glog.Info("Error starting service node: %v",err)
+		glog.Info("Error parsing node key: %v",err)
 		return &Server{}, err
 	}
-
 
 	localNode := node.CreateNode(horizon.DefaultTestNetClient, seed.Address(), seed.Seed(),true)
 
@@ -52,7 +51,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 	account, err := testutils.GetAccount(seed.Address())
 
 	if err != nil {
-		glog.Info("Error starting service node: %v",err)
+		glog.Info("Error retreiving account data: %v",err)
 		return &Server{},err
 	}
 
@@ -83,7 +82,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			glog.Fatal("Error starting service node: %v",err)
+			glog.Warning("Error starting service node: %v",err)
 		}
 	}()
 

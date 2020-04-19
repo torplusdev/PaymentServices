@@ -2,10 +2,12 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
-	"net/http"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	testutils "paidpiper.com/payment-gateway/tests"
@@ -16,7 +18,8 @@ type NodeProxy struct {
 	id 				string
 	torUrl 			string
 	commandChannel 	map[string]chan string
-	reference string
+	reference 		string
+	tracer 			trace.Tracer
 }
 
 func NewProxy(address string, torUrl string, reference string) *NodeProxy  {
@@ -25,10 +28,11 @@ func NewProxy(address string, torUrl string, reference string) *NodeProxy  {
 		torUrl:         torUrl,
 		commandChannel: make(map[string]chan string),
 		reference:		reference,
+		tracer: 		global.Tracer("nodeProxy"),
 	}
 }
 
-func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) error {
+func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType int, commandBody string) error {
 	id := uuid.New().String()
 
 	nodeId := n.reference
@@ -41,18 +45,19 @@ func (n NodeProxy) ProcessCommandNoReply(commandType int, commandBody string) er
 
 	jsonValue, _ := json.Marshal(values)
 
-	_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
+	_, err := common.HttpPostWithContext(context,n.torUrl,bytes.NewBuffer(jsonValue))
 
 	return err
 }
 
-func (n NodeProxy) ProcessCommand(commandType int, commandBody string) (string, error) {
+func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody string) (string, error) {
 	id := uuid.New().String()
 
 	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}
 
 	jsonValue, _ := json.Marshal(values)
 
+	//TODO: Refactor code to pass struct containing http status code, or error
 	ch := make(chan string, 2)
 
 	n.commandChannel[id] = ch
@@ -60,7 +65,8 @@ func (n NodeProxy) ProcessCommand(commandType int, commandBody string) (string, 
 	defer delete (n.commandChannel, id)
 	defer close (ch)
 
-	_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
+	_, err := common.HttpPostWithContext(context,n.torUrl,bytes.NewBuffer(jsonValue))
+	//_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
 
 	if err != nil {
 		return "", err
@@ -69,6 +75,7 @@ func (n NodeProxy) ProcessCommand(commandType int, commandBody string) (string, 
 	// Wait
 	responseBody := <- ch
 
+	//TODO: should pass correct error instead of nil
 	return responseBody, nil
 }
 
@@ -76,7 +83,11 @@ func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
 	n.commandChannel[commandId] <- responseBody
 }
 
-func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+
+	ctx, span := n.tracer.Start(context,"proxy-CreateTransaction-" + n.id)
+	defer span.End()
+
 	var request = &models.CreateTransactionCommand{
 		TotalIn:       totalIn,
 		TotalOut:      totalOut,
@@ -89,7 +100,7 @@ func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee commo
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	reply, err := n.ProcessCommand(0, string(body))
+	reply, err := n.ProcessCommand(ctx, 0, string(body))
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, err
@@ -106,9 +117,20 @@ func (n NodeProxy) CreateTransaction(totalIn common.TransactionAmount, fee commo
 	return response.Transaction, nil
 }
 
-func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) error {
+func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
+
+	ctx, span := n.tracer.Start(context,"proxy-SignTerminalTransactions-" + n.id)
+	defer span.End()
+
+	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+
+	if err != nil {
+		return err
+	}
+
 	var request = &models.SignTerminalTransactionCommand{
 		Transaction: *creditTransactionPayload,
+		Context:	 traceContext,
 	}
 
 	body, err := json.Marshal(request)
@@ -117,7 +139,7 @@ func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.Pay
 		return err
 	}
 
-	reply, err := n.ProcessCommand(1,  string(body))
+	reply, err := n.ProcessCommand(ctx, 1,  string(body))
 
 	if err != nil {
 		return err
@@ -136,10 +158,21 @@ func (n NodeProxy) SignTerminalTransactions(creditTransactionPayload *common.Pay
 	return nil
 }
 
-func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+func (n NodeProxy) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+
+	ctx, span := n.tracer.Start(context,"proxy-SignChainTransactions-" + n.id)
+	defer span.End()
+
+	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+
+	if err != nil {
+		return err
+	}
+
 	var request = &models.SignChainTransactionsCommand{
-		Debit:  *debitTransactionPayload,
-		Credit: *creditTransactionPayload,
+		Debit:   *debitTransactionPayload,
+		Credit:  *creditTransactionPayload,
+		Context: traceContext,
 	}
 
 	body, err := json.Marshal(request)
@@ -148,7 +181,7 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.Paymen
 		return err
 	}
 
-	reply, err := n.ProcessCommand(2,  string(body))
+	reply, err := n.ProcessCommand(ctx, 2,  string(body))
 
 	if err != nil {
 		return err
@@ -171,10 +204,21 @@ func (n NodeProxy) SignChainTransactions(creditTransactionPayload *common.Paymen
 	return nil
 }
 
-func (n NodeProxy) CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+
+	ctx, span := n.tracer.Start(context,"proxy-CommitServiceTransaction-" + n.id)
+	defer span.End()
+
+	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+
+	if err != nil {
+		return false, err
+	}
+
 	var request = &models.CommitServiceTransactionCommand {
-		Transaction: *transaction,
+		Transaction: 	*transaction,
 		PaymentRequest: pr,
+		Context:		traceContext,
 	}
 
 	body, err := json.Marshal(request)
@@ -183,7 +227,7 @@ func (n NodeProxy) CommitServiceTransaction(transaction *common.PaymentTransacti
 		return false, errors.Errorf(err.Error())
 	}
 
-	reply, err := n.ProcessCommand(4, string(body))
+	reply, err := n.ProcessCommand(ctx,4, string(body))
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
@@ -200,9 +244,21 @@ func (n NodeProxy) CommitServiceTransaction(transaction *common.PaymentTransacti
 	return response.Ok, nil
 }
 
-func (n NodeProxy) CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n NodeProxy) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+
+	ctx, span := n.tracer.Start(context,"proxy-CommitPaymentTransaction-" + n.id)
+	defer span.End()
+
+	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+
+	if err != nil {
+		return false, err
+	}
+
+
 	var request = &models.CommitPaymentTransactionCommand {
 		Transaction: *transactionPayload,
+		Context:	 traceContext,
 	}
 
 	body, err := json.Marshal(request)
@@ -211,7 +267,7 @@ func (n NodeProxy) CommitPaymentTransaction(transactionPayload *common.PaymentTr
 		return false, errors.Errorf(err.Error())
 	}
 
-	reply, err := n.ProcessCommand(3, string(body))
+	reply, err := n.ProcessCommand(ctx,3, string(body))
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())

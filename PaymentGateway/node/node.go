@@ -1,13 +1,17 @@
 package node
 
 import (
+	"context"
 	"github.com/go-errors/errors"
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
+	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/support/log"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
 	"strconv"
 	"time"
@@ -28,20 +32,15 @@ type Node struct {
 	transactionFee               common.TransactionAmount
 	pendingPayment               map[string]serviceUsageCredit
 	activeTransactions           map[string]common.PaymentTransaction
+	tracer 						 trace.Tracer
 }
 
 type PPNode interface {
-	CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
-	SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) error
-	SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error
-	CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
-	CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
-
-	// TODO: Remove from PPNode interface
-	// AddPendingServicePayment(serviceSessionId string,amount common.TransactionAmount) (err error)
-	// CreatePaymentRequest(serviceSessionId string)  (common.PaymentRequest, error)
-	//	SetAccumulatingTransactionsMode(accumulateTransactions bool)
-	//	GetAddress() string
+	CreateTransaction(context context.Context,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
+	SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error
+	SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error
+	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
+	CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
 }
 
 func CreateNode(client *horizon.Client, address string, seed string, accumulateTransactions bool) *Node {
@@ -53,6 +52,7 @@ func CreateNode(client *horizon.Client, address string, seed string, accumulateT
 		pendingPayment:               make(map[string]serviceUsageCredit),
 		activeTransactions:           make(map[string]common.PaymentTransaction),
 		accumulatingTransactionsMode: accumulateTransactions,
+		tracer:						  global.Tracer("node"),
 	}
 
 	return &node
@@ -62,7 +62,10 @@ type NodeManager interface {
 	GetNodeByAddress(address string) PPNode
 }
 
-func (n *Node) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) error {
+func (n *Node) AddPendingServicePayment(context context.Context, serviceSessionId string, amount common.TransactionAmount) error {
+
+	_,span :=n.tracer.Start(context,"node-AddPendingServicePayment " + n.Address)
+	defer span.End()
 
 	if n.pendingPayment[serviceSessionId].updated.IsZero() {
 		n.pendingPayment[serviceSessionId] = serviceUsageCredit{
@@ -92,7 +95,10 @@ func (n *Node) GetPendingPayment(address string) (common.TransactionAmount, time
 	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
 }
 
-func (n *Node) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {
+func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string) (common.PaymentRequest, error) {
+
+	_,span :=n.tracer.Start(context,"node-CreatePaymentRequest "+ n.Address)
+	defer span.End()
 
 	if n.pendingPayment[serviceSessionId].updated.IsZero() {
 		return common.PaymentRequest{}, nil
@@ -116,17 +122,11 @@ func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransa
 	return common.CreateReferenceTransaction(internalTransaction, n.activeTransactions[internalTransaction.PaymentSourceAddress])
 }
 
-//func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransaction) (common.PaymentTransactionPayload, error) {
-//
-//	if n.accumulatingTransactionsMode {
-//		tw, err := common.CreateReferenceTransaction(internalTransaction, n.activeTransactions[internalTransaction.PaymentSourceAddress])
-//		return tw, err
-//	} else {
-//		return common.CreateSimpleTransaction(internalTransaction), nil
-//	}
-//}
 
-func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+func (n *Node) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+
+	_,span :=n.tracer.Start(context,"node-CreateTransaction " + n.Address)
+	defer span.End()
 
 	//Verify fee
 	if totalIn-totalOut != fee {
@@ -211,7 +211,10 @@ func (n *Node) CreateTransaction(totalIn common.TransactionAmount, fee common.Tr
 	return transactionPayload,nil
 }
 
-func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) error {
+func (n *Node) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
+
+	_,span :=n.tracer.Start(context,"node-SignTerminalTransactions " + n.Address)
+	defer span.End()
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 
@@ -255,7 +258,10 @@ func (n *Node) SignTerminalTransactions(creditTransactionPayload *common.Payment
 	return nil
 }
 
-func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+func (n *Node) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+
+	_,span :=n.tracer.Start(context,"node-SignChainTransactions " + n.Address)
+	defer span.End()
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()
@@ -318,7 +324,11 @@ func (n *Node) SignChainTransactions(creditTransactionPayload *common.PaymentTra
 	return nil
 }
 
-func (n *Node) verifyTransactionSignatures(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) verifyTransactionSignatures(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+
+	_,span :=n.tracer.Start(context,"node-verifyTransactionSignatures " + n.Address )
+	defer span.End()
+
 
 	transaction := transactionPayload.GetPaymentTransaction()
 
@@ -402,7 +412,10 @@ func (n *Node) verifyTransactionSignatures(transactionPayload *common.PaymentTra
 	return true, nil
 }
 
-func (n *Node) CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+
+	_,span :=n.tracer.Start(context,"node-CommitPaymentTransaction "  + n.Address)
+	defer span.End()
 
 	ok = false
 	transaction := transactionPayload.GetPaymentTransaction()
@@ -414,7 +427,7 @@ func (n *Node) CommitPaymentTransaction(transactionPayload *common.PaymentTransa
 	}
 	_ = t
 
-	ok, err = n.verifyTransactionSignatures(transactionPayload)
+	ok, err = n.verifyTransactionSignatures(context, transactionPayload)
 
 	if !ok || err != nil {
 		return false, err
@@ -437,14 +450,39 @@ func (n *Node) CommitPaymentTransaction(transactionPayload *common.PaymentTransa
 	return true, nil
 }
 
-func (n *Node) CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (n *Node) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+
+	_,span :=n.tracer.Start(context,"node-CommitServiceTransaction "  + n.Address)
+	defer span.End()
 
 	n.pendingPayment[pr.ServiceSessionId] = serviceUsageCredit{
 		amount:  n.pendingPayment[pr.ServiceSessionId].amount - transaction.GetPaymentTransaction().AmountOut,
 		updated: time.Now(),
 	}
 
-	n.CommitPaymentTransaction(transaction)
+	n.CommitPaymentTransaction(context, transaction)
 
 	return true, nil
+}
+
+func (n *Node) FlushTransactions(context context.Context) (map[string]interface{},error) {
+
+	_,span :=n.tracer.Start(context,"node-FlushTransactions " + n.Address)
+	defer span.End()
+
+	resultsMap := make(map[string]interface{})
+
+	for a,t := range n.activeTransactions {
+
+		txSuccess,err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+
+		resultsMap[a] = txSuccess.TransactionSuccessToString()
+
+		if err != nil {
+			log.Errorf("Error submitting transaction for %v: %w",a,err)
+			resultsMap[a] =  err
+		}
+	}
+
+	return resultsMap,nil
 }

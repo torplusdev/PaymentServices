@@ -1,6 +1,7 @@
 package payment_tests_rogue
 
 import (
+	"context"
 	"github.com/go-errors/errors"
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
@@ -13,57 +14,58 @@ import (
 
 type RogueNode struct {
 	internalNode node.PPNode
-	transactionCreationFunction func(*RogueNode,common.TransactionAmount,common.TransactionAmount,common.TransactionAmount, string) (common.PaymentTransactionReplacing,error)
-	signChainTransactionsFunction func(*RogueNode, *common.PaymentTransactionReplacing, *common.PaymentTransactionReplacing) *errors.Error
+	transactionCreationFunction func(*RogueNode, context.Context, common.TransactionAmount,common.TransactionAmount,common.TransactionAmount, string) (common.PaymentTransactionReplacing,error)
+	signChainTransactionsFunction func(*RogueNode, context.Context,  *common.PaymentTransactionReplacing, *common.PaymentTransactionReplacing) error
 }
 
-func (r *RogueNode) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
-	r.internalNode.AddPendingServicePayment(serviceSessionId,amount)
+//func (r *RogueNode) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
+//	r.internalNode.AddPendingServicePayment(context,serviceSessionId,amount)
+//}
+//
+//func (r *RogueNode) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
+//	r.internalNode.SetAccumulatingTransactionsMode(accumulateTransactions)
+//}
+
+func (r *RogueNode) CreatePaymentRequest(context context.Context, serviceSessionId string) (common.PaymentRequest, error) {
+	return r.internalNode.CreatePaymentRequest(context, serviceSessionId)
 }
 
-func (r *RogueNode) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
-	r.internalNode.SetAccumulatingTransactionsMode(accumulateTransactions)
+func (r *RogueNode) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
+
+	return r.transactionCreationFunction(r, context, totalIn, fee, totalOut, sourceAddress)
 }
 
-func (r *RogueNode) CreatePaymentRequest(serviceSessionId string) (common.PaymentRequest, error) {
-	return r.internalNode.CreatePaymentRequest(serviceSessionId)
+func createTransactionCorrect(r *RogueNode,context context.Context,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
+	return r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress)
 }
 
-func (r *RogueNode) CreateTransaction(totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
-
-	return r.transactionCreationFunction(r, totalIn, fee, totalOut, sourceAddress)
+func (r *RogueNode) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
+	return r.internalNode.SignTerminalTransactions(context, creditTransactionPayload)
 }
 
-func createTransactionCorrect(r *RogueNode,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
-	return r.internalNode.CreateTransaction(totalIn, fee, totalOut, sourceAddress)
+func (r *RogueNode) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+	return r.signChainTransactionsFunction(r,context, creditTransactionPayload,debitTransactionPayload)
 }
 
-func (r *RogueNode) SignTerminalTransactions(creditTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
-	return r.internalNode.SignTerminalTransactions(creditTransactionPayload)
+func signChainTransactionsNoError(r *RogueNode,context context.Context,creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+	return r.internalNode.SignChainTransactions(context, creditTransactionPayload,debitTransactionPayload)
 }
 
-func (r *RogueNode) SignChainTransactions(creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
-	return r.signChainTransactionsFunction(r,creditTransactionPayload,debitTransactionPayload)
+func (r *RogueNode) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+	return r.internalNode.CommitServiceTransaction(context, transaction,pr)
 }
 
-func signChainTransactionsNoError(r *RogueNode,creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
-	return r.internalNode.SignChainTransactions(creditTransactionPayload,debitTransactionPayload)
-}
-
-func (r *RogueNode) CommitServiceTransaction(transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
-	return r.internalNode.CommitServiceTransaction(transaction,pr)
-}
-
-func (r *RogueNode) CommitPaymentTransaction(transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
-	return r.internalNode.CommitPaymentTransaction(transactionPayload)
+func (r *RogueNode) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+	return r.internalNode.CommitPaymentTransaction(context, transactionPayload)
 }
 
 func (r *RogueNode) GetAddress() string {
-	return r.internalNode.GetAddress()
+	return ""
+	//return r.internalNode.GetAddress()
 }
 
-func createTransactionIncorrectSequence(r *RogueNode,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
-	transaction,err := r.internalNode.CreateTransaction(totalIn,fee,totalOut,sourceAddress)
+func createTransactionIncorrectSequence(r *RogueNode,context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
+	transaction,err := r.internalNode.CreateTransaction(context, totalIn,fee,totalOut,sourceAddress)
 
 	if err != nil {
 		panic("unexpected error creating transaction")
@@ -131,7 +133,7 @@ func createTransactionIncorrectSequence(r *RogueNode,totalIn common.TransactionA
 	return transaction,nil
 }
 
-func signChainTransactionsBadSignature(r *RogueNode,creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) *errors.Error {
+func signChainTransactionsBadSignature(r *RogueNode,context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()

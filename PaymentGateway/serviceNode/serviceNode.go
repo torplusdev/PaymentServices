@@ -1,11 +1,13 @@
 package serviceNode
 
 import (
+	"context"
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
+	"go.opentelemetry.io/otel/api/global"
 	. "net/http"
 	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/controllers"
@@ -16,6 +18,11 @@ import (
 )
 
 func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Server,error) {
+
+	tracer := global.Tracer("paidpiper/serviceNode")
+
+	_, span := tracer.Start(context.Background(),"serviceNode-initialization")
+	defer span.End()
 
 	seed, err := keypair.ParseFull(keySeed)
 
@@ -63,6 +70,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 	router := mux.NewRouter()
 
 	router.HandleFunc("/api/utility/createPaymentInfo/{amount}", utilityController.CreatePaymentInfo).Methods("GET")
+	router.HandleFunc("/api/utility/flushTransactions", utilityController.FlushTransactions).Methods("GET")
 	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
 	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
 	router.HandleFunc("/api/gateway/processResponse", gatewayController.ProcessResponse).Methods("POST")

@@ -7,9 +7,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
-	"go.opentelemetry.io/otel/api/global"
 	. "net/http"
 	"paidpiper.com/payment-gateway/client"
+	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/controllers"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/proxy"
@@ -19,7 +19,7 @@ import (
 
 func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Server,error) {
 
-	tracer := global.Tracer("paidpiper/serviceNode")
+	tracer := common.CreateTracer("paidpiper/serviceNode")
 
 	_, span := tracer.Start(context.Background(),"serviceNode-initialization")
 	defer span.End()

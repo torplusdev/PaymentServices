@@ -11,7 +11,6 @@ import (
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
 	"strconv"
@@ -53,7 +52,7 @@ func CreateNode(client *horizon.Client, address string, seed string, accumulateT
 		pendingPayment:               make(map[string]serviceUsageCredit),
 		activeTransactions:           make(map[string]common.PaymentTransaction),
 		accumulatingTransactionsMode: accumulateTransactions,
-		tracer:						  global.Tracer("node"),
+		tracer:						  common.CreateTracer("node"),
 	}
 
 	return &node
@@ -131,15 +130,13 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 
 	//Verify fee
 	if totalIn-totalOut != fee {
-		log.Fatal("Incorrect fee requested")
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Incorrect fee requested: %d != %d",totalIn-totalOut,fee)
 	}
-
-	var amount = totalIn
 
 	span.SetAttributes(core.KeyValue{ Key:"payment.source-address",Value: core.String(sourceAddress) })
 	span.SetAttributes(core.KeyValue{ Key:"payment.destination-address",Value: core.String(n.Address) })
 	span.SetAttributes(core.KeyValue{ Key:"payment.amount-in",Value: core.Uint32(totalIn) })
-	span.SetAttributes(core.KeyValue{ Key:"payment.amount-out",Value: core.Uint32(totalIn) })
+	span.SetAttributes(core.KeyValue{ Key:"payment.amount-out",Value: core.Uint32(totalOut) })
 
 	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction {
 		TransactionSourceAddress:  n.Address,
@@ -149,9 +146,11 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		PaymentDestinationAddress: n.Address,
 	})
 
+	var amount = transactionPayload.PendingTransaction.ReferenceAmountIn
+
 	if err != nil {
-		log.Fatal("Error creating transaction wrapper: " + err.Error())
-		return common.PaymentTransactionReplacing{}, err
+		//log.Fatal("Error creating transaction wrapper: " + err.Error())
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error creating transaction wrapper: %v",err)
 	}
 
 	var sequenceProvider build.SequenceProvider
@@ -186,8 +185,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	)
 
 	if err != nil {
-		log.Fatal("Error creating transaction: " + err.Error())
-		return common.PaymentTransactionReplacing{}, err
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error creating transaction: %v",err)
 	}
 	if n.client.URL == "https://horizon-testnet.stellar.org" {
 		tx.Mutate(build.TestNetwork)
@@ -198,15 +196,13 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	txe, err := tx.Envelope()
 
 	if err != nil {
-		log.Fatal("Error generating transaction envelope: " + err.Error())
-		return common.PaymentTransactionReplacing{}, err
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error generating transaction envelope: %v",err)
 	}
 
 	xdr, err := txe.Base64()
 
 	if err != nil {
-		log.Fatal("Error serializing transaction: " + err.Error())
-		return common.PaymentTransactionReplacing{}, err
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error serializing transaction: %v",err)
 	}
 
 	transactionPayload.UpdateTransactionXDR(xdr)
@@ -227,37 +223,32 @@ func (n *Node) SignTerminalTransactions(context context.Context, creditTransacti
 
 	// Validate
 	if creditTransaction.PaymentDestinationAddress != n.Address {
-		log.Fatal("Transaction destination is incorrect ", creditTransaction.PaymentDestinationAddress)
-		return errors.New("Transaction destination error")
+		return errors.Errorf("Transaction destination is incorrect: %s",creditTransaction.PaymentDestinationAddress)
 	}
 
 	kp, err := keypair.ParseFull(n.secretSeed)
 
 	if err != nil {
-		log.Fatal("Error parsing keypair: ", err.Error())
-		return err
+		return errors.Errorf("Error parsing keypair: %v",err)
 	}
 
 	t, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
 	t.Network = creditTransaction.StellarNetworkToken
 
 	if err != nil {
-		log.Fatal("Error parsing transaction: ", err.Error())
-		return err
+		return errors.Errorf("Error parsing transaction: %v",err)
 	}
 
 	err = t.Sign(kp)
 
 	if err != nil {
-		log.Fatal("Failed to signed transaction")
-		return err
+		return errors.Errorf("Failed to signed transaction: %v",err)
 	}
 
 	creditTransaction.XDR, err = t.Base64()
 
 	if err != nil {
-		log.Fatal("Error writing transaction envelope: " + err.Error())
-		return err
+		return errors.Errorf("Error writing transaction envelope: %v",err)
 	}
 
 	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
@@ -277,24 +268,21 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 	kp, err := keypair.ParseFull(n.secretSeed)
 
 	if err != nil {
-		log.Fatal("Error parsing keypair: ", err.Error())
-		return err
+		return errors.Errorf("Error parsing keypair: %v",err)
 	}
 
 	credit, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
 	credit.Network = creditTransaction.StellarNetworkToken
 
 	if err != nil {
-		log.Fatal("Error parsing credit transaction: ", err.Error())
-		return err
+		return errors.Errorf("Error parsing credit transaction: %v",err)
 	}
 
 	debit, err := txnbuild.TransactionFromXDR(debitTransaction.XDR)
 	debit.Network = debitTransaction.StellarNetworkToken
 
 	if err != nil {
-		log.Fatal("Error parsing debit transaction: ", err.Error())
-		return err
+		return errors.Errorf("Error parsing debit transaction: %v",err)
 	}
 
 	err = credit.Sign(kp)
@@ -433,7 +421,7 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 	t, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		log.Error("Error during transaction deser: " + e.Error())
+		return false, errors.Errorf("Error during transaction deser: %v",e)
 	}
 	_ = t
 

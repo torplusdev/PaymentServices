@@ -7,7 +7,6 @@ import (
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
 	"log"
 	"paidpiper.com/payment-gateway/common"
@@ -31,7 +30,7 @@ func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager)
 
 	client := Client{
 		nodeManager : nm,
-		tracer 		: global.Tracer("client"),
+		tracer 		: common.CreateTracer("client"),
 	}
 
 	// Initialization
@@ -76,29 +75,31 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 	t, err := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if err != nil {
-		log.Fatal("Error parsing transaction: ", err.Error())
-		return errors.Errorf("transaction parse error","")
+		return errors.Errorf("transaction parse error: %v",err)
 	}
 
 	if len(t.Operations) != 1  {
-		log.Fatal("Transaction shall have only a single payment operation")
+		return errors.Errorf("Transaction shall have only a single payment operation")
 	}
 
 	op, ok := t.Operations[0].(*txnbuild.Payment)
 
 	if !ok {
-		log.Fatal("Transaction shall have only a single payment operation")
+		return errors.Errorf("Error in payment operation format")
 	}
 
 	if op.SourceAccount.GetAccountID() != client.fullKeyPair.Address() || op.Destination != expectedDestination {
-		log.Fatal("Transaction op addresses are incorrect")
+		return errors.Errorf("Transaction op addresses are incorrect")
 	}
 
 	floatAmount,err := strconv.ParseFloat(op.Amount,32)
 	amount := uint64(floatAmount)
 
+	// Add amount from previous transaction
+	expectedAmount = expectedAmount + fundingTransactionPayload.ReferenceTransaction.ReferenceAmountIn
+
 	if err != nil || amount != uint64(expectedAmount) {
-		log.Fatal("Transaction amount is incorrect")
+		return errors.Errorf("Transaction amount is incorrect")
 	}
 
 	t.Network = transaction.StellarNetworkToken
@@ -106,21 +107,19 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 	err = t.Sign(client.fullKeyPair)
 
 	if err != nil {
-		log.Fatal("Failed to signed transaction")
+		return errors.Errorf("Failed to sign transaction")
 	}
 
 	xdr, err := t.Base64()
 
 	if err != nil {
-		log.Fatal("Error converting transaction to binary xdr: " + err.Error())
-		return errors.Errorf("transaction xdr error","")
+		return errors.Errorf("Error converting transaction to binary xdr: %v", err)
 	}
 
 	err = fundingTransactionPayload.UpdateTransactionXDR(xdr)
 
 	if err != nil {
-		log.Fatal("Error writing transaction envelope: " + err.Error())
-		return errors.Errorf("transaction envelope error","")
+		return errors.Errorf("Error writing transaction envelope: %v", err)
 	}
 
 	return nil

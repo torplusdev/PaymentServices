@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"context"
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
@@ -8,14 +9,18 @@ import (
 	"github.com/stellar/go/network"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
+	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/api/core"
+	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"log"
 	"paidpiper.com/payment-gateway/common"
 	"strconv"
 	"strings"
+	"testing"
 )
 
 
@@ -35,10 +40,15 @@ const Node3Seed = "SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A"
 // publc GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7
 const Node4Seed = "SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK"
 
-func InitGlobalTracer() func() {
+type Sampler interface {
+	ShouldSample(parameters sdktrace.SamplingParameters) sdktrace.SamplingResult
+	Description() string
+}
+
+func InitGlobalTracer() (*sdktrace.Provider,func()) {
 
 	// Create and install Jaeger export pipeline
-	_, flush, err := jaeger.NewExportPipeline(
+	provider, flush, err := jaeger.NewExportPipeline(
 		jaeger.WithCollectorEndpoint("http://192.168.162.128:14268/api/traces"),
 		jaeger.WithProcess(jaeger.Process{
 			ServiceName: "tests",
@@ -46,14 +56,29 @@ func InitGlobalTracer() func() {
 				key.String("exporter", "jaeger"),
 			},
 		}),
-		jaeger.RegisterAsGlobal(),
+//		jaeger.RegisterAsGlobal(),
 		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return flush
+	return provider, flush
+}
+
+
+func InitTestCreateSpan(t *testing.T, spanName string) (*assert.Assertions,context.Context, trace.Span) {
+
+	asserter := assert.New(t)
+	tr := common.CreateTracer("test")
+
+	ctx := correlation.NewContext(context.Background(),
+		key.String("test", spanName),
+	)
+
+	ctx,span := tr.Start(ctx,spanName)
+
+	return asserter, ctx, span
 }
 
 func GetAccountBalances(seeds []string) []float64 {
@@ -61,8 +86,8 @@ func GetAccountBalances(seeds []string) []float64 {
 	balances := make([]float64,len(seeds))
 
 	for i,seed := range seeds {
-		key, _ := keypair.ParseFull(seed)
-		acc, _ := GetAccount(key.Address())
+		kp, _ := keypair.ParseFull(seed)
+		acc, _ := GetAccount(kp.Address())
 
 		strBalance, _ := acc.GetNativeBalance()
 

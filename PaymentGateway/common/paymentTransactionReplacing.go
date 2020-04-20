@@ -30,6 +30,7 @@ func CreateReferenceTransaction (pt PaymentTransaction, ref PaymentTransaction) 
 	}
 
 	pt.AmountOut = ref.AmountOut + pt.AmountOut
+	pt.ReferenceAmountIn = ref.ReferenceAmountIn + pt.ReferenceAmountIn
 
 	transaction := PaymentTransactionReplacing{
 		PendingTransaction:   pt,

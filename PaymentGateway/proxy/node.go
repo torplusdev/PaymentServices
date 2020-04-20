@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
@@ -28,7 +27,7 @@ func NewProxy(address string, torUrl string, reference string) *NodeProxy  {
 		torUrl:         torUrl,
 		commandChannel: make(map[string]chan string),
 		reference:		reference,
-		tracer: 		global.Tracer("nodeProxy"),
+		tracer: 		common.CreateTracer("nodeProxy"),
 	}
 }
 

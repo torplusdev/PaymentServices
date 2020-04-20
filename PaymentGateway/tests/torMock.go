@@ -8,7 +8,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/api/correlation"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/httptrace"
 	"io/ioutil"
@@ -54,7 +53,7 @@ func respondObject(w http.ResponseWriter, data interface{}) {
 
 func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.Span) {
 
-	tracer := global.Tracer("paidpiper/tor-mock")
+	tracer := common.CreateTracer("paidpiper/tor-mock")
 	attrs, entries, spanCtx := httptrace.Extract(r.Context(), r)
 
 	r = r.WithContext(correlation.ContextWithMap(r.Context(), correlation.NewMap(correlation.MapUpdate{

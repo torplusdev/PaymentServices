@@ -7,7 +7,6 @@ import (
 	"github.com/rs/xid"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/httptrace"
 	"log"
@@ -23,7 +22,7 @@ type UtilityController struct {
 
 func spanFromContext(rootContext context.Context, traceContext common.TraceContext, spanName string) (context.Context, trace.Span) {
 
-	tracer := global.Tracer("paidpiper/controller")
+	tracer := common.CreateTracer("paidpiper/controller")
 
 	var traceId [16]byte
 	var spanId [8]byte
@@ -177,7 +176,7 @@ func (u *UtilityController) CommitPaymentTransaction(context context.Context, co
 
 func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.Span) {
 
-	tracer := global.Tracer("paidpiper/controller")
+	tracer := common.CreateTracer("paidpiper/controller")
 	attrs, entries, spanCtx := httptrace.Extract(r.Context(), r)
 
 	r = r.WithContext(correlation.ContextWithMap(r.Context(), correlation.NewMap(correlation.MapUpdate{

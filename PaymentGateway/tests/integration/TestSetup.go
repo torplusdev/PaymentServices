@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"github.com/stellar/go/keypair"
 	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/global"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/serviceNode"
 	testutils "paidpiper.com/payment-gateway/tests"
 	"time"
@@ -56,7 +56,7 @@ func (setup *TestSetup) startNode(seed string, nodePort int) {
 
 func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodePort int) {
 
-	tr := global.Tracer("TestInit")
+	tr := common.CreateTracer("TestInit")
 	_,span := tr.Start(ctx,fmt.Sprintf("service-node-start:%d %s",nodePort,seed))
 	defer span.End()
 
@@ -71,7 +71,7 @@ func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodeP
 
 func (setup *TestSetup) StartTorNode(ctx context.Context, seed string, nodePort int) {
 
-	tr := global.Tracer("TestInit")
+	tr := common.CreateTracer("TestInit")
 	_,span := tr.Start(ctx,fmt.Sprintf("tor-node-start:%d %s",nodePort,seed))
 	defer span.End()
 
@@ -86,7 +86,7 @@ func (setup *TestSetup) StartTorNode(ctx context.Context, seed string, nodePort 
 
 func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort int) {
 
-	tr := global.Tracer("TestInit")
+	tr := common.CreateTracer("TestInit")
 	_,span := tr.Start(ctx,fmt.Sprintf("user-node-start:%d %s",nodePort,seed))
 	defer span.End()
 
@@ -103,7 +103,7 @@ func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort
 
 func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, amount int) (common.PaymentRequest,error) {
 
-	tr := global.Tracer("test")
+	tr := common.CreateTracer("test")
 	ctx,span :=tr.Start(context,"CreatePaymentInfo")
 	span.SetAttributes(core.KeyValue{ Key:   "seed",Value: core.String(seed) })
 	defer span.End()
@@ -112,7 +112,15 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 
 	port := setup.torMock.GetNodePort(kp.Address())
 
-	resp,err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/createPaymentInfo/%d", port, amount))
+	cpi := models.CreatePaymentInfo{
+		ServiceType:   "test",
+		CommodityType: "data",
+		Amount:        uint32(amount),
+	}
+
+	cpiBytes,err := json.Marshal(cpi)
+
+	resp,err := common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/createPaymentInfo", port),bytes.NewReader(cpiBytes))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return common.PaymentRequest{}, err
@@ -133,7 +141,7 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 
 func (setup *TestSetup) FlushTransactions(context context.Context) error {
 
-	tr := global.Tracer("test")
+	tr := common.CreateTracer("test")
 	ctx,span :=tr.Start(context,"FlushTransactions")
 	defer span.End()
 
@@ -157,7 +165,7 @@ type ProcessPaymentRequest struct {
 
 func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paymentRequest common.PaymentRequest) (string, error) {
 
-	tr := global.Tracer("test")
+	tr := common.CreateTracer("test")
 	ctx,span :=tr.Start(context,"ProcessPayment")
 	defer span.End()
 

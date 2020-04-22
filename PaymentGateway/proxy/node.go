@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
@@ -15,33 +14,17 @@ import (
 )
 
 type NodeProxy struct {
-	id 				string
-	torUrl 			string
-	commandChannel 	map[string]chan string
-	reference 		string
-	tracer 			trace.Tracer
-}
-
-func NewProxy(address string, torUrl string, reference string) *NodeProxy  {
-	return &NodeProxy{
-		id:             address,
-		torUrl:         torUrl,
-		commandChannel: make(map[string]chan string),
-		reference:		reference,
-		tracer: 		global.Tracer("nodeProxy"),
-	}
+	address        string
+	torUrl         string
+	commandChannel map[string]chan string
+	nodeId         string
+	tracer         trace.Tracer
 }
 
 func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType int, commandBody string) error {
 	id := uuid.New().String()
 
-	nodeId := n.reference
-
-	if nodeId == "" {
-		nodeId = n.id
-	}
-
-	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": nodeId}
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.nodeId}
 
 	jsonValue, _ := json.Marshal(values)
 
@@ -53,7 +36,7 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody string) (string, error) {
 	id := uuid.New().String()
 
-	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.id}
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.nodeId}
 
 	jsonValue, _ := json.Marshal(values)
 
@@ -85,7 +68,7 @@ func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
 
 func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
 
-	ctx, span := n.tracer.Start(context,"proxy-CreateTransaction-" + n.id)
+	ctx, span := n.tracer.Start(context,"proxy-CreateTransaction-" + n.address)
 	defer span.End()
 
 	var request = &models.CreateTransactionCommand{
@@ -119,7 +102,7 @@ func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.Tra
 
 func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
 
-	ctx, span := n.tracer.Start(context,"proxy-SignTerminalTransactions-" + n.id)
+	ctx, span := n.tracer.Start(context,"proxy-SignTerminalTransactions-" + n.address)
 	defer span.End()
 
 	traceContext,err :=common.CreateTraceContext(span.SpanContext())
@@ -160,7 +143,7 @@ func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTrans
 
 func (n NodeProxy) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
 
-	ctx, span := n.tracer.Start(context,"proxy-SignChainTransactions-" + n.id)
+	ctx, span := n.tracer.Start(context,"proxy-SignChainTransactions-" + n.address)
 	defer span.End()
 
 	traceContext,err :=common.CreateTraceContext(span.SpanContext())
@@ -206,7 +189,7 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 
 func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
 
-	ctx, span := n.tracer.Start(context,"proxy-CommitServiceTransaction-" + n.id)
+	ctx, span := n.tracer.Start(context,"proxy-CommitServiceTransaction-" + n.address)
 	defer span.End()
 
 	traceContext,err :=common.CreateTraceContext(span.SpanContext())
@@ -246,7 +229,7 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 
 func (n NodeProxy) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 
-	ctx, span := n.tracer.Start(context,"proxy-CommitPaymentTransaction-" + n.id)
+	ctx, span := n.tracer.Start(context,"proxy-CommitPaymentTransaction-" + n.address)
 	defer span.End()
 
 	traceContext,err :=common.CreateTraceContext(span.SpanContext())

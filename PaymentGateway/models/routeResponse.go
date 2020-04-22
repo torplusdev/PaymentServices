@@ -1,5 +1,5 @@
 package models
 
 type RouteResponse struct {
-	RouteAddresses       []string
+	Route	[]RoutingNode
 }

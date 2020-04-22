@@ -132,12 +132,15 @@ func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request
 	node := params["nodeAddress"]
 
 	response := models.RouteResponse{
-		RouteAddresses: []string{},
+		Route: []models.RoutingNode{},
 	}
 	_ = node
 
 	for k,_ := range tor.torNodes {
-		response.RouteAddresses = append(response.RouteAddresses,k )
+		response.Route = append(response.Route, models.RoutingNode{
+			NodeId:  k,
+			Address: k,
+		})
 	}
 
 	respondObject(w, response)

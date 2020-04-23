@@ -46,7 +46,11 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
 
-func (g *GatewayController) ProcessPayment( w http.ResponseWriter, r *http.Request) {
+func (g *GatewayController) ValidatePayment(w http.ResponseWriter, r *http.Request) {
+	// TODO: implement validation by table
+}
+
+func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 
 	ctx, span := spanFromRequest(r,"ProcessPayment")
 	defer span.End()
@@ -73,7 +77,7 @@ func (g *GatewayController) ProcessPayment( w http.ResponseWriter, r *http.Reque
 
 	addr = append(addr, g.seed.Address())
 
-	if len(request.RouteAddresses) == 0 {
+	if len(request.Route) == 0 {
 		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl + paymentRequest.Address)
 		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
@@ -91,15 +95,14 @@ func (g *GatewayController) ProcessPayment( w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		request.RouteAddresses = routeResponse.RouteAddresses
+		request.Route  = routeResponse.Route
 	}
 
-	for _, a := range request.RouteAddresses {
-		addr = append(addr, a)
+	for _, rn := range request.Route {
+		addr = append(addr, rn.Address)
 
-		n := proxy.NewProxy(a, g.torCommandUrl, a)
-
-		g.nodeManager.AddNode(a, n)
+		// TODO: introduce node Id into route
+		g.nodeManager.AddNode(rn.Address, rn.NodeId, g.torCommandUrl)
 	}
 
 	// Create destination node
@@ -111,9 +114,7 @@ func (g *GatewayController) ProcessPayment( w http.ResponseWriter, r *http.Reque
 		url = g.torCommandUrl
 	}
 
-	n := proxy.NewProxy(paymentRequest.Address, url, request.RequestReference)
-
-	g.nodeManager.AddNode(paymentRequest.Address, n)
+	g.nodeManager.AddNode(paymentRequest.Address, request.NodeId, url)
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 

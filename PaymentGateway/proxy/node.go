@@ -7,6 +7,7 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/api/trace"
+	"log"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	testutils "paidpiper.com/payment-gateway/tests"
@@ -14,10 +15,10 @@ import (
 )
 
 type NodeProxy struct {
-	id		       string
+	address		       string
 	torUrl         string
 	commandChannel map[string]chan string
-	reference      string
+	nodeId      string
 	tracer 		   trace.Tracer
 }
 
@@ -45,16 +46,18 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 
 	n.commandChannel[id] = ch
 
+	log.Printf("Channel created: %s on %s", id, n.address)
+
 	defer delete (n.commandChannel, id)
 	defer close (ch)
 
-	_, err := common.HttpPostWithContext(context,n.torUrl,bytes.NewBuffer(jsonValue))
+	res, err := common.HttpPostWithContext(context,n.torUrl,bytes.NewBuffer(jsonValue))
 	//_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
 
 	if err != nil {
 		return "", err
 	}
-
+	_ = res
 	// Wait
 	responseBody := <- ch
 
@@ -63,6 +66,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 }
 
 func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
+	log.Printf("Channel triggered: %s on %s", commandId, n.address)
 	n.commandChannel[commandId] <- responseBody
 }
 

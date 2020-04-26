@@ -219,6 +219,7 @@ func (n *Node) SignTerminalTransactions(context context.Context, creditTransacti
 	_,span :=n.tracer.Start(context,"node-SignTerminalTransactions " + n.Address)
 	defer span.End()
 
+
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 
 	// Validate
@@ -480,6 +481,14 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 
 		if err != nil {
 			log.Errorf("Error submitting transaction for %v: %w",a,err)
+
+			internalTrans, err := txnbuild.TransactionFromXDR(t.XDR)
+			accountSeqNumber,err := internalTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+			//transactionSeqNumber := &internalTrans.(*xdr.Transaction).SeqNum
+			_ = accountSeqNumber
+
+
+			_ = internalTrans
 			resultsMap[a] =  err
 		}
 	}

@@ -175,12 +175,28 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 
 	prBytes,err := json.Marshal(paymentRequest)
 
-	ppr := ProcessPaymentRequest{
-		RouteAddresses: []string{},
-		CallbackUrl: "",
-		PaymentRequest:  string(prBytes),
+	ppr := models.ProcessPaymentRequest{
+		Route:          []models.RoutingNode{},
+		CallbackUrl:    "",
+		PaymentRequest: string(prBytes),
+		NodeId:         paymentRequest.Address,
 	}
 
+	nodes := setup.torMock.GetNodes()
+	keys := make([]string, 0, len(nodes))
+
+	for k := range nodes {
+		keys = append(keys, k)
+	}
+
+	for _,k := range keys[1:4] {
+
+		ppr.Route = append(ppr.Route, models.RoutingNode{
+			NodeId:  k,
+			Address: k,
+		})
+
+	}
 	pprBytes,err := json.Marshal(ppr)
 
 	resp,err := common.HttpPostWithContext(ctx,fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port), bytes.NewReader(pprBytes))

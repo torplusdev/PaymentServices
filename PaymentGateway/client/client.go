@@ -242,6 +242,12 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 	transactions = append(transactions,clientTransaction)
 */
 
+	for _,t := range transactions {
+		if (t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress) {
+			log.Print("Error")
+		}
+	}
+
 	// initialize debit with service transaction
 	debitTransaction := &transactions[0]
 
@@ -250,6 +256,7 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 
 
 	err = serviceNode.SignTerminalTransactions(ctx, debitTransaction)
+	testutils.Print(&debitTransaction.PendingTransaction)
 
 	if err  != nil {
 		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())
@@ -271,7 +278,14 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 		debitTransaction = creditTransaction
 	}
 
+	for _,t := range transactions {
+		if (t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress) {
+			log.Print("Error")
+		}
+	}
+
 	err = client.SignInitialTransactions(ctx, &transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount + totalFee)
+	testutils.Print(&transactions[len(transactions)-1].PendingTransaction)
 
 	if err != nil {
 		log.Print("Error in transaction: " + err.Error())
@@ -280,6 +294,12 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 	}
 
 	// At this point all transactions are signed by all parties
+
+	for _,t := range transactions {
+		if (t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress) {
+			log.Print("Error")
+		}
+	}
 
 	return transactions,nil
 }

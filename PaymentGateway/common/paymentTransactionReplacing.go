@@ -96,7 +96,19 @@ func (payload *PaymentTransactionReplacing) ToSpanAttributes(span trace.Span, tr
 
 func (payload *PaymentTransactionReplacing) validateSingleTransaction() error {
 
-	//TODO: Add transaction validation
+	activeTransaction := payload.PendingTransaction
+
+	if (activeTransaction.ReferenceAmountIn < activeTransaction.AmountOut) {
+		return errors.New("Transaction validation error: AmountOut cannot be larger than AmountIn")
+	}
+
+	if (activeTransaction.TransactionSourceAddress != activeTransaction.PaymentDestinationAddress) {
+		return errors.New("Transaction validation error: should be sourced by the payment recepient")
+	}
+
+	if (activeTransaction.PaymentSourceAddress == activeTransaction.PaymentDestinationAddress) {
+		return errors.New("Transaction validation error: Payer and payee cannot be the same address")
+	}
 
 	return nil
 }
@@ -144,6 +156,7 @@ func (payload *PaymentTransactionReplacing) Validate() error {
 		//TODO: Check signatures
 		//payTransStellar.TxEnvelope().Signatures[0]
 	}
+
 
 	return nil
 }

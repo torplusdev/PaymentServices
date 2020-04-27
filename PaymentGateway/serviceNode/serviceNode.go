@@ -9,6 +9,7 @@ import (
 	"github.com/stellar/go/keypair"
 	. "net/http"
 	"paidpiper.com/payment-gateway/client"
+	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/controllers"
 	"paidpiper.com/payment-gateway/node"
@@ -35,9 +36,17 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 
 	proxyNodeManager := proxy.New(localNode)
 
-	utilityController := &controllers.UtilityController {
-		Node: localNode,
+	priceList := make(map[string]commodity.Descriptor)
+
+	priceList["ipfs"] = commodity.Descriptor{
+		Name:      "ipfs",
+		UnitPrice: 1,
+		Asset:     "XLM",
 	}
+
+	commodityManager := commodity.New(priceList)
+
+	utilityController := controllers.NewUtilityController(localNode, commodityManager)
 
 	rootApi := root.CreateRootApi(true)
 	err = rootApi.CreateUser(seed.Address(), seed.Seed())
@@ -58,7 +67,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 	balance,_ := account.GetNativeBalance()
 	fmt.Printf("Current balance for %v:%v",seed.Address(), balance)
 
-	gatewayController := controllers.New(
+	gatewayController := controllers.NewGatewayController(
 		proxyNodeManager,
 		c,
 		seed,

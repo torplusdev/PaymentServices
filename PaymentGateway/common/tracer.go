@@ -14,5 +14,5 @@ func CreateTracer(name string) trace.Tracer {
 		return traceProvider.Tracer(name)
 	}
 
-	return nil
+	return trace.NoopTracer{}
 }

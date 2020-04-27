@@ -19,7 +19,7 @@ type GatewayController struct {
 	torRouteUrl		string
 }
 
-func New(nodeManager *proxy.NodeManager, client *client.Client, seed *keypair.Full, torCommandUrl string, torRouteUrl string) *GatewayController {
+func NewGatewayController(nodeManager *proxy.NodeManager, client *client.Client, seed *keypair.Full, torCommandUrl string, torRouteUrl string) *GatewayController {
 	manager := &GatewayController {
 		nodeManager,
 		client,

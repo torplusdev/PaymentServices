@@ -95,7 +95,7 @@ func (n *Node) GetPendingPayment(address string) (common.TransactionAmount, time
 	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
 }
 
-func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string) (common.PaymentRequest, error) {
+func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string, asset string) (common.PaymentRequest, error) {
 
 	_,span :=n.tracer.Start(context,"node-CreatePaymentRequest "+ n.Address)
 	defer span.End()
@@ -107,7 +107,7 @@ func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId st
 			ServiceSessionId: serviceSessionId,
 			Address:          n.Address,
 			Amount:           n.pendingPayment[serviceSessionId].amount,
-			Asset:            "XLM",
+			Asset:            asset,
 			ServiceRef:       "test"}
 
 		return pr, nil

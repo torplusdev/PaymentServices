@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/stellar/go/keypair"
 	"go.opentelemetry.io/otel/api/core"
+	"google.golang.org/grpc/codes"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -61,7 +62,11 @@ func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodeP
 	defer span.End()
 
 	setup.startNode(seed,nodePort)
-
+	span.SetAttributes(core.KeyValue{
+		Key:  "seed",
+		Value: core.String(seed),
+	})
+	span.SetStatus(codes.OK,seed + " Service Node started")
 	kp,_ := keypair.ParseFull(seed)
 
 	if setup.torMock != nil {
@@ -76,6 +81,12 @@ func (setup *TestSetup) StartTorNode(ctx context.Context, seed string, nodePort 
 	defer span.End()
 
 	setup.startNode(seed,nodePort)
+
+	span.SetAttributes(core.KeyValue{
+		Key: core.Key("seed"),
+		Value: core.String(seed),
+	})
+	span.SetStatus(codes.OK,seed + " Tor Node started")
 
 	kp,_ := keypair.ParseFull(seed)
 
@@ -92,6 +103,12 @@ func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort
 
 	setup.startNode(seed,nodePort)
 
+	span.SetAttributes(core.KeyValue{
+		Key: core.Key("seed"),
+		Value: core.String(seed),
+	})
+
+	span.SetStatus(codes.OK,"User Node started")
 	kp,_ := keypair.ParseFull(seed)
 
 	if setup.torMock != nil {
@@ -105,7 +122,14 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 
 	tr := common.CreateTracer("test")
 	ctx,span :=tr.Start(context,"CreatePaymentInfo")
-	span.SetAttributes(core.KeyValue{ Key:   "seed",Value: core.String(seed) })
+
+	span.SetAttributes(core.KeyValue{
+		Key:   "seed",
+		Value: core.String(seed) },
+		core.KeyValue{
+			Key: "amount",
+			Value: core.Int(amount),
+		})
 	defer span.End()
 
 	kp,_ := keypair.ParseFull(seed)
@@ -123,6 +147,11 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 	resp,err := common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/createPaymentInfo", port),bytes.NewReader(cpiBytes))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
+		msg := err.Error()
+		if resp.StatusCode != http.StatusOK{
+			msg = string(resp.StatusCode)
+		}
+		span.SetStatus(codes.Internal,msg)
 		return common.PaymentRequest{}, err
 	}
 
@@ -133,9 +162,11 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 	err = dec.Decode(&pr)
 
 	if err != nil  {
+		span.SetStatus(codes.Internal,err.Error())
 		return common.PaymentRequest{}, err
 	}
 
+	span.SetStatus(codes.OK,"Payment Info created successfully")
 	return pr,nil
 }
 
@@ -150,8 +181,14 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 		resp,err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/flushTransactions", v))
 
 		if err != nil || resp.StatusCode != http.StatusOK {
+			msg:= err.Error()
+			if resp.StatusCode != http.StatusOK{
+				msg = string(resp.StatusCode)
+			}
+			span.SetStatus(codes.Internal,msg)
 			return err
 		}
+		span.SetStatus(codes.OK,"FlushTransaction completed successfully")
 	}
 
 	return nil
@@ -204,17 +241,23 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 	//resp,err := http.Post(fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port),"application/json",bytes.NewReader(pprBytes))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
+		msg:=err.Error()
+		if resp.StatusCode != http.StatusOK {
+			msg = string(resp.StatusCode)
+		}
+		span.SetStatus(codes.Internal,msg)
 		return "error", err
 	}
 
 	respByte, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil  {
+		span.SetStatus(codes.Internal,err.Error())
 		return "error", err
 	}
 
 	result := string(respByte)
-
+	span.SetStatus(codes.OK,"ProcessPayment completed successfully")
 	return result, nil
 }
 

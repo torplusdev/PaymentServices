@@ -188,8 +188,8 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 	for k := range nodes {
 		keys = append(keys, k)
 	}
-
-	for _,k := range keys[1:4] {
+	//append(setup.torMock.GetDefaultPaymentRoute(), paymentRequest.Address)
+	for _,k := range setup.torMock.GetDefaultPaymentRoute() {
 
 		ppr.Route = append(ppr.Route, models.RoutingNode{
 			NodeId:  k,
@@ -197,6 +197,8 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 		})
 
 	}
+
+
 	pprBytes,err := json.Marshal(ppr)
 
 	resp,err := common.HttpPostWithContext(ctx,fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port), bytes.NewReader(pprBytes))
@@ -216,6 +218,10 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 	result := string(respByte)
 
 	return result, nil
+}
+
+func (setup *TestSetup) SetDefaultPaymentRoute(route []string) {
+	setup.torMock.SetDefaultRoute(route)
 }
 
 

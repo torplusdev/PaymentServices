@@ -243,6 +243,7 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 */
 
 	for _,t := range transactions {
+		log.Printf("Transaction detail: %s ==> %s",t.PendingTransaction.PaymentSourceAddress,t.PendingTransaction.PaymentDestinationAddress)
 		if (t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress) {
 			log.Print("Error")
 		}

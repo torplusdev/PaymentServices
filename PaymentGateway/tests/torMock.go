@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/httptrace"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
@@ -22,6 +23,7 @@ type TorMock struct {
 	server *http.Server
 	nodes  map[string]int
 	torNodes map[string]int
+	defaultRoute []string
 }
 
 type torCommand struct {
@@ -120,6 +122,10 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
 }
 
+func (tor *TorMock) GetDefaultPaymentRoute() []string {
+	return tor.defaultRoute
+}
+
 func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request) {
 
 	_, span := spanFromRequest(req,"tor-processPaymentRoute")
@@ -135,10 +141,11 @@ func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request
 	}
 	_ = node
 
-	for k,_ := range tor.torNodes {
+	for _,id := range tor.defaultRoute {
+
 		response.Route = append(response.Route, models.RoutingNode{
-			NodeId:  k,
-			Address: k,
+			NodeId:  id,
+			Address: id,
 		})
 	}
 
@@ -168,6 +175,16 @@ func (tor *TorMock) GetNodePort( address string) int {
 
 func (tor *TorMock) GetNodes() map[string]int {
 	return tor.nodes
+}
+
+func (tor *TorMock) SetDefaultRoute(route []string) {
+	for _,node := range route {
+		if _,ok := tor.nodes[node]; !ok {
+			log.Fatalf("Error in route setup, node %s not in nodes", node)
+		}
+	}
+
+	tor.defaultRoute = route
 }
 
 func CreateTorMock(torPort int)  (*TorMock) {

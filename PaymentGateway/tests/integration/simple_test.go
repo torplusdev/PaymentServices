@@ -50,6 +50,11 @@ func init() {
 	testSetup.StartTorNode(ctx, testutils.Node3Seed,28083)
 	testSetup.StartServiceNode(ctx, testutils.Service1Seed,28084)
 
+	testSetup.SetDefaultPaymentRoute([]string {
+		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
+		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW"})
+
 	span.End()
 
 	// Wait for everything to start up

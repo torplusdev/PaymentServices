@@ -11,13 +11,22 @@ import (
 	"go.opentelemetry.io/otel/plugin/httptrace"
 	"log"
 	"net/http"
+	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
 )
 
 type UtilityController struct {
-	Node *node.Node
+	node             *node.Node
+	commodityManager *commodity.Manager
+}
+
+func NewUtilityController(node *node.Node, commodityManager *commodity.Manager) *UtilityController {
+	return &UtilityController{
+		node:             node,
+		commodityManager: commodityManager,
+	}
 }
 
 func spanFromContext(rootContext context.Context, traceContext common.TraceContext, spanName string) (context.Context, trace.Span) {
@@ -68,7 +77,7 @@ func (u *UtilityController) CreateTransaction(context context.Context, commandBo
 		return nil, err
 	}
 
-	transaction, err := u.Node.CreateTransaction(context, request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
+	transaction, err := u.node.CreateTransaction(context, request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
 
 	if err != nil {
 		return nil, err
@@ -90,7 +99,7 @@ func (u *UtilityController) SignTerminalTransaction(context context.Context, com
 		return nil, err
 	}
 
-	err = u.Node.SignTerminalTransactions(context, &request.Transaction)
+	err = u.node.SignTerminalTransactions(context, &request.Transaction)
 
 	if err != nil {
 		return nil, err
@@ -112,7 +121,7 @@ func (u *UtilityController) SignChainTransactions(context context.Context, comma
 		return nil, err
 	}
 
-	err = u.Node.SignChainTransactions(context, &request.Credit, &request.Debit)
+	err = u.node.SignChainTransactions(context, &request.Credit, &request.Debit)
 
 	if err != nil {
 		return nil, err
@@ -139,7 +148,7 @@ func (u *UtilityController) CommitServiceTransaction(context context.Context, co
 	ctx, span := spanFromContext(context,request.Context,"utility-CommitServiceTransaction")
 	defer span.End()
 
-	ok, err := u.Node.CommitServiceTransaction(ctx, &request.Transaction, request.PaymentRequest)
+	ok, err := u.node.CommitServiceTransaction(ctx, &request.Transaction, request.PaymentRequest)
 
 	if err != nil {
 		return nil, err
@@ -161,7 +170,7 @@ func (u *UtilityController) CommitPaymentTransaction(context context.Context, co
 		return nil, err
 	}
 
-	ok, err := u.Node.CommitPaymentTransaction(context, &request.Transaction)
+	ok, err := u.node.CommitPaymentTransaction(context, &request.Transaction)
 
 	if err != nil {
 		return nil, err
@@ -207,14 +216,21 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = u.Node.AddPendingServicePayment(ctx, serviceSessionId, request.Amount)
+	price, asset, err := u.commodityManager.Calculate(request.CommodityType, request.Amount)
+
+	if err != nil {
+		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid commodity"))
+		return
+	}
+
+	err = u.node.AddPendingServicePayment(ctx, serviceSessionId, price)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
 		return
 	}
 
-	pr, err := u.Node.CreatePaymentRequest(ctx, serviceSessionId)
+	pr, err := u.node.CreatePaymentRequest(ctx, serviceSessionId, asset)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
@@ -224,13 +240,12 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 	Respond(w, pr)
 }
 
-
 func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Request) {
 
 	ctx,span := spanFromRequest(r,"requesthandler:FlushTransactions")
 	defer span.End()
 
-	results,err := u.Node.FlushTransactions(ctx)
+	results,err := u.node.FlushTransactions(ctx)
 
 	if err != nil {
 		Respond(w,MessageWithStatus(http.StatusInternalServerError,"Error in FlushTransactions:..."))
@@ -247,10 +262,9 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 	Respond(w, MessageWithStatus(http.StatusOK,"Transactions committed"))
 }
 
-
 func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Request) {
 	response := &models.GetStellarAddressResponse {
-		Address: u.Node.Address,
+		Address: u.node.Address,
 	}
 
 	Respond(w, response)

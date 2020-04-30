@@ -13,7 +13,9 @@ import (
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -33,6 +35,8 @@ type Node struct {
 	pendingPayment               map[string]serviceUsageCredit
 	activeTransactions           map[string]common.PaymentTransaction
 	tracer 						 trace.Tracer
+	lastSequenceId				 xdr.SequenceNumber
+	mux							 sync.Mutex
 }
 
 type PPNode interface {
@@ -61,6 +65,8 @@ func CreateNode(client *horizon.Client, address string, seed string, accumulateT
 type NodeManager interface {
 	GetNodeByAddress(address string) PPNode
 }
+
+
 
 func (n *Node) AddPendingServicePayment(context context.Context, serviceSessionId string, amount common.TransactionAmount) error {
 
@@ -155,10 +161,24 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 
 	var sequenceProvider build.SequenceProvider
 
+	// Uninitialized
+	if n.lastSequenceId == 0 {
+
+		seq,err := n.client.SequenceForAccount(n.Address)
+
+		if err != nil {
+			return common.PaymentTransactionReplacing{}, errors.Errorf("Error retrieving sequence number: %s",err.Error())
+		}
+
+		n.lastSequenceId = seq+1
+	}
+
 	// If this is the first transaction for the node+client pair and there's no reference transaction
 	if transactionPayload.GetReferenceTransaction() == (common.PaymentTransaction{}) {
-		sequenceProvider = build.AutoSequence{n.client}
-
+		n.mux.Lock()
+		sequenceProvider = build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
+		n.lastSequenceId = n.lastSequenceId + 1
+		n.mux.Unlock()
 	} else {
 		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
 
@@ -169,7 +189,6 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		}
 
 		referenceSequenceNumber, err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
-
 		_ = referenceSequenceNumber
 		sequenceProvider = build.AutoSequence{common.CreateStaticSequence(uint64(referenceSequenceNumber - 1))}
 	}
@@ -472,24 +491,64 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	defer span.End()
 
 	resultsMap := make(map[string]interface{})
+	//temp := make(map[string]interface{})
+	transactions := make([]common.PaymentTransaction,0)
 
-	for a,t := range n.activeTransactions {
+
+	//TODO Sort transaction by sequence number and make sure to submit them only in sequence number order
+
+	for _,t := range n.activeTransactions {
+		transactions = append(transactions,t)
+
+		//trans,_ := txnbuild.TransactionFromXDR(t.XDR)
+		//temp[t.PaymentSourceAddress] = trans
+	}
+
+	sort.Slice(transactions, func (i,j int) bool {
+		transi,erri := txnbuild.TransactionFromXDR(transactions[i].XDR)
+		transj,errj := txnbuild.TransactionFromXDR(transactions[j].XDR)
+
+		if erri != nil {
+			log.Errorf("Error converting transaction from xdr: %s",erri.Error())
+		}
+
+		if errj != nil {
+			log.Errorf("Error converting transaction from xdr: %s",errj.Error())
+		}
+
+		seqi,erri := transi.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+
+		seqj,errj := transj.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+
+		if erri != nil {
+			log.Errorf("Error getting sequence number transaction from xdr: %s",erri.Error())
+		}
+
+		if errj != nil {
+			log.Errorf("Error converting transaction from xdr: %s",errj.Error())
+		}
+
+		return seqi < seqj
+	})
+
+	for a,t := range transactions {
 
 		txSuccess,err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
 
-		resultsMap[a] = txSuccess.TransactionSuccessToString()
+		resultsMap[t.TransactionSourceAddress] = txSuccess.TransactionSuccessToString()
+
 
 		if err != nil {
 			log.Errorf("Error submitting transaction for %v: %w",a,err)
 
-			internalTrans, err := txnbuild.TransactionFromXDR(t.XDR)
-			accountSeqNumber,err := internalTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+			internalTrans, _ := txnbuild.TransactionFromXDR(t.XDR)
+			accountSeqNumber,_ := internalTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 			//transactionSeqNumber := &internalTrans.(*xdr.Transaction).SeqNum
 			_ = accountSeqNumber
 
 
 			_ = internalTrans
-			resultsMap[a] =  err
+			resultsMap[t.TransactionSourceAddress] =  err
 		}
 	}
 

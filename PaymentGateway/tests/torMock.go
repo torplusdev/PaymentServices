@@ -20,10 +20,12 @@ import (
 )
 
 type TorMock struct {
-	server *http.Server
-	nodes  map[string]int
-	torNodes map[string]int
-	defaultRoute []string
+	server        *http.Server
+	nodes         map[string]int
+	torNodes      map[string]int
+	defaultRoute  []string
+
+	originAddress string
 }
 
 type torCommand struct {
@@ -115,7 +117,9 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 	responseBytes,err := json.Marshal(utilityResponse)
 
-	response,err  = common.HttpPostWithContext(ctx,fmt.Sprintf("http://localhost:%d/api/gateway/processResponse",28080),bytes.NewReader(responseBytes))
+	originPort := tor.nodes[tor.originAddress]
+
+	response,err  = common.HttpPostWithContext(ctx,fmt.Sprintf("http://localhost:%d/api/gateway/processResponse",originPort),bytes.NewReader(responseBytes))
 	//response,err = http.Post("http://localhost:28080/api/gateway/processResponse","application/json",bytes.NewReader(responseBytes))
 	respBytes, err = ioutil.ReadAll(response.Body)
 
@@ -185,6 +189,10 @@ func (tor *TorMock) SetDefaultRoute(route []string) {
 	}
 
 	tor.defaultRoute = route
+}
+
+func (tor *TorMock) SetCircuitOrigin(address string) {
+	tor.originAddress = address
 }
 
 func CreateTorMock(torPort int)  (*TorMock) {

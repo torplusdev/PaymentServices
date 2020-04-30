@@ -113,7 +113,9 @@ func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort
 
 	if setup.torMock != nil {
 		setup.torMock.RegisterNode(kp.Address(),nodePort)
+		setup.torMock.SetCircuitOrigin(kp.Address())
 	}
+
 }
 
 
@@ -138,7 +140,7 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 
 	cpi := models.CreatePaymentInfo{
 		ServiceType:   "test",
-		CommodityType: "data",
+		CommodityType: "ipfs",
 		Amount:        uint32(amount),
 	}
 

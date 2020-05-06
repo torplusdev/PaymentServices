@@ -77,10 +77,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	addr = append(addr, g.seed.Address())
 
-	route := request.Route
-	circuitId := request.CircuitId
-
-	if len(route) == 0 {
+	if len(request.Route) == 0 {
 		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl + paymentRequest.Address)
 		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
@@ -98,15 +95,14 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		route  = routeResponse.Route
-		circuitId = routeResponse.CircuitId
+		request.Route  = routeResponse.Route
 	}
 
-	for _, rn := range route {
+	for _, rn := range request.Route {
 		addr = append(addr, rn.Address)
 
 		// TODO: introduce node Id into route
-		g.nodeManager.AddNode(rn.Address, rn.NodeId, circuitId, g.torCommandUrl)
+		g.nodeManager.AddNode(rn.Address, rn.NodeId, g.torCommandUrl)
 	}
 
 	// Create destination node
@@ -118,7 +114,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		url = g.torCommandUrl
 	}
 
-	g.nodeManager.AddNode(paymentRequest.Address, request.NodeId, request.CircuitId, url)
+	g.nodeManager.AddNode(paymentRequest.Address, request.NodeId, url)
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 

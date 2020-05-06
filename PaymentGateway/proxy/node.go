@@ -15,12 +15,11 @@ import (
 )
 
 type NodeProxy struct {
-	address		       	string
-	torUrl         		string
-	commandChannel 		map[string]chan string
-	nodeId      		string
-	circuitId			string
-	tracer 		   		trace.Tracer
+	address		       string
+	torUrl         string
+	commandChannel map[string]chan string
+	nodeId      string
+	tracer 		   trace.Tracer
 }
 
 func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType int, commandBody string) error {
@@ -38,7 +37,7 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody string) (string, error) {
 	id := uuid.New().String()
 
-	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.nodeId, "CircuitId": n.circuitId}
+	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.nodeId}
 
 	jsonValue, _ := json.Marshal(values)
 

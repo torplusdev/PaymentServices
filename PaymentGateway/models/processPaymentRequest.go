@@ -7,7 +7,5 @@ type ProcessPaymentRequest struct {
 
 	PaymentRequest		string 		// json body
 
-	NodeId				string		// request node id
-
-	CircuitId			string
+	NodeId				string		// request reference identification
 }

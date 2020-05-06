@@ -21,13 +21,12 @@ func New(localNode *node.Node) *NodeManager {
 	return manager
 }
 
-func (m *NodeManager) AddNode(address string, nodeId string, circuitId string, torUrl string) {
+func (m *NodeManager) AddNode(address string, nodeId string, torUrl string) {
 	n := &NodeProxy{
 		address:        address,
 		torUrl:         torUrl,
 		commandChannel: make(map[string]chan string),
 		nodeId:         nodeId,
-		circuitId:		circuitId,
 		tracer:         global.Tracer("nodeProxy"),
 	}
 

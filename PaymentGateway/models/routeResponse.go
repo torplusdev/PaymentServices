@@ -1,5 +1,6 @@
 package models
 
 type RouteResponse struct {
-	Route	[]RoutingNode
+	Route		[]RoutingNode
+	CircuitId	string
 }

@@ -7,14 +7,14 @@ import (
 )
 
 type ResponseMessage struct {
-	Status int
-	Fields map[string]interface{}
+	Status	int
+	Data 	interface{}
 }
 
 func Message(message string) ResponseMessage {
 	msg := ResponseMessage{
 		Status: http.StatusOK,
-		Fields: map[string]interface{}{"message": message},
+		Data: map[string]interface{}{"message": message},
 	}
 
 	return msg
@@ -23,12 +23,20 @@ func Message(message string) ResponseMessage {
 func MessageWithStatus(status int, message string) ResponseMessage {
 	msg := ResponseMessage{
 		Status: status,
-		Fields: map[string]interface{}{"message": message},
+		Data: map[string]interface{}{"message": message},
 	}
 
 	return msg
 }
 
+func MessageWithData(status int, data interface{}) ResponseMessage {
+	msg := ResponseMessage{
+		Status: status,
+		Data: data,
+	}
+
+	return msg
+}
 
 func Respond(w http.ResponseWriter, data interface{}) {
 
@@ -40,7 +48,7 @@ func Respond(w http.ResponseWriter, data interface{}) {
 		case ResponseMessage:
 			msg := data.(ResponseMessage)
 			w.WriteHeader(msg.Status)
-			err = json.NewEncoder(w).Encode(msg.Fields)
+			err = json.NewEncoder(w).Encode(msg.Data)
 
 		case  chan ResponseMessage:
 			waitChannel := data.(chan ResponseMessage)

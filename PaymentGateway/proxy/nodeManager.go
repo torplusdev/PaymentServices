@@ -6,8 +6,8 @@ import (
 )
 
 type NodeManager struct {
-	nodesByAddress map[string]node.PPNode
-	nodesByNodeId map[string]node.PPNode
+	nodesByAddress	map[string]node.PPNode
+	nodesByNodeId	map[string]node.PPNode
 }
 
 func New(localNode *node.Node) *NodeManager {

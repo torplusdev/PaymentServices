@@ -18,8 +18,7 @@ import (
 	testutils "paidpiper.com/payment-gateway/tests"
 )
 
-func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Server,error) {
-
+func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool) (*Server,error) {
 	tracer := common.CreateTracer("paidpiper/serviceNode")
 
 	_, span := tracer.Start(context.Background(),"serviceNode-initialization")
@@ -46,8 +45,6 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 
 	commodityManager := commodity.New(priceList)
 
-	utilityController := controllers.NewUtilityController(localNode, commodityManager)
-
 	rootApi := root.CreateRootApi(true)
 	err = rootApi.CreateUser(seed.Address(), seed.Seed())
 
@@ -60,12 +57,17 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 	account, err := testutils.GetAccount(seed.Address())
 
 	if err != nil {
-		glog.Info("Error retreiving account data: %v",err)
+		glog.Info("Error retrieving account data: %v",err)
 		return &Server{},err
 	}
 
 	balance,_ := account.GetNativeBalance()
 	fmt.Printf("Current balance for %v:%v",seed.Address(), balance)
+
+	utilityController := controllers.NewUtilityController(
+		localNode,
+		commodityManager,
+	)
 
 	gatewayController := controllers.NewGatewayController(
 		proxyNodeManager,
@@ -73,6 +75,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string) (*Serve
 		seed,
 		fmt.Sprintf("%s/api/command",torAddressPrefix),
 		fmt.Sprintf("%s/api/paymentRoute/",torAddressPrefix),
+		asyncMode,
 	)
 
 	router := mux.NewRouter()

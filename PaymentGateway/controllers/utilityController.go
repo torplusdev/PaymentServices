@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -18,14 +19,14 @@ import (
 )
 
 type UtilityController struct {
-	node             *node.Node
-	commodityManager *commodity.Manager
+	node             		*node.Node
+	commodityManager 		*commodity.Manager
 }
 
 func NewUtilityController(node *node.Node, commodityManager *commodity.Manager) *UtilityController {
 	return &UtilityController{
-		node:             node,
-		commodityManager: commodityManager,
+		node:             		node,
+		commodityManager: 		commodityManager,
 	}
 }
 
@@ -272,36 +273,68 @@ func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Req
 
 func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Request) {
 
-	ctx,span := spanFromRequest(r,"requesthandler:ProcessCommand")
+	ctx, span := spanFromRequest(r, "requesthandler:ProcessCommand")
 	defer span.End()
 
 	command := &models.UtilityCommand{}
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Invalid request"))
 		return
 	}
 
-	var reply interface{}
+	future := make(chan ResponseMessage)
+	defer close(future)
 
-	switch command.CommandType {
-	case 0:
-		reply, err = u.CreateTransaction(ctx, command.CommandBody)
-	case 1:
-		reply, err = u.SignTerminalTransaction(ctx, command.CommandBody)
-	case 2:
-		reply, err = u.SignChainTransactions(ctx, command.CommandBody)
-	case 3:
-		reply, err = u.CommitPaymentTransaction(ctx, command.CommandBody)
-	case 4:
-		reply, err = u.CommitServiceTransaction(ctx, command.CommandBody)
-	}
+	go func(cmd *models.UtilityCommand) {
+		asyncMode := false
+		callbackUrl := ""
 
-	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Request process failed"))
-		return
-	}
+		if cmd.CallbackUrl != "" {
+			asyncMode = true
+			callbackUrl = cmd.CallbackUrl
+		}
 
-	Respond(w, reply)
+		if asyncMode {
+			future <- MessageWithStatus(http.StatusCreated, "command submitted")
+		}
+
+		var reply interface{}
+
+		switch cmd.CommandType {
+		case 0:
+			reply, err = u.CreateTransaction(ctx, cmd.CommandBody)
+		case 1:
+			reply, err = u.SignTerminalTransaction(ctx, cmd.CommandBody)
+		case 2:
+			reply, err = u.SignChainTransactions(ctx, cmd.CommandBody)
+		case 3:
+			reply, err = u.CommitPaymentTransaction(ctx, cmd.CommandBody)
+		case 4:
+			reply, err = u.CommitServiceTransaction(ctx, cmd.CommandBody)
+		}
+
+		if asyncMode {
+			// TODO: call response url
+			if err != nil {
+				values := map[string]interface{}{"CommandId": cmd.CommandId, "CommandResponse": reply}
+
+				jsonValue, _ := json.Marshal(values)
+
+				common.HttpPostWithContext(ctx, callbackUrl,  bytes.NewBuffer(jsonValue))
+			}
+			return
+		}
+
+		if err != nil {
+			future <- MessageWithStatus(http.StatusConflict, err.Error())
+			return
+		}
+
+		future <- MessageWithData(http.StatusOK, reply)
+
+	}(command)
+
+	Respond(w, future)
 }

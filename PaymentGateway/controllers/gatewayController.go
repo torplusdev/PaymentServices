@@ -17,15 +17,17 @@ type GatewayController struct {
 	seed			*keypair.Full
 	torCommandUrl	string
 	torRouteUrl		string
+	asyncMode 		bool
 }
 
-func NewGatewayController(nodeManager *proxy.NodeManager, client *client.Client, seed *keypair.Full, torCommandUrl string, torRouteUrl string) *GatewayController {
+func NewGatewayController(nodeManager *proxy.NodeManager, client *client.Client, seed *keypair.Full, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
 	manager := &GatewayController {
 		nodeManager,
 		client,
 		seed,
 		torCommandUrl,
 		torRouteUrl,
+		asyncMode,
 	}
 
 	return manager
@@ -119,7 +121,9 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
 	future := make (chan ResponseMessage)
-	returnAsyncImmediately := false
+	defer close(future)
+
+	returnAsyncImmediately := !g.asyncMode
 
 	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest) {
 

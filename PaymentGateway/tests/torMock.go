@@ -91,12 +91,13 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 	commandType,err := strconv.Atoi(command.CommandType)
 
-	if (err != nil) {
+	if err != nil {
 		w.WriteHeader(500)
 		return
 	}
 
 	utilityCmd := models.UtilityCommand {
+		CommandId:   command.CommandId,
 		CommandBody: command.CommandBody,
 		CommandType: commandType,
 	}

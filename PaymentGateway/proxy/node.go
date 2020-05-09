@@ -15,11 +15,11 @@ import (
 )
 
 type NodeProxy struct {
-	address		       string
-	torUrl         string
-	commandChannel map[string]chan string
-	nodeId      string
-	tracer 		   trace.Tracer
+	address			string
+	torUrl         	string
+	commandChannel 	map[string]chan string
+	nodeId      	string
+	tracer 		   	trace.Tracer
 }
 
 func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType int, commandBody string) error {
@@ -29,7 +29,7 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 
 	jsonValue, _ := json.Marshal(values)
 
-	_, err := common.HttpPostWithContext(context,n.torUrl,bytes.NewBuffer(jsonValue))
+	_, err := common.HttpPostWithContext(context, n.torUrl, bytes.NewBuffer(jsonValue))
 
 	return err
 }
@@ -51,8 +51,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	defer delete (n.commandChannel, id)
 	defer close (ch)
 
-	res, err := common.HttpPostWithContext(context,n.torUrl,bytes.NewBuffer(jsonValue))
-	//_, err := http.Post(n.torUrl, "application/json", bytes.NewBuffer(jsonValue))
+	res, err := common.HttpPostWithContext(context, n.torUrl, bytes.NewBuffer(jsonValue))
 
 	if err != nil {
 		return "", err

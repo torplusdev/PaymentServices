@@ -6,8 +6,10 @@ import (
 )
 
 type UtilityCommand struct {
+	CommandId 	string	`json:"commandId"`
 	CommandType int		`json:"commandType"`
 	CommandBody	string	`json:"commandBody"`
+	CallbackUrl	string	`json:"callbackUrl"`
 }
 
 type CreateTransactionCommand struct {

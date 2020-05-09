@@ -44,15 +44,12 @@ func (setup *TestSetup) Shutdown() {
 }
 
 func (setup *TestSetup) startNode(seed string, nodePort int) {
-	srv,err := serviceNode.StartServiceNode(seed,nodePort,setup.torAddressPrefix)
+	srv,err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix,false)
 
 	if err!=nil {
 		log.Fatal("Coudn't start node")
 	}
 	setup.servers = append(setup.servers,srv)
-
-
-
 }
 
 func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodePort int) {

@@ -123,18 +123,16 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	future := make (chan ResponseMessage)
 	defer close(future)
 
-	returnAsyncImmediately := !g.asyncMode
-
 	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest) {
 
-		if returnAsyncImmediately {
+		if g.asyncMode {
 			future <- MessageWithStatus(http.StatusCreated,"Payment in process")
 		}
 		// Initiate
 		transactions, err := c.InitiatePayment(ctx, r, pr)
 
 		if err != nil {
-			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Init failed") }
+			if !g.asyncMode { future <- MessageWithStatus(http.StatusInternalServerError,"Init failed") }
 
 			return
 		}
@@ -143,7 +141,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err := c.VerifyTransactions(ctx, r, pr, transactions)
 
 		if !ok {
-			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Verification failed") }
+			if !g.asyncMode { future <- MessageWithStatus(http.StatusInternalServerError,"Verification failed") }
 			return
 		}
 
@@ -151,11 +149,11 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err = c.FinalizePayment(ctx, r, transactions, pr)
 
 		if !ok {
-			if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusInternalServerError,"Finalize failed") }
+			if !g.asyncMode { future <- MessageWithStatus(http.StatusInternalServerError,"Finalize failed") }
 			return
 		}
 
-		if !returnAsyncImmediately { future <- MessageWithStatus(http.StatusOK,"Payment processing completed") }
+		if !g.asyncMode { future <- MessageWithStatus(http.StatusOK,"Payment processing completed") }
 	}(g.client, router, *paymentRequest)
 
 	Respond(w, future)

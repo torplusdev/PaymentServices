@@ -43,6 +43,12 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		Asset:     "XLM",
 	}
 
+	priceList["tor_data_block"] = commodity.Descriptor{
+		Name:      "tor_data_block",
+		UnitPrice: 1,
+		Asset:     "XLM",
+	}
+
 	commodityManager := commodity.New(priceList)
 
 	rootApi := root.CreateRootApi(true)

@@ -242,7 +242,13 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 	//resp,err := http.Post(fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port),"application/json",bytes.NewReader(pprBytes))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
-		msg:=err.Error()
+
+		var msg string
+
+		if err != nil {
+			msg = err.Error()
+		}
+
 		if resp.StatusCode != http.StatusOK {
 			msg = string(resp.StatusCode)
 		}

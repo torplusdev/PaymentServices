@@ -79,6 +79,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	addr = append(addr, g.seed.Address())
 
+	/*
 	if len(request.Route) == 0 {
 		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl + paymentRequest.Address)
 		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
@@ -99,6 +100,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 		request.Route  = routeResponse.Route
 	}
+	 */
 
 	for _, rn := range request.Route {
 		addr = append(addr, rn.Address)

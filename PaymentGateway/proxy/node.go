@@ -48,10 +48,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 
 	log.Printf("Channel created: %s on %s", id, n.address)
 
-	defer delete (n.commandChannel, id)
-	defer close (ch)
-
-	res, err := common.HttpPostWithContext(context, n.torUrl, bytes.NewBuffer(jsonValue))
+	res, err := common.HttpPostWithoutContext(n.torUrl, bytes.NewBuffer(jsonValue))
 
 	if err != nil {
 		return "", err
@@ -60,6 +57,8 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	// Wait
 	responseBody := <- ch
 
+	defer delete (n.commandChannel, id)
+	defer close (ch)
 	//TODO: should pass correct error instead of nil
 	return responseBody, nil
 }

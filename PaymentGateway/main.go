@@ -25,7 +25,7 @@ func main() {
 	// Set up signal channel
 	stop := make(chan os.Signal, 1)
 
-	server,err := serviceNode.StartServiceNode(s,numericPort,"http://localhost:57842", true)
+	server,err := serviceNode.StartServiceNode(s,numericPort,"http://localhost:5817", true)
 
 	if err != nil {
 		log.Panicf("Error starting serviceNode: %v",err.Error())

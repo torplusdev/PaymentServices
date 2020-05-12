@@ -217,7 +217,7 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	price, asset, err := u.commodityManager.Calculate(request.CommodityType, request.Amount)
+	price, asset, err := u.commodityManager.Calculate(request.ServiceType, request.CommodityType, request.Amount)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid commodity"))

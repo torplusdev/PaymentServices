@@ -6,26 +6,31 @@ import (
 )
 
 type Descriptor struct {
-	Name 		string
-	UnitPrice	uint32
+	UnitPrice	float64
 	Asset		string
 }
 
 type Manager struct {
-	priceTable	map[string]Descriptor
+	priceTable	map[string]map[string]Descriptor
 
 }
 
-func New(priceTable	map[string]Descriptor) *Manager {
+func New(priceTable	map[string]map[string]Descriptor) *Manager {
 	return &Manager{priceTable:priceTable}
 }
 
-func (cm *Manager) Calculate(name string, quantity uint32) (price uint32, asset string, err error) {
-	d, ok := cm.priceTable[name]
+func (cm *Manager) Calculate(service string, commodity string, quantity uint32) (price uint32, asset string, err error) {
+	st, ok := cm.priceTable[service]
 
 	if !ok {
-		return 0, "", errors.New(fmt.Sprintf("unknown commodity %s", name))
+		return 0, "", errors.New(fmt.Sprintf("unknown service %s", service))
 	}
 
-	return d.UnitPrice * quantity, d.Asset, nil
+	d, ok := st[commodity]
+
+	if !ok {
+		return 0, "", errors.New(fmt.Sprintf("unknown commodity %s", commodity))
+	}
+
+	return uint32(d.UnitPrice * float64(quantity)), d.Asset, nil
 }

@@ -35,17 +35,18 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	proxyNodeManager := proxy.New(localNode)
 
-	priceList := make(map[string]commodity.Descriptor)
+	priceList := make(map[string]map[string]commodity.Descriptor)
 
-	priceList["ipfs"] = commodity.Descriptor{
-		Name:      "ipfs",
-		UnitPrice: 1,
+	priceList["ipfs"] = make(map[string]commodity.Descriptor)
+	priceList["tor"] = make(map[string]commodity.Descriptor)
+
+	priceList["ipfs"]["data"] = commodity.Descriptor{
+		UnitPrice: 0.0000001,
 		Asset:     "XLM",
 	}
 
-	priceList["tor_data_block"] = commodity.Descriptor{
-		Name:      "tor_data_block",
-		UnitPrice: 1,
+	priceList["tor"]["data"] = commodity.Descriptor{
+		UnitPrice: 0.1,
 		Asset:     "XLM",
 	}
 

@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"github.com/stellar/go/keypair"
+	"log"
 	"net/http"
 	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/common"
@@ -156,6 +157,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		}
 
 		if !g.asyncMode { future <- MessageWithStatus(http.StatusOK,"Payment processing completed") }
+
+		log.Print("Payment completed")
 	}(g.client, router, *paymentRequest)
 
 	Respond(w, future)

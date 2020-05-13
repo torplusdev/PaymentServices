@@ -37,16 +37,18 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody string) (string, error) {
 	id := uuid.New().String()
 
-	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.nodeId}
+	values := map[string]interface{}{"CommandId": id, "CommandType": commandType, "CommandBody": commandBody, "NodeId": n.nodeId}
 
 	jsonValue, _ := json.Marshal(values)
 
-	//TODO: Refactor code to pass struct containing http status code, or error
 	ch := make(chan string, 2)
-
 	n.commandChannel[id] = ch
 
-	log.Printf("Channel created: %s on %s", id, n.address)
+	log.Printf("Command channel created: %s on %s for %d", id, n.nodeId, commandType)
+
+	defer delete (n.commandChannel, id)
+	defer close (ch)
+	defer log.Printf("Command channel closed: %s on %s for %d", id, n.nodeId, commandType)
 
 	res, err := common.HttpPostWithoutContext(n.torUrl, bytes.NewBuffer(jsonValue))
 
@@ -57,15 +59,20 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	// Wait
 	responseBody := <- ch
 
-	defer delete (n.commandChannel, id)
-	defer close (ch)
-	//TODO: should pass correct error instead of nil
 	return responseBody, nil
 }
 
 func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
-	log.Printf("Channel triggered: %s on %s", commandId, n.address)
-	n.commandChannel[commandId] <- responseBody
+	ch, ok := n.commandChannel[commandId]
+
+	if !ok {
+		log.Printf("Unknown command response: : %s on %s", commandId, n.nodeId)
+		return
+	}
+
+	log.Printf("Command channel response: %s on %s", commandId, n.nodeId)
+
+	 ch <- responseBody
 }
 
 func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {

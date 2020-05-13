@@ -6,6 +6,7 @@ import (
 )
 
 type UtilityCommand struct {
+	NodeId 		string	`json:"nodeId"`
 	CommandId 	string	`json:"commandId"`
 	CommandType int		`json:"commandType"`
 	CommandBody	string	`json:"commandBody"`

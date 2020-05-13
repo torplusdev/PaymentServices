@@ -318,11 +318,11 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		if asyncMode {
 			// TODO: call response url
 			if err != nil {
-				values := map[string]interface{}{"CommandId": cmd.CommandId, "CommandResponse": reply}
+				values := map[string]interface{}{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": reply}
 
 				jsonValue, _ := json.Marshal(values)
 
-				common.HttpPostWithContext(ctx, callbackUrl,  bytes.NewBuffer(jsonValue))
+				common.HttpPostWithoutContext(callbackUrl,  bytes.NewBuffer(jsonValue))
 			}
 			return
 		}

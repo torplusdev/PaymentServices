@@ -318,7 +318,15 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		if asyncMode {
 			// TODO: call response url
 			if err == nil {
-				values := map[string]interface{}{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": reply}
+				data, err := json.Marshal(reply)
+
+				if err != nil {
+					log.Printf("Command response marshal failed: %s", err.Error())
+
+					return
+				}
+
+				values := map[string]interface{}{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": string(data)}
 
 				jsonValue, _ := json.Marshal(values)
 

@@ -326,7 +326,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 					return
 				}
 
-				values := map[string]interface{}{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": string(data)}
+				values := map[string]string{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": string(data)}
 
 				jsonValue, _ := json.Marshal(values)
 

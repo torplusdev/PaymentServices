@@ -16,6 +16,7 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
+	"strconv"
 )
 
 type UtilityController struct {
@@ -285,11 +286,12 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	}
 
 	future := make(chan ResponseMessage)
-	defer close(future)
+	//defer close(future)
 
-	go func(cmd *models.UtilityCommand) {
+	hanlder := func(cmd *models.UtilityCommand, responseChannel chan<- ResponseMessage) {
 		asyncMode := false
 		callbackUrl := ""
+		defer close(responseChannel)
 
 		if cmd.CallbackUrl != "" {
 			asyncMode = true
@@ -299,6 +301,9 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		if asyncMode {
 			future <- MessageWithStatus(http.StatusCreated, "command submitted")
 		}
+
+		s2,err := strconv.Unquote(cmd.CommandBody)
+		_ = s2
 
 		var reply interface{}
 
@@ -342,7 +347,9 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 
 		future <- MessageWithData(http.StatusOK, reply)
 
-	}(command)
+	}
+
+	go hanlder(command,future)
 
 	Respond(w, future)
 }

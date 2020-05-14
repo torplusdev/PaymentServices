@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"paidpiper.com/payment-gateway/serviceNode"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -15,6 +16,9 @@ func main() {
 
 	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 	//port := 28080
+
+	runtime.GOMAXPROCS(10)
+	runtime.NumGoroutine()
 
 	numericPort,err := strconv.Atoi(port)
 

@@ -37,9 +37,14 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody string) (string, error) {
 	id := uuid.New().String()
 
-	values := map[string]interface{}{"CommandId": id, "CommandType": commandType, "CommandBody": commandBody, "NodeId": n.nodeId}
+	command := &models.ProcessCommand{
+		NodeId:      n.nodeId,
+		CommandId:   id,
+		CommandType: commandType,
+		CommandBody: commandBody,
+	}
 
-	jsonValue, _ := json.Marshal(values)
+	jsonValue, _ := json.Marshal(command)
 
 	ch := make(chan string, 2)
 	n.commandChannel[id] = ch

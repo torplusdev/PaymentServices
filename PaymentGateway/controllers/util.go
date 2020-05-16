@@ -51,8 +51,9 @@ func Respond(w http.ResponseWriter, data interface{}) {
 			err = json.NewEncoder(w).Encode(msg.Data)
 
 		case  chan ResponseMessage:
-			waitChannel := data.(chan ResponseMessage)
-			msg := <- waitChannel
+			responseChannel := data.(chan ResponseMessage)
+			defer close(responseChannel)
+			msg := <- responseChannel
 			w.WriteHeader(msg.Status)
 			err = json.NewEncoder(w).Encode(msg.Data)
 

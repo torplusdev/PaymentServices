@@ -485,6 +485,16 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	return true, nil
 }
 
+func (n *Node) GetTransactions() []common.PaymentTransaction {
+	transactions := make([]common.PaymentTransaction,0)
+
+	for _,t := range n.activeTransactions {
+		transactions = append(transactions,t)
+	}
+
+	return transactions
+}
+
 func (n *Node) FlushTransactions(context context.Context) (map[string]interface{},error) {
 
 	_,span :=n.tracer.Start(context,"node-FlushTransactions " + n.Address)
@@ -549,7 +559,10 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 
 			_ = internalTrans
 			resultsMap[t.TransactionSourceAddress] =  err
+ 		} else {
+			delete(n.activeTransactions, t.PaymentSourceAddress)
 		}
+
 	}
 
 	return resultsMap,nil

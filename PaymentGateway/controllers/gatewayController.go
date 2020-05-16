@@ -126,12 +126,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
 	future := make (chan ResponseMessage)
-	//defer close(future)
 
 	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
-
-		defer close(responseChannel)
-
 		if g.asyncMode {
 			future <- MessageWithStatus(http.StatusCreated,"Payment in process")
 		}

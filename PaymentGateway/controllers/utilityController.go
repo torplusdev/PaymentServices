@@ -16,7 +16,6 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
-	"strconv"
 )
 
 type UtilityController struct {
@@ -301,9 +300,6 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		if asyncMode {
 			future <- MessageWithStatus(http.StatusCreated, "command submitted")
 		}
-
-		s2,err := strconv.Unquote(cmd.CommandBody)
-		_ = s2
 
 		var reply interface{}
 

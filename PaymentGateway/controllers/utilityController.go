@@ -241,6 +241,15 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 	Respond(w, pr)
 }
 
+func (u *UtilityController) ListTransactions(w http.ResponseWriter, r *http.Request) {
+	_, span := spanFromRequest(r,"requesthandler:ListTransactions")
+	defer span.End()
+
+	trx := u.node.GetTransactions()
+
+	Respond(w, trx)
+}
+
 func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Request) {
 
 	ctx,span := spanFromRequest(r,"requesthandler:FlushTransactions")
@@ -285,12 +294,10 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	}
 
 	future := make(chan ResponseMessage)
-	//defer close(future)
 
-	hanlder := func(cmd *models.UtilityCommand, responseChannel chan<- ResponseMessage) {
+	handler := func(cmd *models.UtilityCommand, responseChannel chan<- ResponseMessage) {
 		asyncMode := false
 		callbackUrl := ""
-		defer close(responseChannel)
 
 		if cmd.CallbackUrl != "" {
 			asyncMode = true
@@ -316,23 +323,21 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 			reply, err = u.CommitServiceTransaction(ctx, cmd.CommandBody)
 		}
 
-		if asyncMode {
-			// TODO: call response url
-			if err == nil {
-				data, err := json.Marshal(reply)
+		if asyncMode && err == nil {
+			data, err := json.Marshal(reply)
 
-				if err != nil {
-					log.Printf("Command response marshal failed: %s", err.Error())
+			if err != nil {
+				log.Printf("Command response marshal failed: %s", err.Error())
 
-					return
-				}
-
-				values := map[string]string{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": string(data)}
-
-				jsonValue, _ := json.Marshal(values)
-
-				common.HttpPostWithoutContext(callbackUrl,  bytes.NewBuffer(jsonValue))
+				return
 			}
+
+			values := map[string]string{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": string(data)}
+
+			jsonValue, _ := json.Marshal(values)
+
+			common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
+
 			return
 		}
 
@@ -342,10 +347,9 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		}
 
 		future <- MessageWithData(http.StatusOK, reply)
-
 	}
 
-	go hanlder(command,future)
+	go handler(command, future)
 
 	Respond(w, future)
 }

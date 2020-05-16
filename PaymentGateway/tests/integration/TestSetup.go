@@ -177,7 +177,7 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 
 	for _,v := range setup.torMock.GetNodes() {
 
-		resp,err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/flushTransactions", v))
+		resp,err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/transactions/flush", v))
 
 		if err != nil || resp.StatusCode != http.StatusOK {
 			msg:= err.Error()

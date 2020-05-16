@@ -55,6 +55,5 @@ func HttpPostWithoutContext(url string, body io.Reader)  (*http.Response, error)
 	req, _ := http.NewRequest("POST", url, body)
 	req.Header.Add("Content-Type","application/json")
 
-
 	return http.DefaultClient.Do(req)
 }

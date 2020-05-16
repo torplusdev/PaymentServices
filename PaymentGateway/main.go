@@ -10,10 +10,20 @@ import (
 	"time"
 )
 
+var(
+	configuration Configuration
+	configFilePath string
+)
 func main() {
-	s := os.Args[1]
-	port := os.Args[2]
-
+	if len(os.Args) > 1 {
+		configFilePath = os.Args[1]
+	} else {
+		configFilePath = "conf.json"
+	}
+	GetConfig(configFilePath)
+	s := configuration.Seed
+	port := configuration.Port
+	torAddressPrefix := configuration.TorAddressPrefix
 	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 	//port := 28080
 
@@ -29,7 +39,7 @@ func main() {
 	// Set up signal channel
 	stop := make(chan os.Signal, 1)
 
-	server,err := serviceNode.StartServiceNode(s,numericPort,"http://localhost:5817", true)
+	server,err := serviceNode.StartServiceNode(s,numericPort,torAddressPrefix, true)
 
 	if err != nil {
 		log.Panicf("Error starting serviceNode: %v",err.Error())

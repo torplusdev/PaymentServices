@@ -16,6 +16,7 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
+	"strings"
 )
 
 type UtilityController struct {
@@ -283,6 +284,9 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Invalid request"))
 		return
 	}
+
+
+	command.CommandBody = strings.ReplaceAll(command.CommandBody,"\\\"","\"")
 
 	future := make(chan ResponseMessage)
 	//defer close(future)

@@ -16,7 +16,6 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
-	"strings"
 )
 
 type UtilityController struct {
@@ -70,10 +69,10 @@ func spanFromContext(rootContext context.Context, traceContext common.TraceConte
 	return ctx,span
 }
 
-func (u *UtilityController) CreateTransaction(context context.Context, commandBody string) (interface{}, error) {
+func (u *UtilityController) CreateTransaction(context context.Context, commandBody []byte) (interface{}, error) {
 	request := &models.CreateTransactionCommand{}
 
-	err := json.Unmarshal([]byte(commandBody), request)
+	err := json.Unmarshal(commandBody, request)
 
 	if err != nil {
 		return nil, err
@@ -92,10 +91,10 @@ func (u *UtilityController) CreateTransaction(context context.Context, commandBo
 	return response, nil
 }
 
-func (u *UtilityController) SignTerminalTransaction(context context.Context, commandBody string) (interface{}, error) {
+func (u *UtilityController) SignTerminalTransaction(context context.Context, commandBody []byte) (interface{}, error) {
 	request := &models.SignTerminalTransactionCommand{}
 
-	err := json.Unmarshal([]byte(commandBody), request)
+	err := json.Unmarshal(commandBody, request)
 
 	if err != nil {
 		return nil, err
@@ -114,10 +113,10 @@ func (u *UtilityController) SignTerminalTransaction(context context.Context, com
 	return response, nil
 }
 
-func (u *UtilityController) SignChainTransactions(context context.Context, commandBody string) (interface{}, error) {
+func (u *UtilityController) SignChainTransactions(context context.Context, commandBody []byte) (interface{}, error) {
 	request :=  &models.SignChainTransactionsCommand{}
 
-	err := json.Unmarshal([]byte(commandBody), request)
+	err := json.Unmarshal(commandBody, request)
 
 	if err != nil {
 		return nil, err
@@ -137,11 +136,11 @@ func (u *UtilityController) SignChainTransactions(context context.Context, comma
 	return response, nil
 }
 
-func (u *UtilityController) CommitServiceTransaction(context context.Context, commandBody string) (interface{}, error) {
+func (u *UtilityController) CommitServiceTransaction(context context.Context, commandBody []byte) (interface{}, error) {
 
 	request := &models.CommitServiceTransactionCommand{}
 
-	err := json.Unmarshal([]byte(commandBody), request)
+	err := json.Unmarshal(commandBody, request)
 
 	if err != nil {
 		return nil, err
@@ -163,10 +162,10 @@ func (u *UtilityController) CommitServiceTransaction(context context.Context, co
 	return response, nil
 }
 
-func (u *UtilityController) CommitPaymentTransaction(context context.Context, commandBody string) (interface{}, error) {
+func (u *UtilityController) CommitPaymentTransaction(context context.Context, commandBody []byte) (interface{}, error) {
 	request := &models.CommitPaymentTransactionCommand{}
 
-	err := json.Unmarshal([]byte(commandBody), request)
+	err := json.Unmarshal(commandBody, request)
 
 	if err != nil {
 		return nil, err
@@ -294,9 +293,6 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-
-	command.CommandBody = strings.ReplaceAll(command.CommandBody,"\\\"","\"")
-
 	future := make(chan ResponseMessage)
 
 	handler := func(cmd *models.UtilityCommand, responseChannel chan<- ResponseMessage) {
@@ -336,7 +332,11 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 				return
 			}
 
-			values := map[string]string{"NodeId": cmd.NodeId, "CommandId": cmd.CommandId, "CommandResponse": string(data)}
+			values := &models.ProcessCommandResponse{
+				CommandResponse: 	data,
+				CommandId:    		cmd.CommandId,
+				NodeId:       		cmd.NodeId,
+			}
 
 			jsonValue, _ := json.Marshal(values)
 

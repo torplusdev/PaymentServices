@@ -29,7 +29,7 @@ type TorMock struct {
 }
 
 type torCommand struct {
-	CommandBody string
+	CommandBody []byte
 	CommandId string
 	CommandType string
 	NodeId string

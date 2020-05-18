@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
-	"strconv"
 	"time"
 )
 
@@ -29,10 +28,10 @@ type TorMock struct {
 }
 
 type torCommand struct {
+	NodeId		string
+	CommandId	string
+	CommandType int
 	CommandBody string
-	CommandId string
-	CommandType string
-	NodeId string
 }
 
 func respond(status int, w http.ResponseWriter, data map[string]interface{}) {
@@ -89,7 +88,7 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 	port := tor.nodes[command.NodeId]
 
-	commandType,err := strconv.Atoi(command.CommandType)
+	commandType := command.CommandType
 
 	if err != nil {
 		w.WriteHeader(500)

@@ -112,7 +112,7 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 	utilityResponse := models.UtilityResponse{
 		CommandId:    command.CommandId,
-		ResponseBody: string(respBytes),
+		ResponseBody: respBytes,
 		NodeId:       command.NodeId,
 	}
 

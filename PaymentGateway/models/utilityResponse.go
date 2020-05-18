@@ -1,7 +1,7 @@
 package models
 
 type UtilityResponse struct {
-	CommandId	string 	`json:"commandId"`
-	ResponseBody	string	`json:"responseBody"`
-	NodeId      string  `json:"nodeId"`
+	CommandId		string 	`json:"commandId"`
+	ResponseBody	[]byte	`json:"responseBody"`
+	NodeId      	string  `json:"nodeId"`
 }

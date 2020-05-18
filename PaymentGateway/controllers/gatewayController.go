@@ -10,7 +10,6 @@ import (
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/proxy"
 	"paidpiper.com/payment-gateway/routing"
-	"strings"
 )
 
 type GatewayController struct {
@@ -47,7 +46,6 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 
 	pNode := g.nodeManager.GetProxyNode(response.NodeId)
 
-	response.ResponseBody  = strings.ReplaceAll(response.ResponseBody,"\\\"","\"")
 	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
 

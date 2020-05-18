@@ -25,7 +25,7 @@ func (m *NodeManager) AddNode(address string, nodeId string, torUrl string) {
 	n := &NodeProxy{
 		address:        address,
 		torUrl:         torUrl,
-		commandChannel: make(map[string]chan string),
+		commandChannel: make(map[string]chan []byte),
 		nodeId:         nodeId,
 		tracer:         global.Tracer("nodeProxy"),
 	}

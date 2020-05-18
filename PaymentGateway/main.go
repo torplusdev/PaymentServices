@@ -30,7 +30,7 @@ func main() {
 	runtime.GOMAXPROCS(10)
 	runtime.NumGoroutine()
 
-	numericPort,err := strconv.Atoi(port)
+	numericPort, err := strconv.Atoi(port)
 
 	if err != nil {
 		log.Panicf("Error parsing port number: %v",err.Error())

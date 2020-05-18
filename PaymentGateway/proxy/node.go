@@ -17,7 +17,7 @@ import (
 type NodeProxy struct {
 	address			string
 	torUrl         	string
-	commandChannel 	map[string]chan string
+	commandChannel 	map[string]chan []byte
 	nodeId      	string
 	tracer 		   	trace.Tracer
 }
@@ -34,7 +34,7 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 	return err
 }
 
-func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody string) (string, error) {
+func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody []byte) ([]byte, error) {
 	id := uuid.New().String()
 
 	command := &models.ProcessCommand{
@@ -46,7 +46,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 
 	jsonValue, _ := json.Marshal(command)
 
-	ch := make(chan string, 2)
+	ch := make(chan []byte, 2)
 	n.commandChannel[id] = ch
 
 	log.Printf("Command channel created: %s on %s for %d", id, n.nodeId, commandType)
@@ -58,7 +58,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	res, err := common.HttpPostWithoutContext(n.torUrl, bytes.NewBuffer(jsonValue))
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_ = res
 	// Wait
@@ -67,7 +67,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	return responseBody, nil
 }
 
-func (n NodeProxy) ProcessResponse(commandId string, responseBody string) {
+func (n NodeProxy) ProcessResponse(commandId string, responseBody []byte) {
 	ch, ok := n.commandChannel[commandId]
 
 	if !ok {
@@ -97,7 +97,7 @@ func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.Tra
 		return common.PaymentTransactionReplacing{}, err
 	}
 
-	reply, err := n.ProcessCommand(ctx, 0, string(body))
+	reply, err := n.ProcessCommand(ctx, 0, body)
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, err
@@ -136,7 +136,7 @@ func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTrans
 		return err
 	}
 
-	reply, err := n.ProcessCommand(ctx, 1,  string(body))
+	reply, err := n.ProcessCommand(ctx, 1,  body)
 
 	if err != nil {
 		return err
@@ -178,7 +178,7 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 		return err
 	}
 
-	reply, err := n.ProcessCommand(ctx, 2,  string(body))
+	reply, err := n.ProcessCommand(ctx, 2,  body)
 
 	if err != nil {
 		return err
@@ -224,7 +224,7 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 		return false, errors.Errorf(err.Error())
 	}
 
-	reply, err := n.ProcessCommand(ctx,4, string(body))
+	reply, err := n.ProcessCommand(ctx,4, body)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
@@ -264,7 +264,7 @@ func (n NodeProxy) CommitPaymentTransaction(context context.Context, transaction
 		return false, errors.Errorf(err.Error())
 	}
 
-	reply, err := n.ProcessCommand(ctx,3, string(body))
+	reply, err := n.ProcessCommand(ctx,3, body)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
@@ -272,7 +272,7 @@ func (n NodeProxy) CommitPaymentTransaction(context context.Context, transaction
 
 	var response = &models.CommitPaymentTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply), response)
+	err = json.Unmarshal(reply, response)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())

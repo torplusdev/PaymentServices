@@ -4,5 +4,5 @@ type ProcessCommand struct {
 	NodeId		string
 	CommandId	string
 	CommandType int
-	CommandBody string
+	CommandBody []byte
 }

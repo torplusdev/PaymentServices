@@ -105,7 +105,7 @@ func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.Tra
 
 	response := &models.CreateTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply), response)
+	err = json.Unmarshal(reply, response)
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, err
@@ -144,7 +144,7 @@ func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTrans
 
 	var response = &models.SignTerminalTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply), response)
+	err = json.Unmarshal(reply, response)
 
 	if err != nil {
 		return err
@@ -186,7 +186,7 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 
 	var response = &models.SignChainTransactionsResponse{}
 
-	err = json.Unmarshal([]byte(reply), response)
+	err = json.Unmarshal(reply, response)
 
 	if err != nil {
 		return err
@@ -232,7 +232,7 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 
 	var response = &models.CommitServiceTransactionResponse{}
 
-	err = json.Unmarshal([]byte(reply), response)
+	err = json.Unmarshal(reply, response)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())

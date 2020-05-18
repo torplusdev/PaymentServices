@@ -10,7 +10,8 @@ require (
 	github.com/gorilla/mux v1.7.4
 	github.com/rs/xid v1.2.1
 	github.com/stellar/go v0.0.0-20200306220739-bfc713ce1dad
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
+	github.com/wI2L/jettison v0.7.1
 	go.opentelemetry.io/otel v0.4.2
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.4.2
 	google.golang.org/grpc v1.27.1

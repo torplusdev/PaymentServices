@@ -49,10 +49,6 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
 
-func (g *GatewayController) ValidatePayment(w http.ResponseWriter, r *http.Request) {
-	// TODO: implement validation by table
-}
-
 func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 
 	ctx, span := spanFromRequest(r,"ProcessPayment")
@@ -63,7 +59,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(request)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Bad request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Bad request"))
 		return
 	}
 
@@ -72,7 +68,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	err = json.Unmarshal([]byte(request.PaymentRequest), paymentRequest)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Unknown payment request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Unknown payment request"))
 		return
 	}
 
@@ -113,13 +109,13 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	// Create destination node
 	addr = append(addr, paymentRequest.Address)
 
-	url := request.CallbackUrl
+	commandCallbackUrl := request.CommandCallbackUrl
 
-	if url == "" {
-		url = g.torCommandUrl
+	if commandCallbackUrl == "" {
+		commandCallbackUrl = g.torCommandUrl
 	}
 
-	g.nodeManager.AddNode(paymentRequest.Address, request.NodeId, url)
+	g.nodeManager.AddNode(paymentRequest.Address, request.NodeId, commandCallbackUrl)
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
@@ -129,11 +125,12 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		if g.asyncMode {
 			future <- MessageWithStatus(http.StatusCreated,"Payment in process")
 		}
+
 		// Initiate
 		transactions, err := c.InitiatePayment(ctx, r, pr)
 
 		if err != nil {
-			if !g.asyncMode { future <- MessageWithStatus(http.StatusInternalServerError,"Init failed") }
+			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Init failed") }
 
 			return
 		}
@@ -142,7 +139,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err := c.VerifyTransactions(ctx, r, pr, transactions)
 
 		if !ok {
-			if !g.asyncMode { future <- MessageWithStatus(http.StatusInternalServerError,"Verification failed") }
+			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Verification failed") }
 			return
 		}
 
@@ -150,7 +147,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err = c.FinalizePayment(ctx, r, transactions, pr)
 
 		if !ok {
-			if !g.asyncMode { future <- MessageWithStatus(http.StatusInternalServerError,"Finalize failed") }
+			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Finalize failed") }
 			return
 		}
 

@@ -109,7 +109,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	// Create destination node
 	addr = append(addr, paymentRequest.Address)
 
-	commandCallbackUrl := request.CommandCallbackUrl
+	commandCallbackUrl := request.CallbackUrl
 
 	if commandCallbackUrl == "" {
 		commandCallbackUrl = g.torCommandUrl

@@ -257,14 +257,7 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = u.node.AddPendingServicePayment(ctx, price, request.PayerAddress)
-
-	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
-		return
-	}
-
-	pr, err := u.node.CreatePaymentRequest(ctx, request.PayerAddress, asset, request.ServiceType)
+	pr, err := u.node.CreatePaymentRequest(ctx, price, asset, request.ServiceType)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))

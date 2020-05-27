@@ -69,18 +69,6 @@ type NodeManager interface {
 	GetNodeByAddress(address string) PPNode
 }
 
-
-
-func (n *Node) AddPendingServicePayment(context context.Context, amount common.TransactionAmount, payerAddress string) error {
-
-	_,span :=n.tracer.Start(context,"node-AddPendingServicePayment " + n.Address)
-	defer span.End()
-
-	n.paymentRegistry.AddServiceUsage(payerAddress, amount)
-
-	return  nil
-}
-
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 	n.accumulatingTransactionsMode = accumulateTransactions
 }
@@ -93,28 +81,23 @@ func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 //
 //	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
 //}
-func (n *Node) CreatePaymentRequest(context context.Context, paymentSourceAddress string, asset string, serviceType string) (common.PaymentRequest, error) {
+func (n *Node) CreatePaymentRequest(context context.Context, amount common.TransactionAmount, asset string, serviceType string) (common.PaymentRequest, error) {
 
-	_,span :=n.tracer.Start(context,"node-CreatePaymentRequest "+ n.Address)
+	_, span := n.tracer.Start(context, "node-CreatePaymentRequest "+n.Address)
 	defer span.End()
-
-
-	amount, ok := n.paymentRegistry.getPendingAmount(paymentSourceAddress)
 
 	serviceSessionId := xid.New().String()
 
-	if !ok {
-		return common.PaymentRequest{}, nil
-	} else {
-		pr := common.PaymentRequest{
-			ServiceSessionId: serviceSessionId,
-			Address:          n.Address,
-			Amount:           amount,
-			Asset:            asset,
-			ServiceRef:       serviceType}
+	n.paymentRegistry.AddServiceUsage(serviceSessionId, amount)
 
-		return pr, nil
-	}
+	pr := common.PaymentRequest{
+		ServiceSessionId: serviceSessionId,
+		Address:          n.Address,
+		Amount:           amount,
+		Asset:            asset,
+		ServiceRef:       serviceType}
+
+	return pr, nil
 }
 
 func (n *Node) GetAddress() string {
@@ -476,7 +459,7 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	ok, err := n.CommitPaymentTransaction(context, transaction)
 
 	if ok {
-		err = n.paymentRegistry.reducePendingAmount(pr.Address,transaction.GetPaymentTransaction().AmountOut)
+		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId, transaction.GetPaymentTransaction().AmountOut)
 		return err == nil,err
 
 	} else {

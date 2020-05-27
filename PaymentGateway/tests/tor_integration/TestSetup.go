@@ -1,4 +1,4 @@
-package integration_tests
+package tor_integration
 
 import (
 	"bytes"
@@ -20,21 +20,11 @@ import (
 
 type TestSetup struct {
 	servers []*http.Server
-	torMock *testutils.TorMock
+	nodeRegistry map[string]int
 	torAddressPrefix string
 }
 
-func (setup *TestSetup) ConfigureTor(port int) {
-	setup.torMock = testutils.CreateTorMock(port)
-	setup.torAddressPrefix = fmt.Sprintf("http://localhost:%d",port)
-}
-
 func (setup *TestSetup) Shutdown() {
-
-	if setup.torMock != nil {
-		setup.torMock.Shutdown()
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -44,12 +34,15 @@ func (setup *TestSetup) Shutdown() {
 }
 
 func (setup *TestSetup) startNode(seed string, nodePort int) {
-	srv,err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix,false)
+	srv,err := serviceNode.StartServiceNode(seed,nodePort,setup.torAddressPrefix)
 
 	if err!=nil {
 		log.Fatal("Coudn't start node")
 	}
 	setup.servers = append(setup.servers,srv)
+
+
+
 }
 
 func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodePort int) {
@@ -64,11 +57,12 @@ func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodeP
 		Value: core.String(seed),
 	})
 	span.SetStatus(codes.OK,seed + " Service Node started")
-	kp,_ := keypair.ParseFull(seed)
 
-	if setup.torMock != nil {
-		setup.torMock.RegisterNode(kp.Address(),nodePort)
-	}
+	//kp,_ := keypair.ParseFull(seed)
+	//
+	//if setup.torMock != nil {
+	//	setup.torMock.RegisterNode(kp.Address(),nodePort)
+	//}
 }
 
 func (setup *TestSetup) StartTorNode(ctx context.Context, seed string, nodePort int) {
@@ -85,11 +79,11 @@ func (setup *TestSetup) StartTorNode(ctx context.Context, seed string, nodePort 
 	})
 	span.SetStatus(codes.OK,seed + " Tor Node started")
 
-	kp,_ := keypair.ParseFull(seed)
-
-	if setup.torMock != nil {
-		setup.torMock.RegisterTorNode(kp.Address(),nodePort)
-	}
+	//kp,_ := keypair.ParseFull(seed)
+	//
+	//if setup.torMock != nil {
+	//	setup.torMock.RegisterTorNode(kp.Address(),nodePort)
+	//}
 }
 
 func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort int) {
@@ -106,14 +100,16 @@ func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort
 	})
 
 	span.SetStatus(codes.OK,"User Node started")
-	kp,_ := keypair.ParseFull(seed)
-
-	if setup.torMock != nil {
-		setup.torMock.RegisterNode(kp.Address(),nodePort)
-		setup.torMock.SetCircuitOrigin(kp.Address())
-	}
+	
+	//kp,_ := keypair.ParseFull(seed)
+	//
+	//if setup.torMock != nil {
+	//	setup.torMock.RegisterNode(kp.Address(),nodePort)
+	//	setup.torMock.SetCircuitOrigin(kp.Address())
+	//}
 
 }
+
 
 
 func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, amount int) (common.PaymentRequest,error) {
@@ -135,8 +131,8 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 	port := setup.torMock.GetNodePort(kp.Address())
 
 	cpi := models.CreatePaymentInfo{
-		ServiceType:   "ipfs",
-		CommodityType: "data",
+		ServiceType:   "test",
+		CommodityType: "ipfs",
 		Amount:        uint32(amount),
 	}
 
@@ -176,7 +172,7 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 
 	for _,v := range setup.torMock.GetNodes() {
 
-		resp,err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/transactions/flush", v))
+		resp,err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/flushTransactions", v))
 
 		if err != nil || resp.StatusCode != http.StatusOK {
 			msg:= err.Error()
@@ -241,13 +237,7 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 	//resp,err := http.Post(fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port),"application/json",bytes.NewReader(pprBytes))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
-
-		var msg string
-
-		if err != nil {
-			msg = err.Error()
-		}
-
+		msg:=err.Error()
 		if resp.StatusCode != http.StatusOK {
 			msg = string(resp.StatusCode)
 		}

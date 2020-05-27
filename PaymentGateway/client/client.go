@@ -9,6 +9,7 @@ import (
 	"github.com/stellar/go/txnbuild"
 	"go.opentelemetry.io/otel/api/trace"
 	"log"
+	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
@@ -23,13 +24,15 @@ type Client struct {
 	fullKeyPair *keypair.Full
 	account horizon.Account
 	nodeManager node.NodeManager
+	commodityManager *commodity.Manager
 	tracer trace.Tracer
 }
 
-func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager) *Client {
+func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager, commodityManager *commodity.Manager) *Client {
 
 	client := Client{
 		nodeManager : nm,
+		commodityManager : commodityManager,
 		tracer 		: common.CreateTracer("client"),
 	}
 
@@ -64,6 +67,9 @@ func reverseAny(s interface{}) {
 	}
 }
 
+func (client *Client) GetCommodityManager() *commodity.Manager {
+	return client.commodityManager
+}
 
 func (client *Client) SignInitialTransactions(context context.Context, fundingTransactionPayload *common.PaymentTransactionReplacing, expectedDestination string, expectedAmount common.TransactionAmount) error {
 
@@ -222,7 +228,7 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 		}
 
 		// Create and store transaction
-		nodeTransaction, err := stepNode.CreateTransaction(ctx, paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress)
+		nodeTransaction, err := stepNode.CreateTransaction(ctx, paymentRequest.Amount + totalFee + transactionFee, transactionFee, paymentRequest.Amount + totalFee, sourceAddress, paymentRequest.ServiceSessionId)
 
 		if err  != nil {
 			log.Print("Error creating transaction for node " + sourceAddress + " : " + err.Error())

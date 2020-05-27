@@ -59,7 +59,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		glog.Info("Error creating user: %v",err)
 		return &Server{},err
 	}
-	c := client.CreateClient(rootApi, seed.Seed(), proxyNodeManager)
+	c := client.CreateClient(rootApi, seed.Seed(), proxyNodeManager, commodityManager)
 
 	account, err := testutils.GetAccount(seed.Address())
 

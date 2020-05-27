@@ -14,9 +14,10 @@ type UtilityCommand struct {
 }
 
 type CreateTransactionCommand struct {
-	TotalIn       uint32	`json:"totalIn"`
-	TotalOut      uint32	`json:"totalOut"`
-	SourceAddress string	`json:"sourceAddress"`
+	TotalIn       		uint32	`json:"totalIn"`
+	TotalOut      		uint32	`json:"totalOut"`
+	SourceAddress 		string	`json:"sourceAddress"`
+	ServiceSessionId 	string	`json:"serviceSessionId"`
 }
 
 

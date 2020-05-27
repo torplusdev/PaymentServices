@@ -113,7 +113,7 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 	rootApi := root.CreateRootApi(true)
 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client.CreateClient(rootApi, user1Seed,nm)
+	var client = client.CreateClient(rootApi, user1Seed, nm, nil)
 	assert.NotNil(client)
 
 	nm.SetAccumulatingTransactionsMode(true)
@@ -193,7 +193,7 @@ func TestAccumulatingTransactionWithBadSignatureShouldFail(t *testing.T) {
 	rootApi := root.CreateRootApi(true)
 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client.CreateClient(rootApi, user1Seed,nm)
+	var client = client.CreateClient(rootApi, user1Seed, nm, nil)
 	assert.NotNil(client)
 
 	nm.SetAccumulatingTransactionsMode(true)

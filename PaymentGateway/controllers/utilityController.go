@@ -76,7 +76,7 @@ func (u *UtilityController) CreateTransaction(context context.Context, commandBo
 		return nil, err
 	}
 
-	transaction, err := u.node.CreateTransaction(context, request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
+	transaction, err := u.node.CreateTransaction(context, request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress, request.ServiceSessionId)
 
 	if err != nil {
 		return nil, err

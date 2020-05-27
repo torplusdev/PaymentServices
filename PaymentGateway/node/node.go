@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"github.com/go-errors/errors"
+	"github.com/rs/xid"
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
@@ -70,14 +71,14 @@ type NodeManager interface {
 
 
 
-func (n *Node) AddPendingServicePayment(context context.Context, serviceSessionId string, amount common.TransactionAmount) error {
+func (n *Node) AddPendingServicePayment(context context.Context, amount common.TransactionAmount, payerAddress string) error {
 
 	_,span :=n.tracer.Start(context,"node-AddPendingServicePayment " + n.Address)
 	defer span.End()
 
-	n.paymentRegistry.AddServiceUsage(serviceSessionId, amount)
+	n.paymentRegistry.AddServiceUsage(payerAddress, amount)
 
-	return nil
+	return  nil
 }
 
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
@@ -93,12 +94,15 @@ func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 //	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
 //}
 
-func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string, asset string) (common.PaymentRequest, error) {
+func (n *Node) CreatePaymentRequest(context context.Context, paymentSourceAddress string, asset string) (common.PaymentRequest, error) {
 
 	_,span :=n.tracer.Start(context,"node-CreatePaymentRequest "+ n.Address)
 	defer span.End()
 
-	amount, ok := n.paymentRegistry.getPendingAmount(serviceSessionId)
+
+	amount, ok := n.paymentRegistry.getPendingAmount(paymentSourceAddress)
+
+	serviceSessionId := xid.New().String()
 
 	if !ok {
 		return common.PaymentRequest{}, nil
@@ -473,7 +477,7 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	ok, err := n.CommitPaymentTransaction(context, transaction)
 
 	if ok {
-		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId,transaction.GetPaymentTransaction().AmountOut)
+		err = n.paymentRegistry.reducePendingAmount(pr.Address,transaction.GetPaymentTransaction().AmountOut)
 		return err == nil,err
 
 	} else {

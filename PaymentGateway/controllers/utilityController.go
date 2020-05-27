@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/rs/xid"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/trace"
@@ -245,8 +244,6 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 
 	defer span.End()
 
-	serviceSessionId := xid.New().String()
-
 	request := &models.CreatePaymentInfo{}
 	err := json.NewDecoder(r.Body).Decode(request)
 
@@ -262,14 +259,14 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = u.node.AddPendingServicePayment(ctx, serviceSessionId, price)
+	err = u.node.AddPendingServicePayment(ctx, price, request.PayerAddress)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
 		return
 	}
 
-	pr, err := u.node.CreatePaymentRequest(ctx, serviceSessionId, asset)
+	pr, err := u.node.CreatePaymentRequest(ctx, request.PayerAddress, asset)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))

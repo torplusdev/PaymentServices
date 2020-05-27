@@ -22,8 +22,8 @@ import (
 const nodeTransactionFee = 10
 
 type serviceUsageCredit struct {
-	amount  common.TransactionAmount
-	updated time.Time
+	amount  		common.TransactionAmount
+	updated 		time.Time
 }
 
 type Node struct {
@@ -101,7 +101,7 @@ func (n *Node) GetPendingPayment(address string) (common.TransactionAmount, time
 	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
 }
 
-func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string, asset string) (common.PaymentRequest, error) {
+func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string, asset string, serviceType string, callbackUrl string) (common.PaymentRequest, error) {
 
 	_,span :=n.tracer.Start(context,"node-CreatePaymentRequest "+ n.Address)
 	defer span.End()
@@ -114,7 +114,7 @@ func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId st
 			Address:          n.Address,
 			Amount:           n.pendingPayment[serviceSessionId].amount,
 			Asset:            asset,
-			ServiceRef:       "test"}
+			ServiceRef:       serviceType}
 
 		return pr, nil
 	}
@@ -480,9 +480,7 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 		updated: time.Now(),
 	}
 
-	n.CommitPaymentTransaction(context, transaction)
-
-	return true, nil
+	return n.CommitPaymentTransaction(context, transaction)
 }
 
 func (n *Node) GetTransactions() []common.PaymentTransaction {

@@ -64,8 +64,6 @@ func spanFromContext(rootContext context.Context, traceContext common.TraceConte
 		)
 	}
 
-
-
 	return ctx,span
 }
 
@@ -269,7 +267,7 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	pr, err := u.node.CreatePaymentRequest(ctx, serviceSessionId, asset)
+	pr, err := u.node.CreatePaymentRequest(ctx, serviceSessionId, asset, request.ServiceType, request.CallbackUrl)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))

@@ -1,6 +1,7 @@
 package payment_tests_simple
 
 import (
+	"context"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
 	"github.com/stretchr/testify/assert"
@@ -102,7 +103,7 @@ func TestSingleE2EPaymentNoAccumulation(t *testing.T) {
 	rootApi := root.CreateRootApi(true)
 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client.CreateClient(rootApi, user1Seed, nm)
+	var client = client.CreateClient(rootApi, user1Seed, nm, nil)
 	assert.NotNil(client)
 
 	accPre, err := testutils.GetAccount(keyService.Address())
@@ -117,7 +118,7 @@ func TestSingleE2EPaymentNoAccumulation(t *testing.T) {
 	guid := xid.New()
 
 	// Add pending credit
-	serviceNode.AddPendingServicePayment(guid.String(),servicePayment)
+	serviceNode.AddPendingServicePayment(context.Background(), guid.String(),servicePayment)
 
 	// Client
 	pr,err := serviceNode.CreatePaymentRequest(guid.String())
@@ -167,7 +168,7 @@ func TestPaymentByClientWithInsufficientBalanceFails(t *testing.T) {
 	rootApi := root.CreateRootApi(true)
 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client.CreateClient(rootApi, user1Seed,nm)
+	var client = client.CreateClient(rootApi, user1Seed, nm, nil)
 	assert.NotNil(client)
 
 	accPre, err := testutils.GetAccount(keyService.Address())
@@ -202,7 +203,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	rootApi := root.CreateRootApi(true)
 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client.CreateClient(rootApi, user1Seed,nm)
+	var client = client.CreateClient(rootApi, user1Seed, nm, nil)
 	assert.NotNil(client)
 
 	nm.SetAccumulatingTransactionsMode(true)

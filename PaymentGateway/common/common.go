@@ -20,6 +20,7 @@ type PaymentTransaction struct {
 	PaymentSourceAddress	  string
 	PaymentDestinationAddress string
 	StellarNetworkToken       string
+	ServiceSessionId		  string
 }
 
 type PaymentTransactionPayload interface {

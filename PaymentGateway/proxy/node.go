@@ -80,7 +80,7 @@ func (n NodeProxy) ProcessResponse(commandId string, responseBody []byte) {
 	 ch <- responseBody
 }
 
-func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error) {
 
 	ctx, span := n.tracer.Start(context,"proxy-CreateTransaction-" + n.address)
 	defer span.End()
@@ -89,6 +89,7 @@ func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.Tra
 		TotalIn:       totalIn,
 		TotalOut:      totalOut,
 		SourceAddress: sourceAddress,
+		ServiceSessionId: serviceSessionId,
 	}
 
 	body, err := json.Marshal(request)

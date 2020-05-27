@@ -32,15 +32,16 @@ type Node struct {
 	client                       *horizon.Client
 	accumulatingTransactionsMode bool
 	transactionFee               common.TransactionAmount
-	pendingPayment               map[string]serviceUsageCredit
-	activeTransactions           map[string]common.PaymentTransaction
+	paymentRegistry				 paymentRegistry
+	//pendingPayment               map[string]serviceUsageCredit
+	//activeTransactions           map[string]common.PaymentTransaction
 	tracer 						 trace.Tracer
 	lastSequenceId				 xdr.SequenceNumber
 	mux							 sync.Mutex
 }
 
 type PPNode interface {
-	CreateTransaction(context context.Context,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error)
+	CreateTransaction(context context.Context,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error
 	SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error
 	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
@@ -53,8 +54,9 @@ func CreateNode(client *horizon.Client, address string, seed string, accumulateT
 		secretSeed:                   seed,
 		client:                       client,
 		transactionFee:               nodeTransactionFee,
-		pendingPayment:               make(map[string]serviceUsageCredit),
-		activeTransactions:           make(map[string]common.PaymentTransaction),
+		paymentRegistry:			  createPaymentRegistry(address),
+		//pendingPayment:               make(map[string]serviceUsageCredit),
+		//activeTransactions:           make(map[string]common.PaymentTransaction),
 		accumulatingTransactionsMode: accumulateTransactions,
 		tracer:						  common.CreateTracer("node"),
 	}
@@ -73,17 +75,7 @@ func (n *Node) AddPendingServicePayment(context context.Context, serviceSessionI
 	_,span :=n.tracer.Start(context,"node-AddPendingServicePayment " + n.Address)
 	defer span.End()
 
-	if n.pendingPayment[serviceSessionId].updated.IsZero() {
-		n.pendingPayment[serviceSessionId] = serviceUsageCredit{
-			amount:  amount,
-			updated: time.Now(),
-		}
-	} else {
-		n.pendingPayment[serviceSessionId] = serviceUsageCredit{
-			amount:  n.pendingPayment[serviceSessionId].amount + amount,
-			updated: time.Now(),
-		}
-	}
+	n.paymentRegistry.AddServiceUsage(serviceSessionId, amount)
 
 	return nil
 }
@@ -92,27 +84,29 @@ func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 	n.accumulatingTransactionsMode = accumulateTransactions
 }
 
-func (n *Node) GetPendingPayment(address string) (common.TransactionAmount, time.Time, error) {
-
-	if n.pendingPayment[address].updated.IsZero() {
-		return 0, time.Unix(0, 0), errors.Errorf("PaymentDestinationAddress not found: " + address)
-	}
-
-	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
-}
+//func (n *Node) GetPendingPayment(address string) (common.TransactionAmount, time.Time, error) {
+//
+//	if n.pendingPayment[address].updated.IsZero() {
+//		return 0, time.Unix(0, 0), errors.Errorf("PaymentDestinationAddress not found: " + address)
+//	}
+//
+//	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
+//}
 
 func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string, asset string) (common.PaymentRequest, error) {
 
 	_,span :=n.tracer.Start(context,"node-CreatePaymentRequest "+ n.Address)
 	defer span.End()
 
-	if n.pendingPayment[serviceSessionId].updated.IsZero() {
+	amount, ok := n.paymentRegistry.getPendingAmount(serviceSessionId)
+
+	if !ok {
 		return common.PaymentRequest{}, nil
 	} else {
 		pr := common.PaymentRequest{
 			ServiceSessionId: serviceSessionId,
 			Address:          n.Address,
-			Amount:           n.pendingPayment[serviceSessionId].amount,
+			Amount:           amount,
 			Asset:            asset,
 			ServiceRef:       "test"}
 
@@ -125,11 +119,12 @@ func (n *Node) GetAddress() string {
 }
 
 func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransaction) (common.PaymentTransactionReplacing, error) {
-	return common.CreateReferenceTransaction(internalTransaction, n.activeTransactions[internalTransaction.PaymentSourceAddress])
+
+	return common.CreateReferenceTransaction(internalTransaction, n.paymentRegistry.getActiveTransaction(internalTransaction.PaymentSourceAddress))
 }
 
 
-func (n *Node) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+func (n *Node) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error) {
 
 	_,span :=n.tracer.Start(context,"node-CreateTransaction " + n.Address)
 	defer span.End()
@@ -150,6 +145,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		AmountOut:                 totalOut,
 		PaymentSourceAddress:      sourceAddress,
 		PaymentDestinationAddress: n.Address,
+		ServiceSessionId: serviceSessionId,
 	})
 
 	var amount = transactionPayload.PendingTransaction.ReferenceAmountIn
@@ -461,8 +457,7 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 
 		log.Debug("Transaction submitted: " + res.Result)
 	} else {
-		// Save transaction
-		n.activeTransactions[transaction.PaymentSourceAddress] = *transaction
+		n.paymentRegistry.saveTransaction(transaction.PaymentSourceAddress, transaction)
 	}
 
 	transactionPayload.ToSpanAttributes(span,"single")
@@ -475,24 +470,22 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	_,span :=n.tracer.Start(context,"node-CommitServiceTransaction "  + n.Address)
 	defer span.End()
 
-	n.pendingPayment[pr.ServiceSessionId] = serviceUsageCredit{
-		amount:  n.pendingPayment[pr.ServiceSessionId].amount - transaction.GetPaymentTransaction().AmountOut,
-		updated: time.Now(),
-	}
+	ok, err := n.CommitPaymentTransaction(context, transaction)
 
-	n.CommitPaymentTransaction(context, transaction)
+	if ok {
+		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId,transaction.GetPaymentTransaction().AmountOut)
+		return err == nil,err
+
+	} else {
+		return false,err
+	}
 
 	return true, nil
 }
 
 func (n *Node) GetTransactions() []common.PaymentTransaction {
-	transactions := make([]common.PaymentTransaction,0)
 
-	for _,t := range n.activeTransactions {
-		transactions = append(transactions,t)
-	}
-
-	return transactions
+	return n.paymentRegistry.getActiveTransactions()
 }
 
 func (n *Node) FlushTransactions(context context.Context) (map[string]interface{},error) {
@@ -501,18 +494,9 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	defer span.End()
 
 	resultsMap := make(map[string]interface{})
-	//temp := make(map[string]interface{})
-	transactions := make([]common.PaymentTransaction,0)
-
 
 	//TODO Sort transaction by sequence number and make sure to submit them only in sequence number order
-
-	for _,t := range n.activeTransactions {
-		transactions = append(transactions,t)
-
-		//trans,_ := txnbuild.TransactionFromXDR(t.XDR)
-		//temp[t.PaymentSourceAddress] = trans
-	}
+	transactions := n.paymentRegistry.getActiveTransactions()
 
 	sort.Slice(transactions, func (i,j int) bool {
 		transi,erri := txnbuild.TransactionFromXDR(transactions[i].XDR)
@@ -560,7 +544,7 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 			_ = internalTrans
 			resultsMap[t.TransactionSourceAddress] =  err
  		} else {
-			delete(n.activeTransactions, t.PaymentSourceAddress)
+ 			n.paymentRegistry.completePayment(t.PaymentSourceAddress, t.ServiceSessionId )
 		}
 
 	}

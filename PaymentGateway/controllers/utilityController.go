@@ -78,7 +78,7 @@ func (u *UtilityController) CreateTransaction(context context.Context, commandBo
 		return nil, err
 	}
 
-	transaction, err := u.node.CreateTransaction(context, request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress)
+	transaction, err := u.node.CreateTransaction(context, request.TotalIn, request.TotalIn-request.TotalOut, request.TotalOut, request.SourceAddress, request.ServiceSessionId)
 
 	if err != nil {
 		return nil, err
@@ -202,6 +202,44 @@ func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.S
 	return ctx,span
 }
 
+
+func (u *UtilityController) ValidatePayment(w http.ResponseWriter, r *http.Request) {
+
+	_, span := spanFromRequest(r,"ValidatePayment")
+	defer span.End()
+
+	request := &models.ValidatePaymentRequest{}
+
+	err := json.NewDecoder(r.Body).Decode(request)
+
+	if err != nil {
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Bad request"))
+		return
+	}
+
+	paymentRequest := &common.PaymentRequest{}
+
+	err = json.Unmarshal([]byte(request.PaymentRequest), paymentRequest)
+
+	if err != nil {
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Unknown payment request"))
+		return
+	}
+
+	quantity, err := u.commodityManager.ReverseCalculate(request.ServiceType, request.CommodityType, paymentRequest.Amount, paymentRequest.Asset)
+
+	if err != nil {
+		Respond(w, MessageWithStatus(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	response := &models.ValidatePaymentResponse {
+		Quantity: quantity,
+	}
+
+	Respond(w, response)
+}
+
 func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Request) {
 	ctx,span := spanFromRequest(r,"requesthandler:CreatePaymentInfo")
 
@@ -213,28 +251,28 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 	err := json.NewDecoder(r.Body).Decode(request)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
 		return
 	}
 
 	price, asset, err := u.commodityManager.Calculate(request.ServiceType, request.CommodityType, request.Amount)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid commodity"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid commodity"))
 		return
 	}
 
 	err = u.node.AddPendingServicePayment(ctx, serviceSessionId, price)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
 		return
 	}
 
 	pr, err := u.node.CreatePaymentRequest(ctx, serviceSessionId, asset)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError,"Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
 		return
 	}
 
@@ -258,7 +296,7 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 	results,err := u.node.FlushTransactions(ctx)
 
 	if err != nil {
-		Respond(w,MessageWithStatus(http.StatusInternalServerError,"Error in FlushTransactions:..."))
+		Respond(w,MessageWithStatus(http.StatusBadRequest,"Error in FlushTransactions:..."))
 	}
 
 	for k,v := range results {
@@ -289,7 +327,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
 

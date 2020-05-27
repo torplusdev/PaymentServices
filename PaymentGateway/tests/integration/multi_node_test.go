@@ -15,7 +15,7 @@ func TestMultinodePayments(t *testing.T) {
 
 	sequencer := createSequencer(testSetup,assert,ctx)
 
-	paymentAmount := 200.0
+	paymentAmount := 200e6
 
 	nodes := make([]string,0)
 	seeds := make([]string,0)

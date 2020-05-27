@@ -135,8 +135,8 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context,seed string, a
 	port := setup.torMock.GetNodePort(kp.Address())
 
 	cpi := models.CreatePaymentInfo{
-		ServiceType:   "test",
-		CommodityType: "ipfs",
+		ServiceType:   "ipfs",
+		CommodityType: "data",
 		Amount:        uint32(amount),
 	}
 

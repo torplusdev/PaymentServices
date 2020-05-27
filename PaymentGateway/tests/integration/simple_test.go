@@ -102,7 +102,8 @@ func TestSingleChainPayment(t *testing.T) {
 			Value: core.Float64(balancesPre[4])	},
 		)
 	sequencer := createSequencer(testSetup,assert,ctx)
-	paymentAmount := 300.0
+	// 100 MB
+	paymentAmount := 1001e6
 
 	result := sequencer.performPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount)
 	assert.Contains(result,"Payment processing completed")

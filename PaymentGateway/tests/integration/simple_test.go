@@ -7,6 +7,7 @@ import (
 	"os"
 	. "paidpiper.com/payment-gateway/common"
 	testutils "paidpiper.com/payment-gateway/tests"
+	"sync"
 	"testing"
 	"time"
 )
@@ -21,10 +22,10 @@ var tracerShutdown func()
 
 func init() {
 
-	traceProvider, shutdownFunc := testutils.InitGlobalTracer()
-	InitializeTracer(traceProvider)
+	//traceProvider, shutdownFunc := testutils.InitGlobalTracer()
+	//InitializeTracer(traceProvider)
 
-	tracerShutdown = shutdownFunc
+	//tracerShutdown = shutdownFunc
 
 	// Addresses reused from other tests
 	testutils.CreateAndFundAccount(testutils.User1Seed)
@@ -67,7 +68,7 @@ func init() {
 
 func shutdown() {
 	testSetup.Shutdown()
-	tracerShutdown()
+	//tracerShutdown()
 }
 
 func TestMain(m *testing.M) {
@@ -180,8 +181,27 @@ func TestTwoChainPayments(t *testing.T) {
 	paymentAmount1 := 300e6
 	paymentAmount2 := 600e6
 
+
 	result,pr1 := sequencer.performPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount1)
 	result,pr2 := sequencer.performPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount2)
+
+	var wg sync.WaitGroup
+
+	for i:=0;i<1000;i++  {
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+			result,pr1 = sequencer.performPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount1)
+		}()
+
+		go func() {
+			defer wg.Done()
+			result,pr2 = sequencer.performPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount2)
+		}()
+
+		wg.Wait()
+	}
 
 	assert.Contains(result,"Payment processing completed")
 	err := testSetup.FlushTransactions(ctx)

@@ -16,18 +16,18 @@ import (
 )
 
 type GatewayController struct {
-	localNode 			*node.Node
-	commodityManager	*commodity.Manager
-	seed				*keypair.Full
-	rootApi 			*root.RootApi
-	torCommandUrl		string
-	torRouteUrl			string
-	asyncMode 			bool
-	requestNodeManager	map[string]*proxy.NodeManager
+	localNode          *node.Node
+	commodityManager   *commodity.Manager
+	seed               *keypair.Full
+	rootApi            *root.RootApi
+	torCommandUrl      string
+	torRouteUrl        string
+	asyncMode          bool
+	requestNodeManager map[string]*proxy.NodeManager
 }
 
 func NewGatewayController(localNode *node.Node, commodityManager *commodity.Manager, seed *keypair.Full, rootApi *root.RootApi, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
-	manager := &GatewayController {
+	manager := &GatewayController{
 		localNode,
 		commodityManager,
 		seed,
@@ -65,7 +65,7 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 
 func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {
 
-	ctx, span := spanFromRequest(r,"ProcessPayment")
+	ctx, span := spanFromRequest(r, "ProcessPayment")
 	defer span.End()
 
 	nodeManager := proxy.New(g.localNode)
@@ -102,7 +102,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	addr = append(addr, g.seed.Address())
 
 	if request.Route == nil {
-		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl + paymentRequest.Address)
+		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl+paymentRequest.Address)
 		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
 		if err != nil {
@@ -119,7 +119,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		request.Route  = routeResponse.Route
+		request.Route = routeResponse.Route
 	}
 
 	for _, rn := range request.Route {
@@ -151,20 +151,24 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
-	future := make (chan ResponseMessage)
+	future := make(chan ResponseMessage)
 
 	g.requestNodeManager[paymentRequest.ServiceSessionId] = nodeManager
 
 	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
 		if g.asyncMode {
-			future <- MessageWithStatus(http.StatusCreated,"Payment in process")
+			future <- MessageWithData(http.StatusCreated, &models.ProcessPaymentAccepted{
+				SessionId: pr.ServiceSessionId,
+			})
 		}
 
 		// Initiate
 		transactions, err := c.InitiatePayment(ctx, r, pr)
 
 		if err != nil {
-			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Init failed") }
+			if !g.asyncMode {
+				future <- MessageWithStatus(http.StatusBadRequest, "Init failed")
+			}
 
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
@@ -175,7 +179,9 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err := c.VerifyTransactions(ctx, r, pr, transactions)
 
 		if !ok {
-			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Verification failed") }
+			if !g.asyncMode {
+				future <- MessageWithStatus(http.StatusBadRequest, "Verification failed")
+			}
 
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
@@ -186,20 +192,23 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		ok, err = c.FinalizePayment(ctx, r, transactions, pr)
 
 		if !ok {
-			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Finalize failed") }
+			if !g.asyncMode {
+				future <- MessageWithStatus(http.StatusBadRequest, "Finalize failed")
+			}
 
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
 			return
 		}
 
-		if !g.asyncMode { future <- MessageWithStatus(http.StatusOK,"Payment processing completed") }
+		if !g.asyncMode {
+			future <- MessageWithStatus(http.StatusOK, "Payment processing completed")
+		}
 
 		delete(g.requestNodeManager, pr.ServiceSessionId)
+
 		log.Print("Payment completed")
 	}(c, router, *paymentRequest, future)
 
 	Respond(w, future)
 }
-
-

@@ -97,6 +97,8 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		Handler: router,
 	}
 
+	server.SetKeepAlivesEnabled(false)
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			glog.Warning("Error starting service node: %v",err)

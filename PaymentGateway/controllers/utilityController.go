@@ -362,6 +362,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 				CommandResponse: 	data,
 				CommandId:    		cmd.CommandId,
 				NodeId:       		cmd.NodeId,
+				SessionId:			cmd.SessionId,
 			}
 
 			jsonValue, _ := json.Marshal(values)

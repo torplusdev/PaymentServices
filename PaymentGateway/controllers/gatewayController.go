@@ -6,29 +6,36 @@ import (
 	"log"
 	"net/http"
 	"paidpiper.com/payment-gateway/client"
+	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
+	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/proxy"
+	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
 )
 
 type GatewayController struct {
-	nodeManager 	*proxy.NodeManager
-	client 			*client.Client
-	seed			*keypair.Full
-	torCommandUrl	string
-	torRouteUrl		string
-	asyncMode 		bool
+	localNode 			*node.Node
+	commodityManager	*commodity.Manager
+	seed				*keypair.Full
+	rootApi 			*root.RootApi
+	torCommandUrl		string
+	torRouteUrl			string
+	asyncMode 			bool
+	requestNodeManager	map[string]*proxy.NodeManager
 }
 
-func NewGatewayController(nodeManager *proxy.NodeManager, client *client.Client, seed *keypair.Full, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
+func NewGatewayController(localNode *node.Node, commodityManager *commodity.Manager, seed *keypair.Full, rootApi *root.RootApi, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
 	manager := &GatewayController {
-		nodeManager,
-		client,
+		localNode,
+		commodityManager,
 		seed,
+		rootApi,
 		torCommandUrl,
 		torRouteUrl,
 		asyncMode,
+		map[string]*proxy.NodeManager{},
 	}
 
 	return manager
@@ -40,11 +47,18 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 	err := json.NewDecoder(r.Body).Decode(response)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
 
-	pNode := g.nodeManager.GetProxyNode(response.NodeId)
+	nodeManager, ok := g.requestNodeManager[response.SessionId]
+
+	if !ok {
+		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Session unknown"))
+		return
+	}
+
+	pNode := nodeManager.GetProxyNode(response.NodeId)
 
 	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
@@ -53,6 +67,10 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	ctx, span := spanFromRequest(r,"ProcessPayment")
 	defer span.End()
+
+	nodeManager := proxy.New(g.localNode)
+
+	c := client.CreateClient(g.rootApi, g.seed.Seed(), nodeManager, g.commodityManager)
 
 	request := &models.ProcessPaymentRequest{}
 
@@ -69,6 +87,13 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Unknown payment request"))
+		return
+	}
+
+	_, ok := g.requestNodeManager[paymentRequest.ServiceSessionId]
+
+	if ok {
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Duplicate session id"))
 		return
 	}
 
@@ -100,8 +125,12 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	for _, rn := range request.Route {
 		addr = append(addr, rn.Address)
 
-		// TODO: introduce node Id into route
-		g.nodeManager.AddNode(rn.Address, rn.NodeId, g.torCommandUrl)
+		err = nodeManager.AddNode(rn.Address, rn.NodeId, g.torCommandUrl, paymentRequest.ServiceSessionId)
+
+		if err != nil {
+			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Duplicate node id"))
+			return
+		}
 	}
 
 	// Create destination node
@@ -113,11 +142,18 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		commandCallbackUrl = g.torCommandUrl
 	}
 
-	g.nodeManager.AddNode(paymentRequest.Address, request.NodeId, commandCallbackUrl)
+	err = nodeManager.AddNode(paymentRequest.Address, request.NodeId, commandCallbackUrl, paymentRequest.ServiceSessionId)
+
+	if err != nil {
+		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Duplicate node id"))
+		return
+	}
 
 	router := routing.CreatePaymentRouterStubFromAddresses(addr)
 
 	future := make (chan ResponseMessage)
+
+	g.requestNodeManager[paymentRequest.ServiceSessionId] = nodeManager
 
 	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
 		if g.asyncMode {
@@ -130,6 +166,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		if err != nil {
 			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Init failed") }
 
+			delete(g.requestNodeManager, pr.ServiceSessionId)
+
 			return
 		}
 
@@ -138,6 +176,9 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 		if !ok {
 			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Verification failed") }
+
+			delete(g.requestNodeManager, pr.ServiceSessionId)
+
 			return
 		}
 
@@ -146,13 +187,17 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 		if !ok {
 			if !g.asyncMode { future <- MessageWithStatus(http.StatusBadRequest,"Finalize failed") }
+
+			delete(g.requestNodeManager, pr.ServiceSessionId)
+
 			return
 		}
 
 		if !g.asyncMode { future <- MessageWithStatus(http.StatusOK,"Payment processing completed") }
 
+		delete(g.requestNodeManager, pr.ServiceSessionId)
 		log.Print("Payment completed")
-	}(g.client, router, *paymentRequest, future)
+	}(c, router, *paymentRequest, future)
 
 	Respond(w, future)
 }

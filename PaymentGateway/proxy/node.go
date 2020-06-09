@@ -20,6 +20,7 @@ type NodeProxy struct {
 	address			string
 	torUrl         	string
 	commandChannel 	map[string]chan []byte
+	sessionId 	    string
 	nodeId      	string
 	tracer 		   	trace.Tracer
 }
@@ -40,6 +41,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	id := uuid.New().String()
 
 	command := &models.ProcessCommand{
+		SessionId:   n.sessionId,
 		NodeId:      n.nodeId,
 		CommandId:   id,
 		CommandType: commandType,
@@ -47,7 +49,6 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	}
 
 	jsonValue, _ := json.Marshal(command)
-
 
 	ch := n.openCommandChannel(id)
 

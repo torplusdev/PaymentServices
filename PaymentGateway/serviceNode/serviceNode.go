@@ -8,12 +8,10 @@ import (
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
 	. "net/http"
-	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/controllers"
 	"paidpiper.com/payment-gateway/node"
-	"paidpiper.com/payment-gateway/proxy"
 	"paidpiper.com/payment-gateway/root"
 	testutils "paidpiper.com/payment-gateway/tests"
 )
@@ -32,8 +30,6 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	}
 
 	localNode := node.CreateNode(horizon.DefaultTestNetClient, seed.Address(), seed.Seed(),true)
-
-	proxyNodeManager := proxy.New(localNode)
 
 	priceList := make(map[string]map[string]commodity.Descriptor)
 
@@ -59,7 +55,6 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		glog.Info("Error creating user: %v",err)
 		return &Server{},err
 	}
-	c := client.CreateClient(rootApi, seed.Seed(), proxyNodeManager, commodityManager)
 
 	account, err := testutils.GetAccount(seed.Address())
 
@@ -77,9 +72,10 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	)
 
 	gatewayController := controllers.NewGatewayController(
-		proxyNodeManager,
-		c,
+		localNode,
+		commodityManager,
 		seed,
+		rootApi,
 		fmt.Sprintf("%s/api/command",torAddressPrefix),
 		fmt.Sprintf("%s/api/paymentRoute/",torAddressPrefix),
 		asyncMode,

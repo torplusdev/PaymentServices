@@ -25,7 +25,7 @@ func New(localNode *node.Node) *NodeManager {
 	return manager
 }
 
-func (m *NodeManager) AddNode(address string, nodeId string, torUrl string) error {
+func (m *NodeManager) AddNode(address string, nodeId string, torUrl string, sessionId string) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -49,6 +49,7 @@ func (m *NodeManager) AddNode(address string, nodeId string, torUrl string) erro
 			commandChannel: make(map[string]chan []byte),
 			nodeId:         nodeId,
 			tracer:         global.Tracer("nodeProxy"),
+			sessionId:		sessionId,
 		}
 
 		m.nodesByAddress[address] = n

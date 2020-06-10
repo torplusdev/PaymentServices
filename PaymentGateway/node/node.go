@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"github.com/go-errors/errors"
+	"github.com/rs/xid"
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
@@ -22,8 +23,8 @@ import (
 const nodeTransactionFee = 10
 
 type serviceUsageCredit struct {
-	amount  common.TransactionAmount
-	updated time.Time
+	amount  		common.TransactionAmount
+	updated 		time.Time
 }
 
 type Node struct {
@@ -68,18 +69,6 @@ type NodeManager interface {
 	GetNodeByAddress(address string) PPNode
 }
 
-
-
-func (n *Node) AddPendingServicePayment(context context.Context, serviceSessionId string, amount common.TransactionAmount) error {
-
-	_,span :=n.tracer.Start(context,"node-AddPendingServicePayment " + n.Address)
-	defer span.End()
-
-	n.paymentRegistry.AddServiceUsage(serviceSessionId, amount)
-
-	return nil
-}
-
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 	n.accumulatingTransactionsMode = accumulateTransactions
 }
@@ -92,26 +81,23 @@ func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 //
 //	return n.pendingPayment[address].amount, n.pendingPayment[address].updated, nil
 //}
+func (n *Node) CreatePaymentRequest(context context.Context, amount common.TransactionAmount, asset string, serviceType string) (common.PaymentRequest, error) {
 
-func (n *Node) CreatePaymentRequest(context context.Context, serviceSessionId string, asset string) (common.PaymentRequest, error) {
-
-	_,span :=n.tracer.Start(context,"node-CreatePaymentRequest "+ n.Address)
+	_, span := n.tracer.Start(context, "node-CreatePaymentRequest "+n.Address)
 	defer span.End()
 
-	amount, ok := n.paymentRegistry.getPendingAmount(serviceSessionId)
+	serviceSessionId := xid.New().String()
 
-	if !ok {
-		return common.PaymentRequest{}, nil
-	} else {
-		pr := common.PaymentRequest{
-			ServiceSessionId: serviceSessionId,
-			Address:          n.Address,
-			Amount:           amount,
-			Asset:            asset,
-			ServiceRef:       "test"}
+	n.paymentRegistry.AddServiceUsage(serviceSessionId, amount)
 
-		return pr, nil
-	}
+	pr := common.PaymentRequest{
+		ServiceSessionId: serviceSessionId,
+		Address:          n.Address,
+		Amount:           amount,
+		Asset:            asset,
+		ServiceRef:       serviceType}
+
+	return pr, nil
 }
 
 func (n *Node) GetAddress() string {
@@ -473,7 +459,7 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	ok, err := n.CommitPaymentTransaction(context, transaction)
 
 	if ok {
-		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId,transaction.GetPaymentTransaction().AmountOut)
+		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId, transaction.GetPaymentTransaction().AmountOut)
 		return err == nil,err
 
 	} else {

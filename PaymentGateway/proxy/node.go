@@ -12,12 +12,15 @@ import (
 	"paidpiper.com/payment-gateway/models"
 	testutils "paidpiper.com/payment-gateway/tests"
 	"strconv"
+	"sync"
 )
 
 type NodeProxy struct {
+	mutex 			*sync.Mutex
 	address			string
 	torUrl         	string
 	commandChannel 	map[string]chan []byte
+	sessionId 	    string
 	nodeId      	string
 	tracer 		   	trace.Tracer
 }
@@ -28,7 +31,7 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.nodeId}
 
 	jsonValue, _ := json.Marshal(values)
-
+	
 	res, err := common.HttpPostWithContext(context, n.torUrl, bytes.NewBuffer(jsonValue))
 	defer res.Body.Close()
 
@@ -39,6 +42,7 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	id := uuid.New().String()
 
 	command := &models.ProcessCommand{
+		SessionId:   n.sessionId,
 		NodeId:      n.nodeId,
 		CommandId:   id,
 		CommandType: commandType,
@@ -47,11 +51,9 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 
 	jsonValue, _ := json.Marshal(command)
 
-	ch := make(chan []byte, 2)
-	n.commandChannel[id] = ch
+	ch := n.openCommandChannel(id)
 
-	defer delete (n.commandChannel, id)
-	defer close (ch)
+	defer n.closeCommandChannel(id, ch)
 
 	res, err := common.HttpPostWithoutContext(n.torUrl, bytes.NewBuffer(jsonValue))
 	defer res.Body.Close()
@@ -67,8 +69,30 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	return responseBody, nil
 }
 
+func (n NodeProxy) openCommandChannel(id string) chan []byte {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	ch := make(chan []byte, 2)
+	n.commandChannel[id] = ch
+
+	return ch
+}
+
+func (n NodeProxy) closeCommandChannel(id string, ch chan []byte)  {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	delete (n.commandChannel, id)
+	defer close (ch)
+}
+
 func (n NodeProxy) ProcessResponse(commandId string, responseBody []byte) {
+	n.mutex.Lock()
+
 	ch, ok := n.commandChannel[commandId]
+
+	n.mutex.Unlock()
 
 	if !ok {
 		log.Printf("Unknown command response: : %s on %s", commandId, n.nodeId)

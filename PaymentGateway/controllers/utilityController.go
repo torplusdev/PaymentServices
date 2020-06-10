@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/rs/xid"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/trace"
@@ -63,8 +62,6 @@ func spanFromContext(rootContext context.Context, traceContext common.TraceConte
 			spanName,
 		)
 	}
-
-
 
 	return ctx,span
 }
@@ -245,8 +242,6 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 
 	defer span.End()
 
-	serviceSessionId := xid.New().String()
-
 	request := &models.CreatePaymentInfo{}
 	err := json.NewDecoder(r.Body).Decode(request)
 
@@ -262,14 +257,7 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = u.node.AddPendingServicePayment(ctx, serviceSessionId, price)
-
-	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
-		return
-	}
-
-	pr, err := u.node.CreatePaymentRequest(ctx, serviceSessionId, asset)
+	pr, err := u.node.CreatePaymentRequest(ctx, price, asset, request.ServiceType)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
@@ -374,6 +362,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 				CommandResponse: 	data,
 				CommandId:    		cmd.CommandId,
 				NodeId:       		cmd.NodeId,
+				SessionId:			cmd.SessionId,
 			}
 
 			jsonValue, _ := json.Marshal(values)

@@ -169,16 +169,18 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 	route := router.CreatePaymentRoute(paymentRequest)
 
 	//validate route extremities
-	if (strings.Compare(route[0].Address, client.fullKeyPair.Address()) != 0) {
+	if strings.Compare(route[0].Address, client.fullKeyPair.Address()) != 0 {
 		log.Print("Bad routing: Incorrect starting address ",route[0].Address," != ", client.fullKeyPair.Address())
 		return nil,errors.Errorf("Incorrect starting address","")
 	}
 
-	if (strings.Compare(route[len(route)-1].Address, paymentRequest.Address) != 0) {
+	if strings.Compare(route[len(route)-1].Address, paymentRequest.Address) != 0 {
 		log.Print("Bad routing: Incorrect destination address")
 		return nil,errors.Errorf("Incorrect destination address","")
 	}
 
+	// TODO: Move out to external validation sequence
+	/*
 	accountDetail, errAccount := client.client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID:client.fullKeyPair.Address() })
@@ -190,22 +192,23 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 
 	balance, err := accountDetail.GetNativeBalance()
 
-	if err!= nil {
+	if err != nil {
 		log.Print("Error reading account balance: ", err.Error())
 		return nil,errors.Errorf("Account balance read error","")
 	}
 
 	numericBalance, err := strconv.ParseFloat(balance,32)
 
-	if (err != nil) {
+	if err != nil {
 		log.Print("Error parsing account balance: ", err.Error())
 		return nil, errors.Errorf("Account balance parse error","")
 	}
 
-	if (paymentRequest.Amount >  uint32(numericBalance)) {
+	if paymentRequest.Amount > uint32(numericBalance) {
 		log.Print("Insufficient client balance: ")
 		return nil, errors.Errorf("Client has insufficient account balance","")
 	}
+*/
 
 	var totalFee common.TransactionAmount = 0
 
@@ -250,7 +253,7 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 
 	for _,t := range transactions {
 		log.Printf("Transaction detail: %s ==> %s",t.PendingTransaction.PaymentSourceAddress,t.PendingTransaction.PaymentDestinationAddress)
-		if (t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress) {
+		if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
 			log.Print("Error")
 		}
 	}
@@ -261,11 +264,10 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
 
-
-	err = serviceNode.SignTerminalTransactions(ctx, debitTransaction)
+	err := serviceNode.SignTerminalTransactions(ctx, debitTransaction)
 	testutils.Print(&debitTransaction.PendingTransaction)
 
-	if err  != nil {
+	if err != nil {
 		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())
 		return nil, errors.Errorf("Error signing terminal transaction (%v): %w",debitTransaction, err)
 	}
@@ -286,7 +288,7 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 	}
 
 	for _,t := range transactions {
-		if (t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress) {
+		if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
 			log.Print("Error")
 		}
 	}

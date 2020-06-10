@@ -110,7 +110,7 @@ func TestSingleE2EPaymentNoAccumulation(t *testing.T) {
 
 	assert.NoError(err)
 
-	var servicePayment uint32 = 300
+	var servicePayment uint32 = 300e16
 
 	//Service
 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
@@ -207,7 +207,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	assert.NotNil(client)
 
 	nm.SetAccumulatingTransactionsMode(true)
-	var servicePayment uint32 = 123
+	var servicePayment uint32 = 123e6
 
 	//Service
 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")

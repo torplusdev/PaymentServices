@@ -29,7 +29,8 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 
 	jsonValue, _ := json.Marshal(values)
 
-	_, err := common.HttpPostWithContext(context, n.torUrl, bytes.NewBuffer(jsonValue))
+	res, err := common.HttpPostWithContext(context, n.torUrl, bytes.NewBuffer(jsonValue))
+	defer res.Body.Close()
 
 	return err
 }
@@ -49,18 +50,17 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	ch := make(chan []byte, 2)
 	n.commandChannel[id] = ch
 
-	log.Printf("Command channel created: %s on %s for %d", id, n.nodeId, commandType)
-
 	defer delete (n.commandChannel, id)
 	defer close (ch)
-	defer log.Printf("Command channel closed: %s on %s for %d", id, n.nodeId, commandType)
 
 	res, err := common.HttpPostWithoutContext(n.torUrl, bytes.NewBuffer(jsonValue))
+	defer res.Body.Close()
 
 	if err != nil {
 		return nil, err
 	}
-	_ = res
+
+
 	// Wait
 	responseBody := <- ch
 

@@ -178,6 +178,8 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 
 		resp,err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/transactions/flush", v))
 
+		defer resp.Body.Close()
+
 		if err != nil || resp.StatusCode != http.StatusOK {
 			msg:= err.Error()
 			if resp.StatusCode != http.StatusOK{

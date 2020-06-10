@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/stellar/go/keypair"
 	"log"
 	"net/http"
@@ -71,6 +72,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Unknown payment request"))
 		return
 	}
+
+	fmt.Sprintf("Got ProcessPayment NodeId=%s, CallbackUrl=%s\n Request:%s", request.NodeId, request.CallbackUrl,request.PaymentRequest)
 
 	addr := make([]string, 0)
 

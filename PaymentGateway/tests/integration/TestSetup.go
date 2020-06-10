@@ -214,7 +214,7 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 
 	ppr := models.ProcessPaymentRequest{
 		Route:          []models.RoutingNode{},
-		CallbackUrl:    "",
+		CallbackUrl:    "http://undefined.net",
 		PaymentRequest: string(prBytes),
 		NodeId:         paymentRequest.Address,
 	}
@@ -239,6 +239,8 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 	pprBytes,err := json.Marshal(ppr)
 
 	resp,err := common.HttpPostWithContext(ctx,fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port), bytes.NewReader(pprBytes))
+
+	defer resp.Body.Close()
 
 	//resp,err := http.Post(fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port),"application/json",bytes.NewReader(pprBytes))
 

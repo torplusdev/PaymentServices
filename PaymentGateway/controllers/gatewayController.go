@@ -111,6 +111,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	if request.Route == nil {
 		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl+paymentRequest.Address)
+		defer resp.Body.Close()
 		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
 		if err != nil {

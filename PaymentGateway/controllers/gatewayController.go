@@ -54,11 +54,16 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 	nodeManager, ok := g.requestNodeManager[response.SessionId]
 
 	if !ok {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Session unknown"))
+		Respond(w, MessageWithStatus(http.StatusConflict, "Session unknown"))
 		return
 	}
 
 	pNode := nodeManager.GetProxyNode(response.NodeId)
+
+	if pNode == nil {
+		Respond(w, MessageWithStatus(http.StatusConflict, "Node unknown"))
+		return
+	}
 
 	pNode.ProcessResponse(response.CommandId, response.ResponseBody)
 }
@@ -139,6 +144,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	commandCallbackUrl := request.CallbackUrl
 
 	if commandCallbackUrl == "" {
+		log.Printf("Callback url not provided for %s", paymentRequest.ServiceSessionId)
+
 		commandCallbackUrl = g.torCommandUrl
 	}
 

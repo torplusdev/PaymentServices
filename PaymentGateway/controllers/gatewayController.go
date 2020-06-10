@@ -127,10 +127,18 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		request.Route = routeResponse.Route
 	}
 
+	commandCallbackUrl := request.CallbackUrl
+
+	if commandCallbackUrl == "" {
+		log.Printf("Callback url not provided for %s", paymentRequest.ServiceSessionId)
+
+		commandCallbackUrl = g.torCommandUrl
+	}
+
 	for _, rn := range request.Route {
 		addr = append(addr, rn.Address)
 
-		err = nodeManager.AddNode(rn.Address, rn.NodeId, g.torCommandUrl, paymentRequest.ServiceSessionId)
+		err = nodeManager.AddNode(rn.Address, rn.NodeId, commandCallbackUrl, paymentRequest.ServiceSessionId)
 
 		if err != nil {
 			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Duplicate node id"))
@@ -140,14 +148,6 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	// Create destination node
 	addr = append(addr, paymentRequest.Address)
-
-	commandCallbackUrl := request.CallbackUrl
-
-	if commandCallbackUrl == "" {
-		log.Printf("Callback url not provided for %s", paymentRequest.ServiceSessionId)
-
-		commandCallbackUrl = g.torCommandUrl
-	}
 
 	err = nodeManager.AddNode(paymentRequest.Address, request.NodeId, commandCallbackUrl, paymentRequest.ServiceSessionId)
 

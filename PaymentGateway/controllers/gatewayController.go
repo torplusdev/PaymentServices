@@ -73,10 +73,6 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	ctx, span := spanFromRequest(r, "ProcessPayment")
 	defer span.End()
 
-	nodeManager := proxy.New(g.localNode)
-
-	c := client.CreateClient(g.rootApi, g.seed.Seed(), nodeManager, g.commodityManager)
-
 	request := &models.ProcessPaymentRequest{}
 
 	err := json.NewDecoder(r.Body).Decode(request)
@@ -135,6 +131,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		commandCallbackUrl = g.torCommandUrl
 	}
 
+	nodeManager := proxy.New(g.localNode)
+
 	for _, rn := range request.Route {
 		addr = append(addr, rn.Address)
 
@@ -156,13 +154,15 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	router := routing.CreatePaymentRouterStubFromAddresses(addr)
-
 	future := make(chan ResponseMessage)
 
 	g.requestNodeManager[paymentRequest.ServiceSessionId] = nodeManager
 
-	go func(c *client.Client, r common.PaymentRouter, pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
+	go func(pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
+		r := routing.CreatePaymentRouterStubFromAddresses(addr)
+
+		c := client.CreateClient(g.rootApi, g.seed.Seed(), nodeManager, g.commodityManager)
+
 		if g.asyncMode {
 			future <- MessageWithData(http.StatusCreated, &models.ProcessPaymentAccepted{
 				SessionId: pr.ServiceSessionId,
@@ -215,7 +215,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		delete(g.requestNodeManager, pr.ServiceSessionId)
 
 		log.Print("Payment completed")
-	}(c, router, *paymentRequest, future)
+	}(*paymentRequest, future)
 
 	Respond(w, future)
 }

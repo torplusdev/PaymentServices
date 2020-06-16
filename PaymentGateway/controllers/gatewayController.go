@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/stellar/go/keypair"
 	"log"
 	"net/http"
@@ -91,6 +92,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	fmt.Sprintf("Got ProcessPayment NodeId=%s, CallbackUrl=%s\n Request:%s", request.NodeId, request.CallbackUrl,request.PaymentRequest)
+
 	_, ok := g.requestNodeManager[paymentRequest.ServiceSessionId]
 
 	if ok {
@@ -104,6 +107,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	if request.Route == nil {
 		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl+paymentRequest.Address)
+		defer resp.Body.Close()
 		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
 
 		if err != nil {

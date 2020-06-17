@@ -182,7 +182,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Init failed")
 			}
 
-			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, false)
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
 
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
@@ -197,7 +197,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Verification failed")
 			}
 
-			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, false)
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
 
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
@@ -212,7 +212,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Finalize failed")
 			}
 
-			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, false)
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
 
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
@@ -223,7 +223,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 			future <- MessageWithStatus(http.StatusOK, "Payment processing completed")
 		}
 
-		g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, true)
+		g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 1)
 
 		delete(g.requestNodeManager, pr.ServiceSessionId)
 
@@ -233,7 +233,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	Respond(w, future)
 }
 
-func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl string, status bool) {
+func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl string, status int) {
 	if callbackUrl != "" {
 		return
 	}

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/stellar/go/keypair"
@@ -181,6 +182,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Init failed")
 			}
 
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, false)
+
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
 			return
@@ -193,6 +196,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 			if !g.asyncMode {
 				future <- MessageWithStatus(http.StatusBadRequest, "Verification failed")
 			}
+
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, false)
 
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
@@ -207,6 +212,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Finalize failed")
 			}
 
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, false)
+
 			delete(g.requestNodeManager, pr.ServiceSessionId)
 
 			return
@@ -216,6 +223,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 			future <- MessageWithStatus(http.StatusOK, "Payment processing completed")
 		}
 
+		g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, true)
+
 		delete(g.requestNodeManager, pr.ServiceSessionId)
 
 		log.Print("Payment completed")
@@ -223,3 +232,22 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	Respond(w, future)
 }
+
+func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl string, status bool) {
+	if callbackUrl != "" {
+		return
+	}
+
+	values := map[string]interface{}{"SessionId": sessionId, "Status": status}
+
+	jsonValue, _ := json.Marshal(values)
+
+	res, err := common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
+	defer res.Body.Close()
+
+	if err != nil {
+		log.Print("Payment callback failed")
+	}
+}
+
+

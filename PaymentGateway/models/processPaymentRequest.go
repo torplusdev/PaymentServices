@@ -3,7 +3,9 @@ package models
 type ProcessPaymentRequest struct {
 	Route []RoutingNode
 
-	CallbackUrl string // process command url
+	CallbackUrl string // Payment command url
+
+	StatusCallbackUrl string // Status callback command url
 
 	PaymentRequest string // json body
 

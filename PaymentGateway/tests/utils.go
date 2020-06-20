@@ -57,7 +57,12 @@ func InitGlobalTracer() (*sdktrace.Provider,func()) {
 			},
 		}),
 		/// jaeger.RegisterAsGlobal() creates a lot of noise because of net/http traces, use it only if you really have to
-		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+
+		//jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
+
+
+		// NeverSample disables sampling
+		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.NeverSample()}),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -124,54 +129,65 @@ func CreateAndFundAccount(seed string) {
 		log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
 	}
 
-	distributionKp, err := keypair.ParseFull("SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM")
-	if err != nil { log.Fatal(err)	}
+	if detail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress) == "0" {
 
-	issuerKp, err := keypair.ParseFull("SBMCAMFAYTXFIXBAOZJE5X2ZX4TJQI5X6P6NE5SHOEBHLHEMGKANRTOQ")
-	if err != nil { log.Fatal(err)	}
+		distributionKp, err := keypair.ParseFull("SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM")
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	distributionAccountDetail, err := client.AccountDetail(
-		horizonclient.AccountRequest{
-			AccountID: distributionKp.Address()})
+		issuerKp, err := keypair.ParseFull("SBMCAMFAYTXFIXBAOZJE5X2ZX4TJQI5X6P6NE5SHOEBHLHEMGKANRTOQ")
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	if err != nil { log.Fatal(err)	}
+		distributionAccountDetail, err := client.AccountDetail(
+			horizonclient.AccountRequest{
+				AccountID: distributionKp.Address()})
 
-	// Create trust line
-	tokenAsset  := txnbuild.CreditAsset{
-		Code:   "pptoken",
-		Issuer: issuerKp.Address(),
-	}
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	changeTrust := txnbuild.ChangeTrust{
-		SourceAccount: &distributionAccountDetail,
-		Line:tokenAsset,
-		Limit:"100000",
-	}
+		// Create trust line
+		tokenAsset := txnbuild.CreditAsset{
+			Code:   "pptoken",
+			Issuer: issuerKp.Address(),
+		}
 
-	txCreateTrustLine := txnbuild.Transaction{
-		SourceAccount: &distributionAccountDetail,
-		Operations:    []txnbuild.Operation{ &changeTrust},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+		changeTrust := txnbuild.ChangeTrust{
+			SourceAccount: &distributionAccountDetail,
+			Line:          tokenAsset,
+			Limit:         "100000",
+		}
 
-	xdr, err := txCreateTrustLine.BuildSignEncode(distributionKp)
+		txCreateTrustLine := txnbuild.Transaction{
+			SourceAccount: &distributionAccountDetail,
+			Operations:    []txnbuild.Operation{&changeTrust},
+			Timebounds:    txnbuild.NewTimeout(300),
+			Network:       network.TestNetworkPassphrase,
+		}
 
-	_ = xdr
-	if err != nil {
-		log.Print("Error signing transaction:")
-	}
+		xdr, err := txCreateTrustLine.BuildSignEncode(distributionKp)
 
-	_, err = client.SubmitTransaction(txCreateTrustLine)
+		_ = xdr
+		if err != nil {
+			log.Print("Error signing transaction:")
+		}
 
-	if err != nil { log.Fatal(err)	}
+		_, err = client.SubmitTransaction(txCreateTrustLine)
 
-	strBalance := detail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
-	balance,_ := strconv.ParseFloat(strBalance,32)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	if balance < 1000 {
-		err = injectFundsPPToken(pair)
+		strBalance := detail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
+		balance, _ := strconv.ParseFloat(strBalance, 32)
 
+		if balance < 1000 {
+			err = injectFundsPPToken(pair)
+
+		}
 	}
 }
 

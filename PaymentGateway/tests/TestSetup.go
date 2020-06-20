@@ -211,9 +211,11 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string,paym
 
 	prBytes,err := json.Marshal(paymentRequest)
 
+
 	ppr := models.ProcessPaymentRequest{
 		Route:          []models.RoutingNode{},
-		CallbackUrl:    "http://undefined.net",
+		CallbackUrl:    fmt.Sprintf("%s/api/command",setup.torAddressPrefix),
+		StatusCallbackUrl: fmt.Sprintf("%s/api/paymentComplete",setup.torAddressPrefix),
 		PaymentRequest: string(prBytes),
 		NodeId:         paymentRequest.Address,
 	}

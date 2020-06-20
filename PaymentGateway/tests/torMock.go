@@ -28,19 +28,24 @@ type TorMock struct {
 }
 
 type torCommand struct {
+	SessionID 	string
 	NodeId		string
 	CommandId	string
 	CommandType int
 	CommandBody []byte
+	CallbackUrl	string
 }
 
 func respond(status int, w http.ResponseWriter, data map[string]interface{}) {
 	w.WriteHeader(status)
 	w.Header().Add("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(data)
 
-	if err != nil {
-		// Log
+	if data != nil {
+		err := json.NewEncoder(w).Encode(data)
+
+		if err != nil {
+			// Log
+		}
 	}
 }
 
@@ -96,9 +101,11 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 	}
 
 	utilityCmd := models.UtilityCommand {
+		SessionId:   command.SessionID,
 		CommandId:   command.CommandId,
 		CommandBody: command.CommandBody,
 		CommandType: commandType,
+		CallbackUrl: command.CallbackUrl,
 	}
 
 	cmdBytes,err := json.Marshal(utilityCmd)
@@ -111,6 +118,7 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 	utilityResponse := models.UtilityResponse{
 		CommandId:    command.CommandId,
+		SessionId:	  command.SessionID,
 		ResponseBody: respBytes,
 		NodeId:       command.NodeId,
 	}
@@ -128,6 +136,15 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
 func (tor *TorMock) GetDefaultPaymentRoute() []string {
 	return tor.defaultRoute
+}
+
+func (tor *TorMock) paymentComplete(w http.ResponseWriter, req *http.Request) {
+
+	_, span := spanFromRequest(req,"tor-paymentComplete")
+
+	defer span.End()
+
+	respond(200,w,nil)
 }
 
 func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request) {
@@ -205,6 +222,7 @@ func CreateTorMock(torPort int)  (*TorMock) {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/api/command", tor.processCommand).Methods("POST")
+	router.HandleFunc("/api/paymentComplete", tor.paymentComplete).Methods("POST")
 	router.HandleFunc("/api/paymentRoute/{nodeAddress}", tor.processPaymentRoute).Methods("GET")
 
 	server := &http.Server{

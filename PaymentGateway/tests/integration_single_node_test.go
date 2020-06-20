@@ -12,11 +12,10 @@ import (
 
 var testSetup *TestSetup
 
-
 var tracerShutdown func()
 
 func init() {
-
+	
 	traceProvider, shutdownFunc := InitGlobalTracer()
 	common.InitializeTracer(traceProvider)
 
@@ -35,7 +34,6 @@ func init() {
 	testSetup = CreateTestSetup()
 	torPort := 57842
 
-
 	testSetup.ConfigureTor(torPort)
 
 	tr := common.CreateTracer("TestInit")
@@ -46,6 +44,7 @@ func init() {
 	testSetup.StartTorNode(ctx, Node1Seed,28081)
 	testSetup.StartTorNode(ctx, Node2Seed,28082)
 	testSetup.StartTorNode(ctx, Node3Seed,28083)
+
 	testSetup.StartServiceNode(ctx, Service1Seed,28084)
 	span.SetStatus(codes.OK,"All Nodes Stared Up" )
 

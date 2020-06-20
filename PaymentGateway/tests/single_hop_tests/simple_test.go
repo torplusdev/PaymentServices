@@ -21,8 +21,8 @@ var tracerShutdown func()
 
 func init() {
 
-	traceProvider, shutdownFunc := testutils.InitGlobalTracer()
-	InitializeTracer(traceProvider)
+	//traceProvider, shutdownFunc := testutils.InitGlobalTracer()
+	//InitializeTracer(traceProvider)
 
 	tracerShutdown = shutdownFunc
 

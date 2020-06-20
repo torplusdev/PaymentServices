@@ -362,11 +362,22 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 				CommandResponse: 	data,
 				CommandId:    		cmd.CommandId,
 				NodeId:       		cmd.NodeId,
+				SessionId:			cmd.SessionId,
 			}
 
 			jsonValue, _ := json.Marshal(values)
 
-			common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
+			response,err := common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
+			defer response.Body.Close()
+
+			if err != nil {
+				log.Printf("Callback url execution failed: : %s", err.Error())
+				future <- MessageWithStatus(http.StatusConflict, err.Error())
+
+				return
+			}
+
+
 
 			return
 		}

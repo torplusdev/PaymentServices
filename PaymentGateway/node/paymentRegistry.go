@@ -21,9 +21,9 @@ type paymentRegistry struct {
 	ownAddress 						string
 	paidTransactionsBySessionId 	map[string]common.PaymentTransaction
 	paidTransactionsByAddress 		map[string]common.PaymentTransaction
-	entriesBySourceAddress 			map[string]paymentRegistryEntry
+	entriesBySourceAddress 			map[string]*paymentRegistryEntry
 	isActive 						bool
-	useHouskeeping 					bool
+	useHousekeeping 					bool
 }
 
 func createPaymentRegistry(ownAddress string) paymentRegistry {
@@ -33,7 +33,7 @@ func createPaymentRegistry(ownAddress string) paymentRegistry {
 		ownAddress:ownAddress,
 		paidTransactionsBySessionId: 	make(map[string]common.PaymentTransaction),
 		paidTransactionsByAddress: 		make(map[string]common.PaymentTransaction),
-		entriesBySourceAddress: 		make(map[string]paymentRegistryEntry),
+		entriesBySourceAddress: 		make(map[string]*paymentRegistryEntry),
 		isActive: true,
 	}
 
@@ -47,19 +47,18 @@ func (r *paymentRegistry) performHousekeeping() {
 	maxDurationBeforeExpiry,_ := time.ParseDuration("20s")
 	sleepPeriod,_ := time.ParseDuration("3s")
 
-	if !r.useHouskeeping {
+	if !r.useHousekeeping {
 		return
 	}
 
 	for {
 		r.registryMutex.Lock()
-		defer r.registryMutex.Unlock()
 
 		for _,entry := range r.entriesBySourceAddress {
 			entry.mutex.Lock()
 
-			if (time.Since(entry.updated) >maxDurationBeforeExpiry) {
-				delete(r.entriesBySourceAddress,entry.serviceNodeAddress)
+			if time.Since(entry.updated) > maxDurationBeforeExpiry {
+				delete(r.entriesBySourceAddress, entry.serviceNodeAddress)
 			}
 
 			entry.mutex.Unlock()
@@ -71,7 +70,7 @@ func (r *paymentRegistry) performHousekeeping() {
 	}
 }
 
-func (r * paymentRegistry) getEntryByAddress(sourceAddress string) paymentRegistryEntry {
+func (r * paymentRegistry) getEntryByAddress(sourceAddress string) *paymentRegistryEntry {
 	r.registryMutex.Lock()
 	defer r.registryMutex.Unlock()
 
@@ -79,38 +78,34 @@ func (r * paymentRegistry) getEntryByAddress(sourceAddress string) paymentRegist
 }
 
 func (r *paymentRegistry) AddServiceUsage(sourceAddress string, amount common.TransactionAmount) {
-
 	entry := r.getEntryByAddress(sourceAddress)
 
-	if entry.updated.IsZero() {
+	if entry == nil {
+		entry = &paymentRegistryEntry{
+			mutex:              &sync.Mutex{},
+			serviceNodeAddress: sourceAddress,
+			amount:             0,
+			updated:            time.Now(),
+		}
+
 		r.registryMutex.Lock()
 		defer r.registryMutex.Unlock()
 
-		if entry.updated.IsZero() {
-			entry = paymentRegistryEntry{
-				mutex:              &sync.Mutex{},
-				serviceNodeAddress: sourceAddress,
-				amount:             0,
-				updated:            time.Now(),
-			}
-			r.entriesBySourceAddress[sourceAddress] = entry
-		}
+		r.entriesBySourceAddress[sourceAddress] = entry
 	}
 
 	entry.mutex.Lock()
+	defer entry.mutex.Unlock()
 
 	entry.amount = entry.amount + amount
 	entry.updated = time.Now()
-	r.entriesBySourceAddress[sourceAddress] = entry
-
-	entry.mutex.Unlock()
 }
 
 func (r *paymentRegistry) getPendingAmount(sourceAddress string) (amount common.TransactionAmount,ok bool) {
 
 	entry := r.getEntryByAddress(sourceAddress)
 
-	if entry.updated.IsZero() {
+	if entry == nil {
 		return 0, false
 	} else {
 		return entry.amount, true
@@ -119,33 +114,41 @@ func (r *paymentRegistry) getPendingAmount(sourceAddress string) (amount common.
 }
 
 func (r *paymentRegistry) saveTransaction(paymentSourceAddress string, transaction *common.PaymentTransaction) {
-	r.paidTransactionsByAddress[paymentSourceAddress] 	= *transaction
+	r.registryMutex.Lock()
+	defer r.registryMutex.Unlock()
+
+	r.paidTransactionsByAddress[paymentSourceAddress] = *transaction
 	r.paidTransactionsBySessionId[transaction.ServiceSessionId] = *transaction
 }
 
 func (r *paymentRegistry) reducePendingAmount(sourceAddress string, amount common.TransactionAmount) error {
-
 	entry := r.getEntryByAddress(sourceAddress)
 
-	if entry.updated.IsZero() {
+	if entry == nil {
 		return errors.New(fmt.Sprintf("Specified address (%s) wasn't found",sourceAddress))
 	}
 
 	entry.mutex.Lock()
 	entry.amount = entry.amount - amount
 	entry.updated = time.Now()
+	entry.mutex.Unlock()
+
+	r.registryMutex.Lock()
+	defer r.registryMutex.Unlock()
+
 	r.entriesBySourceAddress[sourceAddress] = entry
 
-	if (entry.amount == 0) {
+	if entry.amount == 0 {
 		delete(r.entriesBySourceAddress, sourceAddress)
 	}
-
-	entry.mutex.Unlock()
 
 	return nil
 }
 
 func (r *paymentRegistry) getActiveTransactions() []common.PaymentTransaction {
+	r.registryMutex.Lock()
+	defer r.registryMutex.Unlock()
+
 	// There is no lock here to prevent contention if this is called frequently, but it could be added
 	transactions := make([]common.PaymentTransaction,0)
 

@@ -1,11 +1,17 @@
 package models
 
 type ProcessPaymentRequest struct {
-	Route				[]RoutingNode
+	Route []RoutingNode
 
-	CallbackUrl			string 		// process command url
+	CallbackUrl string // Payment command url
 
-	PaymentRequest		string 		// json body
+	StatusCallbackUrl string // Status callback command url
 
-	NodeId				string		// request reference identification
+	PaymentRequest string // json body
+
+	NodeId string // request reference identification
+}
+
+type ProcessPaymentAccepted struct {
+	SessionId string
 }

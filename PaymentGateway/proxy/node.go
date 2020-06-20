@@ -10,7 +10,6 @@ import (
 	"log"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
-	testutils "paidpiper.com/payment-gateway/tests"
 	"strconv"
 )
 
@@ -192,9 +191,7 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 	if err != nil {
 		return err
 	}
-
-	testutils.Print(&response.Credit.PendingTransaction)
-	testutils.Print(&response.Debit.PendingTransaction)
+	
 
 	*creditTransactionPayload = response.Credit
 	*debitTransactionPayload = response.Debit

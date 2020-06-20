@@ -62,7 +62,7 @@ func (api *RootApi) initialize() {
 				AccountID:pair.Address() })
 		api.rootAccount = rootAccountDetail
 
-		log.Printf("Account creation performed using transaction#:",txSuccess)
+		log.Printf("Account creation performed using transaction#: %s",txSuccess.Result)
 	}
 
 }

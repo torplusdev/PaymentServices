@@ -1,4 +1,4 @@
-package testutils
+package tests
 
 import (
 	"bytes"
@@ -215,7 +215,7 @@ func CreateTorMock(torPort int)  (*TorMock) {
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
 			if (err.Error() != "http: Server closed") {
-				glog.Fatal("Error starting tor mock: %v",err)
+				glog.Fatalf("Error starting tor mock: %v",err)
 			}
 		}
 	}()

@@ -1,56 +1,52 @@
-package integration_tests
+package tests
 
 import (
 	"context"
 	"go.opentelemetry.io/otel/api/core"
 	"google.golang.org/grpc/codes"
 	"os"
-	. "paidpiper.com/payment-gateway/common"
-	testutils "paidpiper.com/payment-gateway/tests"
+	"paidpiper.com/payment-gateway/common"
 	"testing"
 	"time"
 )
 
-func setup() {
+var testSetup *TestSetup
 
-}
-
-var testSetup *testutils.TestSetup
 
 var tracerShutdown func()
 
 func init() {
 
-	traceProvider, shutdownFunc := testutils.InitGlobalTracer()
-	InitializeTracer(traceProvider)
+	traceProvider, shutdownFunc := InitGlobalTracer()
+	common.InitializeTracer(traceProvider)
 
 	tracerShutdown = shutdownFunc
 
 	// Addresses reused from other tests
-	testutils.CreateAndFundAccount(testutils.User1Seed)
-	testutils.CreateAndFundAccount(testutils.Service1Seed)
+	CreateAndFundAccount(User1Seed)
+	CreateAndFundAccount(Service1Seed)
 
 	// Addresses specific to this test suite
-	testutils.CreateAndFundAccount(testutils.Node1Seed)
-	testutils.CreateAndFundAccount(testutils.Node2Seed)
-	testutils.CreateAndFundAccount(testutils.Node3Seed)
-	testutils.CreateAndFundAccount(testutils.Node4Seed)
+	CreateAndFundAccount(Node1Seed)
+	CreateAndFundAccount(Node2Seed)
+	CreateAndFundAccount(Node3Seed)
+	CreateAndFundAccount(Node4Seed)
 
-	testSetup = testutils.CreateTestSetup()
+	testSetup = CreateTestSetup()
 	torPort := 57842
 
 
 	testSetup.ConfigureTor(torPort)
 
-	tr := CreateTracer("TestInit")
+	tr := common.CreateTracer("TestInit")
 
 	ctx,span := tr.Start(context.Background(),"NodeInitialization")
 
-	testSetup.StartUserNode(ctx,testutils.User1Seed,28080)
-	testSetup.StartTorNode(ctx, testutils.Node1Seed,28081)
-	testSetup.StartTorNode(ctx, testutils.Node2Seed,28082)
-	testSetup.StartTorNode(ctx, testutils.Node3Seed,28083)
-	testSetup.StartServiceNode(ctx, testutils.Service1Seed,28084)
+	testSetup.StartUserNode(ctx,User1Seed,28080)
+	testSetup.StartTorNode(ctx, Node1Seed,28081)
+	testSetup.StartTorNode(ctx, Node2Seed,28082)
+	testSetup.StartTorNode(ctx, Node3Seed,28083)
+	testSetup.StartServiceNode(ctx, Service1Seed,28084)
 	span.SetStatus(codes.OK,"All Nodes Stared Up" )
 
 	testSetup.SetDefaultPaymentRoute([]string {
@@ -74,19 +70,19 @@ func shutdown() {
 }
 
 func TestMain(m *testing.M) {
-	setup()
 	code := m.Run()
 	shutdown()
 	_ = code
 	os.Exit(code)
 }
 
+
 func TestSingleChainPayment(t *testing.T) {
 
-	assert, ctx, span := testutils.InitTestCreateSpan(t,"TestSingleChainPayment")
+	assert, ctx, span := InitTestCreateSpan(t,"TestSingleChainPayment")
 	defer span.End()
 
-	balancesPre := testutils.GetAccountBalances([]string {testutils.User1Seed,testutils.Service1Seed,testutils.Node1Seed,testutils.Node2Seed,testutils.Node3Seed})
+	balancesPre := GetAccountBalances([]string {User1Seed,Service1Seed,Node1Seed,Node2Seed,Node3Seed})
 
 	span.SetAttributes(core.KeyValue{
 		Key:   "userPreBalance",
@@ -95,20 +91,20 @@ func TestSingleChainPayment(t *testing.T) {
 			Key: "servicePreBalance",
 			Value: core.Float64(balancesPre[1]) },
 		core.KeyValue{
-		Key: "node1PreBalance",
-		Value: core.Float64(balancesPre[2])	},
+			Key: "node1PreBalance",
+			Value: core.Float64(balancesPre[2])	},
 		core.KeyValue{
 			Key: "node2PreBalance",
 			Value: core.Float64(balancesPre[3])	},
 		core.KeyValue{
 			Key: "node3PreBalance",
 			Value: core.Float64(balancesPre[4])	},
-		)
-	sequencer := testutils.CreateSequencer(testSetup,assert,ctx)
+	)
+	sequencer := CreateSequencer(testSetup,assert,ctx)
 	// 100 MB
 	paymentAmount := 1001e6
 
-	result,pr := sequencer.PerformPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount)
+	result,pr := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount)
 	assert.Contains(result,"Payment processing completed")
 
 	paymentAmount = float64(pr.Amount)
@@ -117,7 +113,7 @@ func TestSingleChainPayment(t *testing.T) {
 	assert.NoError(err)
 
 
-	balancesPost := testutils.GetAccountBalances([]string {testutils.User1Seed,testutils.Service1Seed,testutils.Node1Seed,testutils.Node2Seed,testutils.Node3Seed})
+	balancesPost := GetAccountBalances([]string {User1Seed,Service1Seed,Node1Seed,Node2Seed,Node3Seed})
 
 	paymentRoutingFees := float64(3*10)
 
@@ -150,18 +146,19 @@ func TestSingleChainPayment(t *testing.T) {
 			Key: "nodePaymentFee",
 			Value: core.Float64(nodePaymentFee)	},
 	)
-	assert.InEpsilon(balancesPre[2]+nodePaymentFee,balancesPost[2] + 30,1E-6,"Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee,balancesPost[2],1E-6,"Incorrect node1 balance")
 	assert.InEpsilon(balancesPre[3]+nodePaymentFee,balancesPost[3],1E-6,"Incorrect node2 balance")
 	assert.InEpsilon(balancesPre[4]+nodePaymentFee,balancesPost[4],1E-6,"Incorrect node3 balance")
 
 }
 
+
 func TestTwoChainPayments(t *testing.T) {
 
-	assert, ctx, span := testutils.InitTestCreateSpan(t,"TestTwoChainPayments")
+	assert, ctx, span := InitTestCreateSpan(t,"TestTwoChainPayments")
 	defer span.End()
 
-	balancesPre := testutils.GetAccountBalances([]string {testutils.User1Seed,testutils.Service1Seed,testutils.Node1Seed,testutils.Node2Seed,testutils.Node3Seed})
+	balancesPre := GetAccountBalances([]string {User1Seed,Service1Seed,Node1Seed,Node2Seed,Node3Seed})
 	span.SetAttributes(core.KeyValue{
 		Key:   "userPreBalance",
 		Value: core.Float64(balancesPre[0]) },
@@ -179,12 +176,12 @@ func TestTwoChainPayments(t *testing.T) {
 			Value: core.Float64(balancesPre[4])	},
 	)
 
-	sequencer := createSequencer(testSetup,assert,ctx)
+	sequencer := CreateSequencer(testSetup,assert,ctx)
 	paymentAmount1 := 300e6
 	paymentAmount2 := 600e6
 
-	result,pr1 := sequencer.performPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount1)
-	result,pr2 := sequencer.performPayment(testutils.User1Seed, testutils.Service1Seed, paymentAmount2)
+	result,pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount1)
+	result,pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount2)
 
 	assert.Contains(result,"Payment processing completed")
 	err := testSetup.FlushTransactions(ctx)
@@ -194,7 +191,7 @@ func TestTwoChainPayments(t *testing.T) {
 	paymentAmount1 = float64(pr1.Amount)
 	paymentAmount2 = float64(pr2.Amount)
 
-	balancesPost := testutils.GetAccountBalances([]string {testutils.User1Seed,testutils.Service1Seed,testutils.Node1Seed,testutils.Node2Seed,testutils.Node3Seed})
+	balancesPost := GetAccountBalances([]string {User1Seed,Service1Seed,Node1Seed,Node2Seed,Node3Seed})
 
 	paymentAmount := paymentAmount1+paymentAmount2
 

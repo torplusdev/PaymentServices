@@ -1,4 +1,4 @@
-package integration_tests
+package tests
 
 import (
 	"bytes"
@@ -14,18 +14,17 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/serviceNode"
-	testutils "paidpiper.com/payment-gateway/tests"
 	"time"
 )
 
 type TestSetup struct {
 	servers []*http.Server
-	torMock *testutils.TorMock
+	torMock *TorMock
 	torAddressPrefix string
 }
 
 func (setup *TestSetup) ConfigureTor(port int) {
-	setup.torMock = testutils.CreateTorMock(port)
+	setup.torMock = CreateTorMock(port)
 	setup.torAddressPrefix = fmt.Sprintf("http://localhost:%d",port)
 }
 

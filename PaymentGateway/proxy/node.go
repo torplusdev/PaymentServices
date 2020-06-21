@@ -98,7 +98,6 @@ func (n NodeProxy) ProcessResponse(commandId string, responseBody []byte) {
 		return
 	}
 
-	log.Printf("Command channel response: %s on %s", commandId, n.nodeId)
 
 	 ch <- responseBody
 }

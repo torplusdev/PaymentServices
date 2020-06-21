@@ -15,7 +15,7 @@ var testSetup *TestSetup
 var tracerShutdown func()
 
 func init() {
-	
+
 	traceProvider, shutdownFunc := InitGlobalTracer()
 	common.InitializeTracer(traceProvider)
 
@@ -77,6 +77,12 @@ func TestMain(m *testing.M) {
 
 
 func TestSingleChainPayment(t *testing.T) {
+
+	testSetup.SetDefaultPaymentRoute([]string {
+		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
+		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW"})
+
 
 	assert, ctx, span := InitTestCreateSpan(t,"TestSingleChainPayment")
 	defer span.End()
@@ -153,6 +159,12 @@ func TestSingleChainPayment(t *testing.T) {
 
 
 func TestTwoChainPayments(t *testing.T) {
+
+	testSetup.SetDefaultPaymentRoute([]string {
+		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
+		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW"})
+
 
 	assert, ctx, span := InitTestCreateSpan(t,"TestTwoChainPayments")
 	defer span.End()

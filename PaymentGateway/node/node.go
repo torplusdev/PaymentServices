@@ -5,7 +5,6 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/rs/xid"
 	"github.com/stellar/go/build"
-	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/support/log"
@@ -14,8 +13,8 @@ import (
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/horizon"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -30,7 +29,7 @@ type serviceUsageCredit struct {
 type Node struct {
 	Address                      string
 	secretSeed                   string
-	client                       *horizon.Client
+	horizon                       *horizon.Horizon
 	accumulatingTransactionsMode bool
 	transactionFee               common.TransactionAmount
 	paymentRegistry				 paymentRegistry
@@ -49,11 +48,11 @@ type PPNode interface {
 	CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
 }
 
-func CreateNode(client *horizon.Client, address string, seed string, accumulateTransactions bool) *Node {
+func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool) *Node {
 	node := Node{
 		Address:                      address,
 		secretSeed:                   seed,
-		client:                       client,
+		horizon:                       horizon,
 		transactionFee:               nodeTransactionFee,
 		paymentRegistry:			  createPaymentRegistry(address),
 		//pendingPayment:               make(map[string]serviceUsageCredit),
@@ -146,7 +145,10 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	// Uninitialized
 	if n.lastSequenceId == 0 {
 
-		seq,err := n.client.SequenceForAccount(n.Address)
+		account,err := n.horizon.GetAccount(n.Address)
+
+		seq,err := account.GetSequenceNumber()
+		//seq,err := n.horizon.GetAccount(n.Address).SequenceForAccount(n.Address)
 
 		if err != nil {
 			return common.PaymentTransactionReplacing{}, errors.Errorf("Error retrieving sequence number: %s",err.Error())
@@ -181,18 +183,30 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		build.Payment(
 			build.SourceAccount{sourceAddress},
 			build.Destination{n.Address},
-			build.NativeAmount{strconv.FormatUint(uint64(amount), 10)},
+			build.CreditAmount{
+				Code:   common.PPTokenAssetName,
+				Issuer: common.PPTokenIssuerAddress,
+				Amount: common.PPTokenToString(amount),
+			},
 		),
 	)
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, errors.Errorf("Error creating transaction: %v",err)
 	}
-	if n.client.URL == "https://horizon-testnet.stellar.org" {
+
+	/*if n.client.URL == "https://horizon-testnet.stellar.org" {
 		tx.Mutate(build.TestNetwork)
 	} else {
 		tx.Mutate(build.DefaultNetwork)
 	}
+	*/
+	err = n.horizon.AddTransactionToken(tx)
+
+	if err != nil {
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error adding transaction token: %v",err)
+	}
+
 
 	txe, err := tx.Envelope()
 
@@ -425,7 +439,6 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 	if e != nil {
 		return false, errors.Errorf("Error during transaction deser: %v",e)
 	}
-	_ = t
 
 	ok, err = n.verifyTransactionSignatures(context, transactionPayload)
 
@@ -434,7 +447,7 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 	}
 
 	if !n.accumulatingTransactionsMode {
-		res, err := n.client.SubmitTransaction(transaction.XDR)
+		res, err := n.horizon.Client.SubmitTransaction(t)
 
 		if err != nil {
 			log.Error("Error submitting transaction: " + err.Error())

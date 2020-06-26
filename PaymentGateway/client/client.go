@@ -13,7 +13,6 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
-	testutils "paidpiper.com/payment-gateway/tests"
 	"reflect"
 	"strconv"
 	"strings"
@@ -173,7 +172,7 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 		log.Print("Bad routing: Incorrect starting address ",route[0].Address," != ", client.fullKeyPair.Address())
 		return nil,errors.Errorf("Incorrect starting address","")
 	}
-
+	
 	if strings.Compare(route[len(route)-1].Address, paymentRequest.Address) != 0 {
 		log.Print("Bad routing: Incorrect destination address")
 		return nil,errors.Errorf("Incorrect destination address","")
@@ -190,12 +189,8 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 		return nil,errors.Errorf("Account validation error","")
 	}
 
-	balance, err := accountDetail.GetNativeBalance()
 
-	if err != nil {
-		log.Print("Error reading account balance: ", err.Error())
-		return nil,errors.Errorf("Account balance read error","")
-	}
+	balance := accountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
 
 	numericBalance, err := strconv.ParseFloat(balance,32)
 
@@ -265,7 +260,6 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
 
 	err := serviceNode.SignTerminalTransactions(ctx, debitTransaction)
-	testutils.Print(&debitTransaction.PendingTransaction)
 
 	if err != nil {
 		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())
@@ -280,9 +274,7 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 		creditTransaction := t
 
-		testutils.Print(&creditTransaction.PendingTransaction)
 		stepNode.SignChainTransactions(ctx, creditTransaction, debitTransaction)
-		testutils.Print(&creditTransaction.PendingTransaction)
 
 		debitTransaction = creditTransaction
 	}
@@ -294,7 +286,6 @@ func (client *Client) InitiatePayment(context context.Context,router common.Paym
 	}
 
 	err = client.SignInitialTransactions(ctx, &transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount + totalFee)
-	testutils.Print(&transactions[len(transactions)-1].PendingTransaction)
 
 	if err != nil {
 		log.Print("Error in transaction: " + err.Error())

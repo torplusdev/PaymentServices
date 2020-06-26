@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
-	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
 	. "net/http"
 	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/controllers"
+	"paidpiper.com/payment-gateway/horizon"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
-	testutils "paidpiper.com/payment-gateway/tests"
 )
 
 func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool) (*Server,error) {
@@ -29,7 +28,9 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		return &Server{}, err
 	}
 
-	localNode := node.CreateNode(horizon.DefaultTestNetClient, seed.Address(), seed.Seed(),true)
+	horizon := horizon.NewHorizon()
+
+	localNode := node.CreateNode(horizon, seed.Address(), seed.Seed(),true)
 
 	priceList := make(map[string]map[string]commodity.Descriptor)
 
@@ -37,13 +38,13 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	priceList["tor"] = make(map[string]commodity.Descriptor)
 
 	priceList["ipfs"]["data"] = commodity.Descriptor{
-		UnitPrice: 0.0000001,
-		Asset:     "XLM",
+		UnitPrice: common.PPTokenUnitPrice,
+		Asset:     common.PPTokenAssetName,
 	}
 
 	priceList["tor"]["data"] = commodity.Descriptor{
-		UnitPrice: 0.1,
-		Asset:     "XLM",
+		UnitPrice: common.PPTokenUnitPrice,
+		Asset:     common.PPTokenAssetName,
 	}
 
 	commodityManager := commodity.New(priceList)
@@ -56,14 +57,14 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		return &Server{},err
 	}
 
-	account, err := testutils.GetAccount(seed.Address())
+	balance,err := horizon.GetBalance(seed.Address())
 
 	if err != nil {
 		glog.Info("Error retrieving account data: %v",err)
 		return &Server{},err
 	}
 
-	balance,_ := account.GetNativeBalance()
+
 	fmt.Printf("Current balance for %v:%v",seed.Address(), balance)
 
 	utilityController := controllers.NewUtilityController(

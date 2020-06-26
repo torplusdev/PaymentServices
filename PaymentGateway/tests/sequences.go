@@ -1,4 +1,4 @@
-package integration_tests
+package tests
 
 import (
 	"context"
@@ -6,14 +6,14 @@ import (
 	"paidpiper.com/payment-gateway/common"
 )
 
-type sequencer struct {
+type Sequencer struct {
 	testSetup *TestSetup
 	assert *assert.Assertions
 	ctx context.Context
 }
 
-func createSequencer(testSetup *TestSetup, assert *assert.Assertions, ctx context.Context) sequencer {
-	sq := sequencer{
+func CreateSequencer(testSetup *TestSetup, assert *assert.Assertions, ctx context.Context) Sequencer {
+	sq := Sequencer{
 		testSetup: testSetup,
 		assert:    assert,
 		ctx:       ctx,
@@ -23,7 +23,7 @@ func createSequencer(testSetup *TestSetup, assert *assert.Assertions, ctx contex
 
 }
 
-func (sq sequencer) performPayment(sourceSeed string, destinationSeed string, paymentAmount float64) (string,common.PaymentRequest) {
+func (sq Sequencer) PerformPayment(sourceSeed string, destinationSeed string, paymentAmount float64) (string,common.PaymentRequest) {
 
 	pr,err := sq.testSetup.CreatePaymentInfo(sq.ctx, destinationSeed,int(paymentAmount))
 	sq.assert.NoError(err)

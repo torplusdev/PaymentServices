@@ -263,7 +263,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 }
 
 func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl string, status int) {
-	if callbackUrl != "" {
+	if callbackUrl == "" {
 		return
 	}
 

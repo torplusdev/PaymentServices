@@ -7,6 +7,7 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/api/trace"
+	"io/ioutil"
 	"log"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
@@ -61,6 +62,11 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 		return nil, err
 	}
 
+	bodyBytes, err := ioutil.ReadAll(res.Body)
+
+	if err == nil && len(bodyBytes) > 0 {
+		return bodyBytes, nil
+	}
 
 	// Wait
 	responseBody := <- ch

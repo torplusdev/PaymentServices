@@ -23,16 +23,16 @@ func main() {
 	numericPort, err := strconv.Atoi(port)
 
 	if err != nil {
-		log.Panicf("Error parsing port number: %v",err.Error())
+		log.Panicf("Error parsing port number: %v", err.Error())
 	}
 
 	// Set up signal channel
 	stop := make(chan os.Signal, 1)
 
-	server,err := serviceNode.StartServiceNode(s,numericPort,"http://localhost:5817", true)
+	server, err := serviceNode.StartServiceNode(s, numericPort, "http://localhost:5900", true)
 
 	if err != nil {
-		log.Panicf("Error starting serviceNode: %v",err.Error())
+		log.Panicf("Error starting serviceNode: %v", err.Error())
 	}
 
 	<-stop
@@ -41,6 +41,6 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Panicf("Error shutting down server: %v",err.Error())
+		log.Panicf("Error shutting down server: %v", err.Error())
 	}
 }

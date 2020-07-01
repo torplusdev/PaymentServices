@@ -11,7 +11,7 @@ import (
 )
 
 type RootApi struct {
-	client *horizonclient.Client
+	client      *horizonclient.Client
 	rootAccount horizon.Account
 	fullKeyPair keypair.Full
 }
@@ -44,8 +44,7 @@ func (api *RootApi) initialize() {
 
 	rootAccountDetail, errAccount := api.client.AccountDetail(
 		horizonclient.AccountRequest{
-			AccountID:pair.Address() })
-
+			AccountID: pair.Address()})
 
 	api.rootAccount = rootAccountDetail
 
@@ -59,10 +58,10 @@ func (api *RootApi) initialize() {
 		//TODO: Replace optimism with structured error handling
 		rootAccountDetail, _ := api.client.AccountDetail(
 			horizonclient.AccountRequest{
-				AccountID:pair.Address() })
+				AccountID: pair.Address()})
 		api.rootAccount = rootAccountDetail
 
-		log.Printf("Account creation performed using transaction#:",txSuccess)
+		log.Printf("Account creation performed using transaction#: %s", txSuccess.Result)
 	}
 
 }
@@ -82,20 +81,19 @@ func (api RootApi) CreateUser(address string, seed string) error {
 		horizonclient.AccountRequest{
 			AccountID: address})
 
-	accountData,_ := horizon.DefaultTestNetClient.LoadAccount(api.fullKeyPair.Address())
+	accountData, _ := horizon.DefaultTestNetClient.LoadAccount(api.fullKeyPair.Address())
 
 	if err == nil {
 		return nil
 		//log.Fatal("Account already exists")
 	}
 
-
 	createAccountOp := txnbuild.CreateAccount{
 		Destination: address,
 		Amount:      strconv.Itoa(getInitialAccountBalance()),
 	}
 
-	clientAccount := txnbuild.NewSimpleAccount(address,0)
+	clientAccount := txnbuild.NewSimpleAccount(address, 0)
 
 	var masterWeight, thresholdLow, thresholdMed, thresholdHigh txnbuild.Threshold
 
@@ -107,7 +105,7 @@ func (api RootApi) CreateUser(address string, seed string) error {
 	_ = masterWeight
 
 	setOptionsChangeWeights := txnbuild.SetOptions{
-		SourceAccount: &clientAccount,
+		SourceAccount:   &clientAccount,
 		MasterWeight:    &masterWeight,
 		LowThreshold:    &thresholdLow,
 		MediumThreshold: &thresholdMed,
@@ -118,12 +116,11 @@ func (api RootApi) CreateUser(address string, seed string) error {
 		},
 	}
 
-
 	payment := txnbuild.Payment{
-		Destination:   address,
-		Amount:        strconv.Itoa(getInitialAccountBalance()),
+		Destination: address,
+		Amount:      strconv.Itoa(getInitialAccountBalance()),
 		//SourceAccount: &accountData,
-		Asset:txnbuild.NativeAsset{},
+		Asset: txnbuild.NativeAsset{},
 	}
 
 	// Construct the transaction that will carry the operation
@@ -139,17 +136,16 @@ func (api RootApi) CreateUser(address string, seed string) error {
 	tx.Build()
 	tx.Sign(&api.fullKeyPair)
 
-
-	strTrans,er1 := tx.Base64()
+	strTrans, er1 := tx.Base64()
 
 	if er1 != nil {
 
 	}
 
-	clientTrans,er2 := txnbuild.TransactionFromXDR(strTrans)
+	clientTrans, er2 := txnbuild.TransactionFromXDR(strTrans)
 
 	if er2 != nil {
-		log.Fatal("Cannot deserialize transaction:",er2.Error())
+		log.Fatal("Cannot deserialize transaction:", er2.Error())
 	}
 	// Work around serialization bug (??): network passphrase isn't serialized
 	clientTrans.Network = network.TestNetworkPassphrase
@@ -159,7 +155,7 @@ func (api RootApi) CreateUser(address string, seed string) error {
 	resp, err := api.client.SubmitTransaction(clientTrans)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		log.Fatal("Error submitting transaction:", hError,hError.Problem)
+		log.Fatal("Error submitting transaction:", hError, hError.Problem)
 	}
 
 	log.Println("\nTransaction response: ", resp)

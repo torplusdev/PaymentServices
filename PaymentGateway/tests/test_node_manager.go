@@ -9,7 +9,7 @@ type TestNodeManager struct {
 }
 
 func CreateTestNodeManager() *TestNodeManager {
-	nm := TestNodeManager {
+	nm := TestNodeManager{
 		nodes: make(map[string]*node.Node),
 	}
 
@@ -46,6 +46,3 @@ func (nm *TestNodeManager) ReplaceNode(address string, newNode *node.Node) *Test
 
 	return nm
 }
-
-
-

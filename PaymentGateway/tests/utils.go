@@ -23,7 +23,6 @@ import (
 	"testing"
 )
 
-
 // ##############     Test seeds     #################################################
 const User1Seed = "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 const Service1Seed = "SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"
@@ -45,7 +44,7 @@ type Sampler interface {
 	Description() string
 }
 
-func InitGlobalTracer() (*sdktrace.Provider,func()) {
+func InitGlobalTracer() (*sdktrace.Provider, func()) {
 
 	// Create and install Jaeger export pipeline
 	provider, flush, err := jaeger.NewExportPipeline(
@@ -60,7 +59,6 @@ func InitGlobalTracer() (*sdktrace.Provider,func()) {
 
 		//jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 
-
 		// NeverSample disables sampling
 		jaeger.WithSDK(&sdktrace.Config{DefaultSampler: sdktrace.NeverSample()}),
 	)
@@ -74,7 +72,7 @@ func InitGlobalTracer() (*sdktrace.Provider,func()) {
 	return provider, nil
 }
 
-func InitTestCreateSpan(t *testing.T, spanName string) (*assert.Assertions,context.Context, trace.Span) {
+func InitTestCreateSpan(t *testing.T, spanName string) (*assert.Assertions, context.Context, trace.Span) {
 
 	asserter := assert.New(t)
 	tr := common.CreateTracer("test")
@@ -83,16 +81,16 @@ func InitTestCreateSpan(t *testing.T, spanName string) (*assert.Assertions,conte
 		key.String("test", spanName),
 	)
 
-	ctx,span := tr.Start(ctx,spanName)
+	ctx, span := tr.Start(ctx, spanName)
 
 	return asserter, ctx, span
 }
 
 func GetAccountBalances(seeds []string) []float64 {
 
-	balances := make([]float64,len(seeds))
+	balances := make([]float64, len(seeds))
 
-	for i,seed := range seeds {
+	for i, seed := range seeds {
 		kp, _ := keypair.ParseFull(seed)
 		acc, _ := GetAccount(kp.Address())
 
@@ -205,36 +203,36 @@ func injectFundsPPToken(kp *keypair.Full) error {
 
 	_, errCreate := client.Fund(pair.Address())
 
-	if errCreate != nil { return errCreate}
+	if errCreate != nil {
+		return errCreate
+	}
 
-	distributionKp,_ := keypair.ParseFull("SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM")
+	distributionKp, _ := keypair.ParseFull("SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM")
 
 	accountDistribution, _ := client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: distributionKp.Address()})
 
-
 	accountTarget, _ := client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: kp.Address()})
 
-
 	_ = accountDistribution
 
-	tokenAsset  := txnbuild.CreditAsset{
+	tokenAsset := txnbuild.CreditAsset{
 		Code:   "pptoken",
 		Issuer: common.PPTokenIssuerAddress,
 	}
 
 	changeTrust := txnbuild.ChangeTrust{
 		SourceAccount: &accountTarget,
-		Line:tokenAsset,
-		Limit:"2000",
+		Line:          tokenAsset,
+		Limit:         "2000",
 	}
 
 	txCreateTrustLine := txnbuild.Transaction{
 		SourceAccount: &accountTarget,
-		Operations:    []txnbuild.Operation{ &changeTrust},
+		Operations:    []txnbuild.Operation{&changeTrust},
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       network.TestNetworkPassphrase,
 	}
@@ -256,7 +254,7 @@ func injectFundsPPToken(kp *keypair.Full) error {
 
 	txDistributeAssets := txnbuild.Transaction{
 		SourceAccount: &accountDistribution,
-		Operations:    []txnbuild.Operation{ &distributeAssets},
+		Operations:    []txnbuild.Operation{&distributeAssets},
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       network.TestNetworkPassphrase,
 	}
@@ -282,13 +280,15 @@ func injectFundsXLM(address string) error {
 
 	_, errCreate := client.Fund(pair.Address())
 
-	if errCreate != nil { return errCreate}
+	if errCreate != nil {
+		return errCreate
+	}
 
 	account, _ := client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: pair.Address()})
 
-	currentBalance,_ :=account.GetNativeBalance()
+	currentBalance, _ := account.GetNativeBalance()
 	_ = currentBalance
 
 	amount := 9900
@@ -303,7 +303,9 @@ func injectFundsXLM(address string) error {
 		),
 	)
 
-	if err != nil { return err}
+	if err != nil {
+		return err
+	}
 
 	txe, err := tx.Sign(pair.Seed())
 
@@ -327,9 +329,11 @@ func SetSigners(seed string, signerSeed string) {
 	}
 
 	signerPair, err := keypair.ParseFull(signerSeed)
-	if err != nil { log.Fatal(err) 	}
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	clientAccount := txnbuild.NewSimpleAccount(pair.Address(),0)
+	clientAccount := txnbuild.NewSimpleAccount(pair.Address(), 0)
 
 	setOptionsChangeWeights := txnbuild.SetOptions{
 		SourceAccount: &clientAccount,
@@ -341,7 +345,7 @@ func SetSigners(seed string, signerSeed string) {
 
 	tx := txnbuild.Transaction{
 		SourceAccount: &clientAccount,
-		Operations:    []txnbuild.Operation{ &setOptionsChangeWeights},
+		Operations:    []txnbuild.Operation{&setOptionsChangeWeights},
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       network.TestNetworkPassphrase,
 	}
@@ -352,7 +356,7 @@ func SetSigners(seed string, signerSeed string) {
 	resp, err := client.SubmitTransaction(tx)
 	if err != nil {
 		hError := err.(*horizonclient.Error)
-		log.Fatal("Error submitting transaction:", hError,hError.Problem)
+		log.Fatal("Error submitting transaction:", hError, hError.Problem)
 	}
 
 	_ = resp

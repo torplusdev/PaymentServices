@@ -15,22 +15,22 @@ import (
 	"paidpiper.com/payment-gateway/root"
 )
 
-func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool) (*Server,error) {
+func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool) (*Server, error) {
 	tracer := common.CreateTracer("paidpiper/serviceNode")
 
-	_, span := tracer.Start(context.Background(),"serviceNode-initialization")
+	_, span := tracer.Start(context.Background(), "serviceNode-initialization")
 	defer span.End()
 
 	seed, err := keypair.ParseFull(keySeed)
 
 	if err != nil {
-		glog.Info("Error parsing node key: %v",err)
+		glog.Info("Error parsing node key: %v", err)
 		return &Server{}, err
 	}
 
 	horizon := horizon.NewHorizon()
 
-	localNode := node.CreateNode(horizon, seed.Address(), seed.Seed(),true)
+	localNode := node.CreateNode(horizon, seed.Address(), seed.Seed(), true)
 
 	priceList := make(map[string]map[string]commodity.Descriptor)
 
@@ -53,19 +53,18 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	err = rootApi.CreateUser(seed.Address(), seed.Seed())
 
 	if err != nil {
-		glog.Info("Error creating user: %v",err)
-		return &Server{},err
+		glog.Info("Error creating user: %v", err)
+		return &Server{}, err
 	}
 
-	balance,err := horizon.GetBalance(seed.Address())
+	balance, err := horizon.GetBalance(seed.Address())
 
 	if err != nil {
-		glog.Info("Error retrieving account data: %v",err)
-		return &Server{},err
+		glog.Info("Error retrieving account data: %v", err)
+		return &Server{}, err
 	}
 
-
-	fmt.Printf("Current balance for %v:%v",seed.Address(), balance)
+	fmt.Printf("Current balance for %v:%v", seed.Address(), balance)
 
 	utilityController := controllers.NewUtilityController(
 		localNode,
@@ -77,8 +76,8 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		commodityManager,
 		seed,
 		rootApi,
-		fmt.Sprintf("%s/api/command",torAddressPrefix),
-		fmt.Sprintf("%s/api/paymentRoute/",torAddressPrefix),
+		fmt.Sprintf("%s/api/command", torAddressPrefix),
+		fmt.Sprintf("%s/api/paymentRoute/", torAddressPrefix),
 		asyncMode,
 	)
 
@@ -94,7 +93,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	router.HandleFunc("/api/gateway/processPayment", gatewayController.ProcessPayment).Methods("POST")
 
 	server := &Server{
-		Addr: fmt.Sprintf(":%d",port),
+		Addr:    fmt.Sprintf(":%d", port),
 		Handler: router,
 	}
 
@@ -102,9 +101,9 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			glog.Warning("Error starting service node: %v",err)
+			glog.Warning("Error starting service node: %v", err)
 		}
 	}()
 
-	return server,nil
+	return server, nil
 }

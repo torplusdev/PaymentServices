@@ -22,26 +22,26 @@ import (
 const nodeTransactionFee = 10
 
 type serviceUsageCredit struct {
-	amount  		common.TransactionAmount
-	updated 		time.Time
+	amount  common.TransactionAmount
+	updated time.Time
 }
 
 type Node struct {
 	Address                      string
 	secretSeed                   string
-	horizon                       *horizon.Horizon
+	horizon                      *horizon.Horizon
 	accumulatingTransactionsMode bool
 	transactionFee               common.TransactionAmount
-	paymentRegistry				 paymentRegistry
+	paymentRegistry              paymentRegistry
 	//pendingPayment               map[string]serviceUsageCredit
 	//activeTransactions           map[string]common.PaymentTransaction
-	tracer 						 trace.Tracer
-	lastSequenceId				 xdr.SequenceNumber
-	mux							 sync.Mutex
+	tracer         trace.Tracer
+	lastSequenceId xdr.SequenceNumber
+	mux            sync.Mutex
 }
 
 type PPNode interface {
-	CreateTransaction(context context.Context,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error)
+	CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error
 	SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error
 	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
@@ -50,15 +50,15 @@ type PPNode interface {
 
 func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool) *Node {
 	node := Node{
-		Address:                      address,
-		secretSeed:                   seed,
-		horizon:                       horizon,
-		transactionFee:               nodeTransactionFee,
-		paymentRegistry:			  createPaymentRegistry(address),
+		Address:         address,
+		secretSeed:      seed,
+		horizon:         horizon,
+		transactionFee:  nodeTransactionFee,
+		paymentRegistry: createPaymentRegistry(address),
 		//pendingPayment:               make(map[string]serviceUsageCredit),
 		//activeTransactions:           make(map[string]common.PaymentTransaction),
 		accumulatingTransactionsMode: accumulateTransactions,
-		tracer:						  common.CreateTracer("node"),
+		tracer:                       common.CreateTracer("node"),
 	}
 
 	return &node
@@ -108,36 +108,35 @@ func (n *Node) createTransactionWrapper(internalTransaction common.PaymentTransa
 	return common.CreateReferenceTransaction(internalTransaction, n.paymentRegistry.getActiveTransaction(internalTransaction.PaymentSourceAddress))
 }
 
-
 func (n *Node) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error) {
 
-	_,span :=n.tracer.Start(context,"node-CreateTransaction " + n.Address)
+	_, span := n.tracer.Start(context, "node-CreateTransaction "+n.Address)
 	defer span.End()
 
 	//Verify fee
 	if totalIn-totalOut != fee {
-		return common.PaymentTransactionReplacing{}, errors.Errorf("Incorrect fee requested: %d != %d",totalIn-totalOut,fee)
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Incorrect fee requested: %d != %d", totalIn-totalOut, fee)
 	}
 
-	span.SetAttributes(core.KeyValue{ Key:"payment.source-address",Value: core.String(sourceAddress) })
-	span.SetAttributes(core.KeyValue{ Key:"payment.destination-address",Value: core.String(n.Address) })
-	span.SetAttributes(core.KeyValue{ Key:"payment.amount-in",Value: core.Uint32(totalIn) })
-	span.SetAttributes(core.KeyValue{ Key:"payment.amount-out",Value: core.Uint32(totalOut) })
+	span.SetAttributes(core.KeyValue{Key: "payment.source-address", Value: core.String(sourceAddress)})
+	span.SetAttributes(core.KeyValue{Key: "payment.destination-address", Value: core.String(n.Address)})
+	span.SetAttributes(core.KeyValue{Key: "payment.amount-in", Value: core.Uint32(totalIn)})
+	span.SetAttributes(core.KeyValue{Key: "payment.amount-out", Value: core.Uint32(totalOut)})
 
-	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction {
+	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction{
 		TransactionSourceAddress:  n.Address,
 		ReferenceAmountIn:         totalIn,
 		AmountOut:                 totalOut,
 		PaymentSourceAddress:      sourceAddress,
 		PaymentDestinationAddress: n.Address,
-		ServiceSessionId: serviceSessionId,
+		ServiceSessionId:          serviceSessionId,
 	})
 
 	var amount = transactionPayload.PendingTransaction.ReferenceAmountIn
 
 	if err != nil {
 		//log.Fatal("Error creating transaction wrapper: " + err.Error())
-		return common.PaymentTransactionReplacing{}, errors.Errorf("Error creating transaction wrapper: %v",err)
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error creating transaction wrapper: %v", err)
 	}
 
 	var sequenceProvider build.SequenceProvider
@@ -145,16 +144,16 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	// Uninitialized
 	if n.lastSequenceId == 0 {
 
-		account,err := n.horizon.GetAccount(n.Address)
+		account, err := n.horizon.GetAccount(n.Address)
 
-		seq,err := account.GetSequenceNumber()
+		seq, err := account.GetSequenceNumber()
 		//seq,err := n.horizon.GetAccount(n.Address).SequenceForAccount(n.Address)
 
 		if err != nil {
-			return common.PaymentTransactionReplacing{}, errors.Errorf("Error retrieving sequence number: %s",err.Error())
+			return common.PaymentTransactionReplacing{}, errors.Errorf("Error retrieving sequence number: %s", err.Error())
 		}
 
-		n.lastSequenceId = seq+1
+		n.lastSequenceId = seq + 1
 	}
 
 	// If this is the first transaction for the node+client pair and there's no reference transaction
@@ -166,10 +165,10 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	} else {
 		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
 
-		referenceTransaction,err := txnbuild.TransactionFromXDR(referenceTransactionPayload.XDR)
+		referenceTransaction, err := txnbuild.TransactionFromXDR(referenceTransactionPayload.XDR)
 
 		if err != nil {
-			return common.PaymentTransactionReplacing{}, errors.Errorf("Error deserializing XDR transaction: %s",err.Error())
+			return common.PaymentTransactionReplacing{}, errors.Errorf("Error deserializing XDR transaction: %s", err.Error())
 		}
 
 		referenceSequenceNumber, err := referenceTransaction.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
@@ -192,7 +191,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	)
 
 	if err != nil {
-		return common.PaymentTransactionReplacing{}, errors.Errorf("Error creating transaction: %v",err)
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error creating transaction: %v", err)
 	}
 
 	/*if n.client.URL == "https://horizon-testnet.stellar.org" {
@@ -204,20 +203,19 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	err = n.horizon.AddTransactionToken(tx)
 
 	if err != nil {
-		return common.PaymentTransactionReplacing{}, errors.Errorf("Error adding transaction token: %v",err)
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error adding transaction token: %v", err)
 	}
-
 
 	txe, err := tx.Envelope()
 
 	if err != nil {
-		return common.PaymentTransactionReplacing{}, errors.Errorf("Error generating transaction envelope: %v",err)
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error generating transaction envelope: %v", err)
 	}
 
 	xdr, err := txe.Base64()
 
 	if err != nil {
-		return common.PaymentTransactionReplacing{}, errors.Errorf("Error serializing transaction: %v",err)
+		return common.PaymentTransactionReplacing{}, errors.Errorf("Error serializing transaction: %v", err)
 	}
 
 	transactionPayload.UpdateTransactionXDR(xdr)
@@ -225,57 +223,56 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	// TODO: This should be configurable via profile/strategy
 	transactionPayload.UpdateStellarToken(build.TestNetwork.Passphrase)
 
-	transactionPayload.ToSpanAttributes(span,"credit")
-	return transactionPayload,nil
+	transactionPayload.ToSpanAttributes(span, "credit")
+	return transactionPayload, nil
 }
 
 func (n *Node) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
 
-	_,span :=n.tracer.Start(context,"node-SignTerminalTransactions " + n.Address)
+	_, span := n.tracer.Start(context, "node-SignTerminalTransactions "+n.Address)
 	defer span.End()
-
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 
 	// Validate
 	if creditTransaction.PaymentDestinationAddress != n.Address {
-		return errors.Errorf("Transaction destination is incorrect: %s",creditTransaction.PaymentDestinationAddress)
+		return errors.Errorf("Transaction destination is incorrect: %s", creditTransaction.PaymentDestinationAddress)
 	}
 
 	kp, err := keypair.ParseFull(n.secretSeed)
 
 	if err != nil {
-		return errors.Errorf("Error parsing keypair: %v",err)
+		return errors.Errorf("Error parsing keypair: %v", err)
 	}
 
 	t, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
 	t.Network = creditTransaction.StellarNetworkToken
 
 	if err != nil {
-		return errors.Errorf("Error parsing transaction: %v",err)
+		return errors.Errorf("Error parsing transaction: %v", err)
 	}
 
 	err = t.Sign(kp)
 
 	if err != nil {
-		return errors.Errorf("Failed to signed transaction: %v",err)
+		return errors.Errorf("Failed to signed transaction: %v", err)
 	}
 
 	creditTransaction.XDR, err = t.Base64()
 
 	if err != nil {
-		return errors.Errorf("Error writing transaction envelope: %v",err)
+		return errors.Errorf("Error writing transaction envelope: %v", err)
 	}
 
 	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
-	creditTransactionPayload.ToSpanAttributes(span,"credit")
+	creditTransactionPayload.ToSpanAttributes(span, "credit")
 
 	return nil
 }
 
 func (n *Node) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
 
-	_,span :=n.tracer.Start(context,"node-SignChainTransactions " + n.Address)
+	_, span := n.tracer.Start(context, "node-SignChainTransactions "+n.Address)
 	defer span.End()
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
@@ -284,21 +281,21 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 	kp, err := keypair.ParseFull(n.secretSeed)
 
 	if err != nil {
-		return errors.Errorf("Error parsing keypair: %v",err)
+		return errors.Errorf("Error parsing keypair: %v", err)
 	}
 
 	credit, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
 	credit.Network = creditTransaction.StellarNetworkToken
 
 	if err != nil {
-		return errors.Errorf("Error parsing credit transaction: %v",err)
+		return errors.Errorf("Error parsing credit transaction: %v", err)
 	}
 
 	debit, err := txnbuild.TransactionFromXDR(debitTransaction.XDR)
 	debit.Network = debitTransaction.StellarNetworkToken
 
 	if err != nil {
-		return errors.Errorf("Error parsing debit transaction: %v",err)
+		return errors.Errorf("Error parsing debit transaction: %v", err)
 	}
 
 	err = credit.Sign(kp)
@@ -333,16 +330,15 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 
 	debitTransactionPayload.UpdateTransactionXDR(debitTransaction.XDR)
 
-	creditTransactionPayload.ToSpanAttributes(span,"credit")
-	debitTransactionPayload.ToSpanAttributes(span,"debit")
+	creditTransactionPayload.ToSpanAttributes(span, "credit")
+	debitTransactionPayload.ToSpanAttributes(span, "debit")
 	return nil
 }
 
 func (n *Node) verifyTransactionSignatures(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 
-	_,span :=n.tracer.Start(context,"node-verifyTransactionSignatures " + n.Address )
+	_, span := n.tracer.Start(context, "node-verifyTransactionSignatures "+n.Address)
 	defer span.End()
-
 
 	transaction := transactionPayload.GetPaymentTransaction()
 
@@ -428,7 +424,7 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 
 func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 
-	_,span :=n.tracer.Start(context,"node-CommitPaymentTransaction "  + n.Address)
+	_, span := n.tracer.Start(context, "node-CommitPaymentTransaction "+n.Address)
 	defer span.End()
 
 	ok = false
@@ -437,7 +433,7 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 	t, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		return false, errors.Errorf("Error during transaction deser: %v",e)
+		return false, errors.Errorf("Error during transaction deser: %v", e)
 	}
 
 	ok, err = n.verifyTransactionSignatures(context, transactionPayload)
@@ -459,24 +455,24 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 		n.paymentRegistry.saveTransaction(transaction.PaymentSourceAddress, transaction)
 	}
 
-	transactionPayload.ToSpanAttributes(span,"single")
+	transactionPayload.ToSpanAttributes(span, "single")
 
 	return true, nil
 }
 
 func (n *Node) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
 
-	_,span :=n.tracer.Start(context,"node-CommitServiceTransaction "  + n.Address)
+	_, span := n.tracer.Start(context, "node-CommitServiceTransaction "+n.Address)
 	defer span.End()
 
 	ok, err := n.CommitPaymentTransaction(context, transaction)
 
 	if ok {
 		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId, transaction.GetPaymentTransaction().AmountOut)
-		return err == nil,err
+		return err == nil, err
 
 	} else {
-		return false,err
+		return false, err
 	}
 
 	return true, nil
@@ -487,9 +483,9 @@ func (n *Node) GetTransactions() []common.PaymentTransaction {
 	return n.paymentRegistry.getActiveTransactions()
 }
 
-func (n *Node) FlushTransactions(context context.Context) (map[string]interface{},error) {
+func (n *Node) FlushTransactions(context context.Context) (map[string]interface{}, error) {
 
-	_,span :=n.tracer.Start(context,"node-FlushTransactions " + n.Address)
+	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.Address)
 	defer span.End()
 
 	resultsMap := make(map[string]interface{})
@@ -497,56 +493,54 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	//TODO Sort transaction by sequence number and make sure to submit them only in sequence number order
 	transactions := n.paymentRegistry.getActiveTransactions()
 
-	sort.Slice(transactions, func (i,j int) bool {
-		transi,erri := txnbuild.TransactionFromXDR(transactions[i].XDR)
-		transj,errj := txnbuild.TransactionFromXDR(transactions[j].XDR)
+	sort.Slice(transactions, func(i, j int) bool {
+		transi, erri := txnbuild.TransactionFromXDR(transactions[i].XDR)
+		transj, errj := txnbuild.TransactionFromXDR(transactions[j].XDR)
 
 		if erri != nil {
-			log.Errorf("Error converting transaction from xdr: %s",erri.Error())
+			log.Errorf("Error converting transaction from xdr: %s", erri.Error())
 		}
 
 		if errj != nil {
-			log.Errorf("Error converting transaction from xdr: %s",errj.Error())
+			log.Errorf("Error converting transaction from xdr: %s", errj.Error())
 		}
 
-		seqi,erri := transi.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		seqi, erri := transi.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 
-		seqj,errj := transj.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		seqj, errj := transj.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 
 		if erri != nil {
-			log.Errorf("Error getting sequence number transaction from xdr: %s",erri.Error())
+			log.Errorf("Error getting sequence number transaction from xdr: %s", erri.Error())
 		}
 
 		if errj != nil {
-			log.Errorf("Error converting transaction from xdr: %s",errj.Error())
+			log.Errorf("Error converting transaction from xdr: %s", errj.Error())
 		}
 
 		return seqi < seqj
 	})
 
-	for a,t := range transactions {
+	for a, t := range transactions {
 
-		txSuccess,err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+		txSuccess, err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
 
 		resultsMap[t.TransactionSourceAddress] = txSuccess.TransactionSuccessToString()
 
-
 		if err != nil {
-			log.Errorf("Error submitting transaction for %v: %w",a,err)
+			log.Errorf("Error submitting transaction for %v: %w", a, err)
 
 			internalTrans, _ := txnbuild.TransactionFromXDR(t.XDR)
-			accountSeqNumber,_ := internalTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+			accountSeqNumber, _ := internalTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 			//transactionSeqNumber := &internalTrans.(*xdr.Transaction).SeqNum
 			_ = accountSeqNumber
 
-
 			_ = internalTrans
-			resultsMap[t.TransactionSourceAddress] =  err
- 		} else {
- 			n.paymentRegistry.completePayment(t.PaymentSourceAddress, t.ServiceSessionId )
+			resultsMap[t.TransactionSourceAddress] = err
+		} else {
+			n.paymentRegistry.completePayment(t.PaymentSourceAddress, t.ServiceSessionId)
 		}
 
 	}
 
-	return resultsMap,nil
+	return resultsMap, nil
 }

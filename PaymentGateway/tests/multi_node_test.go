@@ -4,11 +4,11 @@ import (
 	"context"
 	"github.com/stellar/go/keypair"
 	"github.com/stretchr/testify/assert"
+	client "paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
 	"strconv"
-	client "paidpiper.com/payment-gateway/client"
-	"paidpiper.com/payment-gateway/root"
 	"testing"
 )
 
@@ -87,11 +87,10 @@ func TestPaymentByClientWithInsufficientBalanceFails(t *testing.T) {
 
 	assert.NoError(err)
 
-	currentBalance,err := strconv.ParseFloat(accPre.Balances[0].Balance,32)
+	currentBalance, err := strconv.ParseFloat(accPre.Balances[0].Balance, 32)
 	assert.NoError(err)
 
-
-	paymentAmount := common.TransactionAmount(currentBalance+100/common.PPTokenUnitPrice)
+	paymentAmount := common.TransactionAmount(currentBalance + 100/common.PPTokenUnitPrice)
 
 	pr := common.PaymentRequest{
 		Address:    keyService.Address(),
@@ -101,9 +100,8 @@ func TestPaymentByClientWithInsufficientBalanceFails(t *testing.T) {
 
 	router := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
-
-	transactions,err := client.InitiatePayment(context.Background(),router, pr)
-	assert.Error(err,"Client has insufficient account balance")
+	transactions, err := client.InitiatePayment(context.Background(), router, pr)
+	assert.Error(err, "Client has insufficient account balance")
 	assert.Nil(transactions)
 }
 

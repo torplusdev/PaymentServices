@@ -8,8 +8,8 @@ import (
 
 type Sequencer struct {
 	testSetup *TestSetup
-	assert *assert.Assertions
-	ctx context.Context
+	assert    *assert.Assertions
+	ctx       context.Context
 }
 
 func CreateSequencer(testSetup *TestSetup, assert *assert.Assertions, ctx context.Context) Sequencer {
@@ -23,16 +23,14 @@ func CreateSequencer(testSetup *TestSetup, assert *assert.Assertions, ctx contex
 
 }
 
-func (sq Sequencer) PerformPayment(sourceSeed string, destinationSeed string, paymentAmount float64) (string,common.PaymentRequest) {
+func (sq Sequencer) PerformPayment(sourceSeed string, destinationSeed string, paymentAmount float64) (string, common.PaymentRequest) {
 
-	pr,err := sq.testSetup.CreatePaymentInfo(sq.ctx, destinationSeed,int(paymentAmount))
+	pr, err := sq.testSetup.CreatePaymentInfo(sq.ctx, destinationSeed, int(paymentAmount))
 	sq.assert.NoError(err)
 
-
-
-	result, err := sq.testSetup.ProcessPayment(sq.ctx, sourceSeed,pr)
+	result, err := sq.testSetup.ProcessPayment(sq.ctx, sourceSeed, pr)
 	sq.assert.NoError(err)
 
-	return result,pr
+	return result, pr
 
 }

@@ -15,6 +15,7 @@ import (
 	"paidpiper.com/payment-gateway/proxy"
 	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
+	"sync"
 )
 
 type GatewayController struct {
@@ -25,6 +26,7 @@ type GatewayController struct {
 	torCommandUrl      string
 	torRouteUrl        string
 	asyncMode          bool
+	mutex              *sync.Mutex
 	requestNodeManager map[string]*proxy.NodeManager
 }
 
@@ -37,10 +39,37 @@ func NewGatewayController(localNode *node.Node, commodityManager *commodity.Mana
 		torCommandUrl,
 		torRouteUrl,
 		asyncMode,
+		&sync.Mutex{},
 		map[string]*proxy.NodeManager{},
 	}
 
 	return manager
+}
+
+func (g *GatewayController) GetNodeManager(sessionId string) (*proxy.NodeManager, bool) {
+	g.mutex.Lock()
+
+	defer g.mutex.Unlock()
+
+	nodeManager, ok := g.requestNodeManager[sessionId]
+
+	return nodeManager, ok
+}
+
+func (g *GatewayController) SetNodeManager(sessionId string, manager *proxy.NodeManager) {
+	g.mutex.Lock()
+
+	defer g.mutex.Unlock()
+
+	g.requestNodeManager[sessionId] = manager
+}
+
+func (g *GatewayController) DeleteNodeManager(sessionId string) {
+	g.mutex.Lock()
+
+	defer g.mutex.Unlock()
+
+	delete(g.requestNodeManager, sessionId)
 }
 
 func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +82,7 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	nodeManager, ok := g.requestNodeManager[response.SessionId]
+	nodeManager, ok := g.GetNodeManager(response.SessionId)
 
 	if !ok {
 		Respond(w, MessageWithStatus(http.StatusConflict, "Session unknown"))
@@ -93,9 +122,9 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	fmt.Sprintf("Got ProcessPayment NodeId=%s, CallbackUrl=%s\n Request:%s", request.NodeId, request.CallbackUrl,request.PaymentRequest)
+	fmt.Sprintf("Got ProcessPayment NodeId=%s, CallbackUrl=%s\n Request:%s", request.NodeId, request.CallbackUrl, request.PaymentRequest)
 
-	_, ok := g.requestNodeManager[paymentRequest.ServiceSessionId]
+	_, ok := g.GetNodeManager(paymentRequest.ServiceSessionId)
 
 	if ok {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Duplicate session id"))
@@ -161,7 +190,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	future := make(chan ResponseMessage)
 
-	g.requestNodeManager[paymentRequest.ServiceSessionId] = nodeManager
+	g.SetNodeManager(paymentRequest.ServiceSessionId, nodeManager)
 
 	go func(pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
 		r := routing.CreatePaymentRouterStubFromAddresses(addr)
@@ -184,7 +213,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
 
-			delete(g.requestNodeManager, pr.ServiceSessionId)
+			g.DeleteNodeManager(pr.ServiceSessionId)
 
 			return
 		}
@@ -199,7 +228,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
 
-			delete(g.requestNodeManager, pr.ServiceSessionId)
+			g.DeleteNodeManager(pr.ServiceSessionId)
 
 			return
 		}
@@ -214,7 +243,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
 
-			delete(g.requestNodeManager, pr.ServiceSessionId)
+			g.DeleteNodeManager(pr.ServiceSessionId)
 
 			return
 		}
@@ -225,7 +254,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 		g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 1)
 
-		delete(g.requestNodeManager, pr.ServiceSessionId)
+		g.DeleteNodeManager(pr.ServiceSessionId)
 
 		log.Print("Payment completed")
 	}(*paymentRequest, future)
@@ -234,7 +263,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 }
 
 func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl string, status int) {
-	if callbackUrl != "" {
+	if callbackUrl == "" {
 		return
 	}
 
@@ -249,5 +278,3 @@ func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl st
 		log.Print("Payment callback failed")
 	}
 }
-
-

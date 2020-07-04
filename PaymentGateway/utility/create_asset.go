@@ -9,27 +9,32 @@ import (
 )
 
 // Source
-const tokenCreatorSeed =  "SAT3ZXAC5IQHF753DLROYVW5HRZGGFB2BHEXDWMDHCHE2URPSSDW3NY5"
+const tokenCreatorSeed = "SAT3ZXAC5IQHF753DLROYVW5HRZGGFB2BHEXDWMDHCHE2URPSSDW3NY5"
 
 // Issuing account
-const issuerSeed =  "SBMCAMFAYTXFIXBAOZJE5X2ZX4TJQI5X6P6NE5SHOEBHLHEMGKANRTOQ"
+const issuerSeed = "SBMCAMFAYTXFIXBAOZJE5X2ZX4TJQI5X6P6NE5SHOEBHLHEMGKANRTOQ"
 
 // Distribution account
 const distributionSeed = "SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM"
 
 func createAsset() {
 
-
 	client := horizonclient.DefaultTestNetClient
 
 	sourceKp, err := keypair.ParseFull(tokenCreatorSeed)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	issuerKp, err := keypair.ParseFull(issuerSeed)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	distributionKp, err := keypair.ParseFull(distributionSeed)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	_ = sourceKp
 	_ = issuerKp
@@ -39,22 +44,20 @@ func createAsset() {
 		horizonclient.AccountRequest{
 			AccountID: sourceKp.Address()})
 
-
 	// Create and fund source account, if it doesn't exist
-	if (sourceAccountDetail.AccountID != sourceKp.Address()) {
+	if sourceAccountDetail.AccountID != sourceKp.Address() {
 		client.Fund(sourceKp.Address())
 		sourceAccountDetail, _ = client.AccountDetail(
 			horizonclient.AccountRequest{
 				AccountID: sourceKp.Address()})
 	}
 
-
 	issuerAccountDetail, _ := client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: issuerKp.Address()})
 
 	// check if issuer account exists, if not create it and the distribution account
-	if (issuerAccountDetail.AccountID != issuerKp.Address()) {
+	if issuerAccountDetail.AccountID != issuerKp.Address() {
 
 		createIssuerAccount := txnbuild.CreateAccount{
 			SourceAccount: &sourceAccountDetail,
@@ -89,20 +92,20 @@ func createAsset() {
 			AccountID: distributionKp.Address()})
 
 	// Create trust line
-	tokenAsset  := txnbuild.CreditAsset{
+	tokenAsset := txnbuild.CreditAsset{
 		Code:   "pptoken",
 		Issuer: issuerKp.Address(),
 	}
 
 	changeTrust := txnbuild.ChangeTrust{
 		SourceAccount: &distributionAccountDetail,
-		Line:tokenAsset,
-		Limit:"100000",
+		Line:          tokenAsset,
+		Limit:         "100000",
 	}
 
 	txCreateTrustLine := txnbuild.Transaction{
 		SourceAccount: &distributionAccountDetail,
-		Operations:    []txnbuild.Operation{ &changeTrust},
+		Operations:    []txnbuild.Operation{&changeTrust},
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       network.TestNetworkPassphrase,
 	}
@@ -125,7 +128,7 @@ func createAsset() {
 
 	txCreateAssets := txnbuild.Transaction{
 		SourceAccount: &issuerAccountDetail,
-		Operations:    []txnbuild.Operation{ &createAssets},
+		Operations:    []txnbuild.Operation{&createAssets},
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       network.TestNetworkPassphrase,
 	}
@@ -135,18 +138,17 @@ func createAsset() {
 
 	resp, err = client.SubmitTransaction(txCreateAssets)
 
-
 	homedomain := "www.adwayser.com"
 
 	// Asset creation: set home domain
 	setOptionsSetHomedomain := txnbuild.SetOptions{
-		HomeDomain:          &homedomain,
-		SourceAccount:        &issuerAccountDetail,
+		HomeDomain:    &homedomain,
+		SourceAccount: &issuerAccountDetail,
 	}
 
 	txSetOptionsSetHomedomain := txnbuild.Transaction{
 		SourceAccount: &issuerAccountDetail,
-		Operations:    []txnbuild.Operation{ &setOptionsSetHomedomain},
+		Operations:    []txnbuild.Operation{&setOptionsSetHomedomain},
 		Timebounds:    txnbuild.NewTimeout(300),
 		Network:       network.TestNetworkPassphrase,
 	}
@@ -155,7 +157,6 @@ func createAsset() {
 	err = txSetOptionsSetHomedomain.Sign(issuerKp)
 
 	resp, err = client.SubmitTransaction(txSetOptionsSetHomedomain)
-
 
 	_ = resp
 }

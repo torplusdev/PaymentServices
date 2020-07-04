@@ -7,6 +7,7 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/api/trace"
+	"io/ioutil"
 	"log"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
@@ -15,13 +16,13 @@ import (
 )
 
 type NodeProxy struct {
-	mutex 			*sync.Mutex
-	address			string
-	torUrl         	string
-	commandChannel 	map[string]chan []byte
-	sessionId 	    string
-	nodeId      	string
-	tracer 		   	trace.Tracer
+	mutex          *sync.Mutex
+	address        string
+	torUrl         string
+	commandChannel map[string]chan []byte
+	sessionId      string
+	nodeId         string
+	tracer         trace.Tracer
 }
 
 func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType int, commandBody string) error {
@@ -30,7 +31,7 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 	values := map[string]string{"CommandId": id, "CommandType": strconv.Itoa(commandType), "CommandBody": commandBody, "NodeId": n.nodeId}
 
 	jsonValue, _ := json.Marshal(values)
-	
+
 	res, err := common.HttpPostWithContext(context, n.torUrl, bytes.NewBuffer(jsonValue))
 	defer res.Body.Close()
 
@@ -61,9 +62,14 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 		return nil, err
 	}
 
+	bodyBytes, err := ioutil.ReadAll(res.Body)
+
+	if err == nil && len(bodyBytes) > 0 {
+		return bodyBytes, nil
+	}
 
 	// Wait
-	responseBody := <- ch
+	responseBody := <-ch
 
 	return responseBody, nil
 }
@@ -78,12 +84,12 @@ func (n NodeProxy) openCommandChannel(id string) chan []byte {
 	return ch
 }
 
-func (n NodeProxy) closeCommandChannel(id string, ch chan []byte)  {
+func (n NodeProxy) closeCommandChannel(id string, ch chan []byte) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	delete (n.commandChannel, id)
-	defer close (ch)
+	delete(n.commandChannel, id)
+	defer close(ch)
 }
 
 func (n NodeProxy) ProcessResponse(commandId string, responseBody []byte) {
@@ -98,19 +104,18 @@ func (n NodeProxy) ProcessResponse(commandId string, responseBody []byte) {
 		return
 	}
 
-
-	 ch <- responseBody
+	ch <- responseBody
 }
 
 func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error) {
 
-	ctx, span := n.tracer.Start(context,"proxy-CreateTransaction-" + n.address)
+	ctx, span := n.tracer.Start(context, "proxy-CreateTransaction-"+n.address)
 	defer span.End()
 
 	var request = &models.CreateTransactionCommand{
-		TotalIn:       totalIn,
-		TotalOut:      totalOut,
-		SourceAddress: sourceAddress,
+		TotalIn:          totalIn,
+		TotalOut:         totalOut,
+		SourceAddress:    sourceAddress,
 		ServiceSessionId: serviceSessionId,
 	}
 
@@ -139,10 +144,10 @@ func (n NodeProxy) CreateTransaction(context context.Context, totalIn common.Tra
 
 func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
 
-	ctx, span := n.tracer.Start(context,"proxy-SignTerminalTransactions-" + n.address)
+	ctx, span := n.tracer.Start(context, "proxy-SignTerminalTransactions-"+n.address)
 	defer span.End()
 
-	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+	traceContext, err := common.CreateTraceContext(span.SpanContext())
 
 	if err != nil {
 		return err
@@ -150,7 +155,7 @@ func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTrans
 
 	var request = &models.SignTerminalTransactionCommand{
 		Transaction: *creditTransactionPayload,
-		Context:	 traceContext,
+		Context:     traceContext,
 	}
 
 	body, err := json.Marshal(request)
@@ -159,7 +164,7 @@ func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTrans
 		return err
 	}
 
-	reply, err := n.ProcessCommand(ctx, 1,  body)
+	reply, err := n.ProcessCommand(ctx, 1, body)
 
 	if err != nil {
 		return err
@@ -180,10 +185,10 @@ func (n NodeProxy) SignTerminalTransactions(context context.Context, creditTrans
 
 func (n NodeProxy) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
 
-	ctx, span := n.tracer.Start(context,"proxy-SignChainTransactions-" + n.address)
+	ctx, span := n.tracer.Start(context, "proxy-SignChainTransactions-"+n.address)
 	defer span.End()
 
-	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+	traceContext, err := common.CreateTraceContext(span.SpanContext())
 
 	if err != nil {
 		return err
@@ -201,7 +206,7 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 		return err
 	}
 
-	reply, err := n.ProcessCommand(ctx, 2,  body)
+	reply, err := n.ProcessCommand(ctx, 2, body)
 
 	if err != nil {
 		return err
@@ -214,7 +219,6 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 	if err != nil {
 		return err
 	}
-	
 
 	*creditTransactionPayload = response.Credit
 	*debitTransactionPayload = response.Debit
@@ -224,19 +228,19 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 
 func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
 
-	ctx, span := n.tracer.Start(context,"proxy-CommitServiceTransaction-" + n.address)
+	ctx, span := n.tracer.Start(context, "proxy-CommitServiceTransaction-"+n.address)
 	defer span.End()
 
-	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+	traceContext, err := common.CreateTraceContext(span.SpanContext())
 
 	if err != nil {
 		return false, err
 	}
 
-	var request = &models.CommitServiceTransactionCommand {
-		Transaction: 	*transaction,
+	var request = &models.CommitServiceTransactionCommand{
+		Transaction:    *transaction,
 		PaymentRequest: pr,
-		Context:		traceContext,
+		Context:        traceContext,
 	}
 
 	body, err := json.Marshal(request)
@@ -245,7 +249,7 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 		return false, errors.Errorf(err.Error())
 	}
 
-	reply, err := n.ProcessCommand(ctx,4, body)
+	reply, err := n.ProcessCommand(ctx, 4, body)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
@@ -264,19 +268,18 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 
 func (n NodeProxy) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 
-	ctx, span := n.tracer.Start(context,"proxy-CommitPaymentTransaction-" + n.address)
+	ctx, span := n.tracer.Start(context, "proxy-CommitPaymentTransaction-"+n.address)
 	defer span.End()
 
-	traceContext,err :=common.CreateTraceContext(span.SpanContext())
+	traceContext, err := common.CreateTraceContext(span.SpanContext())
 
 	if err != nil {
 		return false, err
 	}
 
-
-	var request = &models.CommitPaymentTransactionCommand {
+	var request = &models.CommitPaymentTransactionCommand{
 		Transaction: *transactionPayload,
-		Context:	 traceContext,
+		Context:     traceContext,
 	}
 
 	body, err := json.Marshal(request)
@@ -285,7 +288,7 @@ func (n NodeProxy) CommitPaymentTransaction(context context.Context, transaction
 		return false, errors.Errorf(err.Error())
 	}
 
-	reply, err := n.ProcessCommand(ctx,3, body)
+	reply, err := n.ProcessCommand(ctx, 3, body)
 
 	if err != nil {
 		return false, errors.Errorf(err.Error())
@@ -301,6 +304,3 @@ func (n NodeProxy) CommitPaymentTransaction(context context.Context, transaction
 
 	return response.Ok, nil
 }
-
-
-

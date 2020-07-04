@@ -28,9 +28,8 @@ func (horizon *Horizon) GetAccount(address string) (horizon.Account, error) {
 			AccountID: address})
 }
 
-
 func (horizon *Horizon) GetBalance(address string) (string, error) {
-	account,err := horizon.GetAccount(address)
+	account, err := horizon.GetAccount(address)
 
 	if err != nil {
 		return "", err
@@ -38,7 +37,7 @@ func (horizon *Horizon) GetBalance(address string) (string, error) {
 
 	balance := account.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
 
-	return balance,nil
+	return balance, nil
 }
 
 func (horizon *Horizon) AddTransactionToken(tx *build.TransactionBuilder) error {

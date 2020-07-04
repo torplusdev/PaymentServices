@@ -8,16 +8,16 @@ import (
 )
 
 type NodeManager struct {
-	mutex 			*sync.Mutex
-	nodesByAddress	map[string]node.PPNode
-	nodesByNodeId	map[string]node.PPNode
+	mutex          *sync.Mutex
+	nodesByAddress map[string]node.PPNode
+	nodesByNodeId  map[string]node.PPNode
 }
 
 func New(localNode *node.Node) *NodeManager {
 	manager := &NodeManager{
-		mutex: &sync.Mutex{},
+		mutex:          &sync.Mutex{},
 		nodesByAddress: make(map[string]node.PPNode),
-		nodesByNodeId: make(map[string]node.PPNode),
+		nodesByNodeId:  make(map[string]node.PPNode),
 	}
 
 	manager.nodesByAddress[localNode.Address] = localNode
@@ -35,7 +35,7 @@ func (m *NodeManager) AddNode(address string, nodeId string, torUrl string, sess
 	if ok1 && ok2 {
 
 		if n1 != n2 {
-			return errors.New("address mapped to different node id" )
+			return errors.New("address mapped to different node id")
 		}
 
 		return nil
@@ -43,13 +43,13 @@ func (m *NodeManager) AddNode(address string, nodeId string, torUrl string, sess
 
 	if !ok1 && !ok2 {
 		n := &NodeProxy{
-			mutex:			&sync.Mutex{},
+			mutex:          &sync.Mutex{},
 			address:        address,
 			torUrl:         torUrl,
 			commandChannel: make(map[string]chan []byte),
 			nodeId:         nodeId,
 			tracer:         global.Tracer("nodeProxy"),
-			sessionId:		sessionId,
+			sessionId:      sessionId,
 		}
 
 		m.nodesByAddress[address] = n

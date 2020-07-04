@@ -18,14 +18,14 @@ import (
 )
 
 type UtilityController struct {
-	node             		*node.Node
-	commodityManager 		*commodity.Manager
+	node             *node.Node
+	commodityManager *commodity.Manager
 }
 
 func NewUtilityController(node *node.Node, commodityManager *commodity.Manager) *UtilityController {
 	return &UtilityController{
-		node:             		node,
-		commodityManager: 		commodityManager,
+		node:             node,
+		commodityManager: commodityManager,
 	}
 }
 
@@ -36,12 +36,11 @@ func spanFromContext(rootContext context.Context, traceContext common.TraceConte
 	var traceId [16]byte
 	var spanId [8]byte
 
-	ba,_ := base64.StdEncoding.DecodeString(traceContext.TraceID)
-	copy(traceId[:],ba)
+	ba, _ := base64.StdEncoding.DecodeString(traceContext.TraceID)
+	copy(traceId[:], ba)
 
-	ba,_ = base64.StdEncoding.DecodeString(traceContext.SpanID)
-	copy(spanId[:],ba)
-
+	ba, _ = base64.StdEncoding.DecodeString(traceContext.SpanID)
+	copy(spanId[:], ba)
 
 	spanContext := core.SpanContext{
 		TraceID:    traceId,
@@ -52,7 +51,7 @@ func spanFromContext(rootContext context.Context, traceContext common.TraceConte
 	var span trace.Span
 	var ctx context.Context
 
-	if (core.SpanContext {}) == spanContext {
+	if (core.SpanContext{}) == spanContext {
 		ctx, span = tracer.Start(rootContext,
 			spanName,
 		)
@@ -63,7 +62,7 @@ func spanFromContext(rootContext context.Context, traceContext common.TraceConte
 		)
 	}
 
-	return ctx,span
+	return ctx, span
 }
 
 func (u *UtilityController) CreateTransaction(context context.Context, commandBody []byte) (interface{}, error) {
@@ -111,7 +110,7 @@ func (u *UtilityController) SignTerminalTransaction(context context.Context, com
 }
 
 func (u *UtilityController) SignChainTransactions(context context.Context, commandBody []byte) (interface{}, error) {
-	request :=  &models.SignChainTransactionsCommand{}
+	request := &models.SignChainTransactionsCommand{}
 
 	err := json.Unmarshal(commandBody, request)
 
@@ -125,7 +124,7 @@ func (u *UtilityController) SignChainTransactions(context context.Context, comma
 		return nil, err
 	}
 
-	response :=  &models.SignChainTransactionsResponse{
+	response := &models.SignChainTransactionsResponse{
 		Debit:  request.Debit,
 		Credit: request.Credit,
 	}
@@ -143,7 +142,7 @@ func (u *UtilityController) CommitServiceTransaction(context context.Context, co
 		return nil, err
 	}
 
-	ctx, span := spanFromContext(context,request.Context,"utility-CommitServiceTransaction")
+	ctx, span := spanFromContext(context, request.Context, "utility-CommitServiceTransaction")
 	defer span.End()
 
 	ok, err := u.node.CommitServiceTransaction(ctx, &request.Transaction, request.PaymentRequest)
@@ -196,13 +195,12 @@ func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.S
 		trace.WithAttributes(attrs...),
 	)
 
-	return ctx,span
+	return ctx, span
 }
-
 
 func (u *UtilityController) ValidatePayment(w http.ResponseWriter, r *http.Request) {
 
-	_, span := spanFromRequest(r,"ValidatePayment")
+	_, span := spanFromRequest(r, "ValidatePayment")
 	defer span.End()
 
 	request := &models.ValidatePaymentRequest{}
@@ -230,7 +228,7 @@ func (u *UtilityController) ValidatePayment(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	response := &models.ValidatePaymentResponse {
+	response := &models.ValidatePaymentResponse{
 		Quantity: quantity,
 	}
 
@@ -238,7 +236,7 @@ func (u *UtilityController) ValidatePayment(w http.ResponseWriter, r *http.Reque
 }
 
 func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Request) {
-	ctx,span := spanFromRequest(r,"requesthandler:CreatePaymentInfo")
+	ctx, span := spanFromRequest(r, "requesthandler:CreatePaymentInfo")
 
 	defer span.End()
 
@@ -246,21 +244,21 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 	err := json.NewDecoder(r.Body).Decode(request)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
 
 	price, asset, err := u.commodityManager.Calculate(request.ServiceType, request.CommodityType, request.Amount)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid commodity"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid commodity"))
 		return
 	}
 
 	pr, err := u.node.CreatePaymentRequest(ctx, price, asset, request.ServiceType)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusBadRequest,"Invalid request"))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
 
@@ -268,7 +266,7 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 }
 
 func (u *UtilityController) ListTransactions(w http.ResponseWriter, r *http.Request) {
-	_, span := spanFromRequest(r,"requesthandler:ListTransactions")
+	_, span := spanFromRequest(r, "requesthandler:ListTransactions")
 	defer span.End()
 
 	trx := u.node.GetTransactions()
@@ -278,28 +276,28 @@ func (u *UtilityController) ListTransactions(w http.ResponseWriter, r *http.Requ
 
 func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Request) {
 
-	ctx,span := spanFromRequest(r,"requesthandler:FlushTransactions")
+	ctx, span := spanFromRequest(r, "requesthandler:FlushTransactions")
 	defer span.End()
 
-	results,err := u.node.FlushTransactions(ctx)
+	results, err := u.node.FlushTransactions(ctx)
 
 	if err != nil {
-		Respond(w,MessageWithStatus(http.StatusBadRequest,"Error in FlushTransactions:..."))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Error in FlushTransactions:..."))
 	}
 
-	for k,v := range results {
+	for k, v := range results {
 		switch v.(type) {
-			case error:
-				log.Printf("Error in transaction for node %s: %w",k,v)
-			default:
+		case error:
+			log.Printf("Error in transaction for node %s: %w", k, v)
+		default:
 		}
 	}
 
-	Respond(w, MessageWithStatus(http.StatusOK,"Transactions committed"))
+	Respond(w, MessageWithStatus(http.StatusOK, "Transactions committed"))
 }
 
 func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Request) {
-	response := &models.GetStellarAddressResponse {
+	response := &models.GetStellarAddressResponse{
 		Address: u.node.Address,
 	}
 
@@ -359,15 +357,15 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 			}
 
 			values := &models.ProcessCommandResponse{
-				CommandResponse: 	data,
-				CommandId:    		cmd.CommandId,
-				NodeId:       		cmd.NodeId,
-				SessionId:			cmd.SessionId,
+				CommandResponse: data,
+				CommandId:       cmd.CommandId,
+				NodeId:          cmd.NodeId,
+				SessionId:       cmd.SessionId,
 			}
 
 			jsonValue, _ := json.Marshal(values)
 
-			response,err := common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
+			response, err := common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
 			defer response.Body.Close()
 
 			if err != nil {
@@ -376,8 +374,6 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 
 				return
 			}
-
-
 
 			return
 		}

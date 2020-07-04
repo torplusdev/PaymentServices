@@ -1,15 +1,16 @@
-package payment_tests_rogue
+package tests
 
 import (
 	"context"
 	"github.com/go-errors/errors"
+	"github.com/rs/xid"
 	"github.com/stellar/go/build"
-	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
+	"paidpiper.com/payment-gateway/horizon"
 )
 
 type RogueNode struct {
@@ -27,16 +28,17 @@ type RogueNode struct {
 //}
 
 func (r *RogueNode) CreatePaymentRequest(context context.Context, serviceSessionId string) (common.PaymentRequest, error) {
-	return r.internalNode.CreatePaymentRequest(context, serviceSessionId)
+
+	return r.CreatePaymentRequest(context, serviceSessionId)
 }
 
-func (r *RogueNode) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
+func (r *RogueNode) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing,error) {
 
 	return r.transactionCreationFunction(r, context, totalIn, fee, totalOut, sourceAddress)
 }
 
 func createTransactionCorrect(r *RogueNode,context context.Context,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
-	return r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress)
+	return r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress,xid.New().String())
 }
 
 func (r *RogueNode) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
@@ -65,7 +67,7 @@ func (r *RogueNode) GetAddress() string {
 }
 
 func createTransactionIncorrectSequence(r *RogueNode,context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
-	transaction,err := r.internalNode.CreateTransaction(context, totalIn,fee,totalOut,sourceAddress)
+	transaction,err := r.internalNode.CreateTransaction(context, totalIn,fee,totalOut,sourceAddress,xid.New().String())
 
 	if err != nil {
 		panic("unexpected error creating transaction")
@@ -185,27 +187,31 @@ func signChainTransactionsBadSignature(r *RogueNode,context context.Context, cre
 	return nil
 }
 
-func CreateRogueNode_NonidenticalSequenceNumbers(client *horizon.Client,address string, seed string, accumulateTransactions bool) node.PPNode {
+func CreateRogueNode_NonidenticalSequenceNumbers(address string, seed string, accumulateTransactions bool) node.PPNode {
 
-	node := node.CreateNode(client,address,seed,accumulateTransactions)
+	horizon := horizon.NewHorizon()
 
-	rogueNode := RogueNode {
-		internalNode:node,
-		transactionCreationFunction:createTransactionIncorrectSequence,
-		signChainTransactionsFunction:signChainTransactionsNoError,
+	node := node.CreateNode(horizon,address,seed,accumulateTransactions)
+
+	rogueNode := RogueNode{
+		internalNode:                  node,
+		transactionCreationFunction:   createTransactionIncorrectSequence,
+		signChainTransactionsFunction: signChainTransactionsNoError,
 	}
 
 	return &rogueNode
 }
 
-func CreateRogueNode_BadSignature(client *horizon.Client,address string, seed string, accumulateTransactions bool) node.PPNode {
+func CreateRogueNode_BadSignature(address string, seed string, accumulateTransactions bool) node.PPNode {
 
-	node := node.CreateNode(client,address,seed,accumulateTransactions)
+	horizon := horizon.NewHorizon()
 
-	rogueNode := RogueNode {
-		internalNode:node,
-		transactionCreationFunction:createTransactionCorrect,
-		signChainTransactionsFunction:signChainTransactionsBadSignature,
+	node := node.CreateNode(horizon,address,seed,accumulateTransactions)
+
+	rogueNode := RogueNode{
+		internalNode:                  node,
+		transactionCreationFunction:   createTransactionCorrect,
+		signChainTransactionsFunction: signChainTransactionsBadSignature,
 	}
 
 	return &rogueNode

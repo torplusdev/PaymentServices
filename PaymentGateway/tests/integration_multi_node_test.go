@@ -1,8 +1,8 @@
-package integration_tests
+package tests
 
 import (
 	"github.com/stellar/go/keypair"
-	testutils "paidpiper.com/payment-gateway/tests"
+	"paidpiper.com/payment-gateway/common"
 	"testing"
 )
 
@@ -10,10 +10,10 @@ func TestMultinodePayments(t *testing.T) {
 
 	N := 3
 
-	assert, ctx, span := testutils.InitTestCreateSpan(t,"TestMultinodePayments")
+	assert, ctx, span := InitTestCreateSpan(t,"TestMultinodePayments")
 	defer span.End()
 
-	sequencer := createSequencer(testSetup,assert,ctx)
+	sequencer := CreateSequencer(testSetup,assert,ctx)
 
 	paymentAmount := 200e6
 
@@ -26,7 +26,7 @@ func TestMultinodePayments(t *testing.T) {
 	for i:=0; i<N;i++ {
 		kp,_ := keypair.Random()
 
-		testutils.CreateAndFundAccount(kp.Seed())
+		CreateAndFundAccount(kp.Seed())
 		nodes = append(nodes,kp.Address() )
 		seeds = append(seeds,kp.Seed() )
 
@@ -34,22 +34,26 @@ func TestMultinodePayments(t *testing.T) {
 	}
 
 	// Get initial balances
-	balancesPre := testutils.GetAccountBalances(seeds)
+	balancesPre := GetAccountBalances(seeds)
+	var amount common.TransactionAmount = 0
 
 	for i:=0; i<N;i++ {
 		testSetup.torMock.SetCircuitOrigin(nodes[i])
-		result,_ := sequencer.performPayment(seeds[i], testutils.Service1Seed, paymentAmount)
+
+		result,pr := sequencer.PerformPayment(seeds[i], Service1Seed, paymentAmount)
+		amount = pr.Amount
 		assert.Contains(result, "Payment processing completed")
 	}
 
 	err := testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
-	balancesPost := testutils.GetAccountBalances(seeds)
+	balancesPost := GetAccountBalances(seeds)
 
 	paymentRoutingFees := float64(3*10)
 
 	for i:=0; i<N;i++ {
-		assert.InEpsilon(balancesPre[i] - paymentAmount - paymentRoutingFees,balancesPost[i],1E-6,"Incorrect user balance")
+		assert.InEpsilon(balancesPre[i] - float64(amount) - paymentRoutingFees,balancesPost[i],1E-6,"Incorrect user balance")
 	}
 }
+

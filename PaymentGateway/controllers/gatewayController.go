@@ -3,7 +3,6 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/stellar/go/keypair"
 	"log"
 	"net/http"
@@ -100,7 +99,6 @@ func (g *GatewayController) ProcessResponse(w http.ResponseWriter, r *http.Reque
 }
 
 func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Request) {
-
 	ctx, span := spanFromRequest(r, "ProcessPayment")
 	defer span.End()
 
@@ -122,7 +120,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	fmt.Sprintf("Got ProcessPayment NodeId=%s, CallbackUrl=%s\n Request:%s", request.NodeId, request.CallbackUrl, request.PaymentRequest)
+	log.Printf("Got ProcessPayment NodeId=%s, CallbackUrl=%s\n Request:%s", request.NodeId, request.CallbackUrl, request.PaymentRequest)
 
 	_, ok := g.GetNodeManager(paymentRequest.ServiceSessionId)
 
@@ -135,15 +133,18 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 	addr = append(addr, g.seed.Address())
 
+	commandCallbackUrl := request.CallbackUrl
+	nodeStatusCallbackUrl := ""
+
 	if request.Route == nil {
-		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl+paymentRequest.Address)
-		defer resp.Body.Close()
-		//resp, err := http.Get(g.torRouteUrl + paymentRequest.Address)
+		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl + paymentRequest.ServiceSessionId)
 
 		if err != nil {
 			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Cant get payment route"))
 			return
 		}
+
+		defer resp.Body.Close()
 
 		routeResponse := &models.RouteResponse{}
 
@@ -155,9 +156,9 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		}
 
 		request.Route = routeResponse.Route
+		commandCallbackUrl = routeResponse.CallbackUrl
+		nodeStatusCallbackUrl = routeResponse.StatusCallbackUrl
 	}
-
-	commandCallbackUrl := request.CallbackUrl
 
 	if commandCallbackUrl == "" {
 		log.Printf("Callback url not provided for %s", paymentRequest.ServiceSessionId)
@@ -181,7 +182,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	// Create destination node
 	addr = append(addr, paymentRequest.Address)
 
-	err = nodeManager.AddNode(paymentRequest.Address, request.NodeId, commandCallbackUrl, paymentRequest.ServiceSessionId)
+	err = nodeManager.AddNode(paymentRequest.Address, request.NodeId, request.CallbackUrl, paymentRequest.ServiceSessionId)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Duplicate node id"))
@@ -211,7 +212,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Init failed")
 			}
 
-			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, nodeStatusCallbackUrl, 0)
 
 			g.DeleteNodeManager(pr.ServiceSessionId)
 
@@ -226,7 +227,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Verification failed")
 			}
 
-			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, nodeStatusCallbackUrl, 0)
 
 			g.DeleteNodeManager(pr.ServiceSessionId)
 
@@ -241,7 +242,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 				future <- MessageWithStatus(http.StatusBadRequest, "Finalize failed")
 			}
 
-			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 0)
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, nodeStatusCallbackUrl,0)
 
 			g.DeleteNodeManager(pr.ServiceSessionId)
 
@@ -252,7 +253,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 			future <- MessageWithStatus(http.StatusOK, "Payment processing completed")
 		}
 
-		g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, 1)
+		g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, nodeStatusCallbackUrl, 1)
 
 		g.DeleteNodeManager(pr.ServiceSessionId)
 
@@ -262,8 +263,8 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	Respond(w, future)
 }
 
-func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl string, status int) {
-	if callbackUrl == "" {
+func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl string, nodeStatusCallbackUrl string, status int) {
+	if callbackUrl == "" && nodeStatusCallbackUrl == "" {
 		return
 	}
 
@@ -271,10 +272,23 @@ func (g *GatewayController) SendPaymentCallback(sessionId string, callbackUrl st
 
 	jsonValue, _ := json.Marshal(values)
 
-	res, err := common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
-	defer res.Body.Close()
+	if callbackUrl != "" {
+		res, err := common.HttpPostWithoutContext(callbackUrl, bytes.NewBuffer(jsonValue))
 
-	if err != nil {
-		log.Print("Payment callback failed")
+		if err != nil {
+			log.Print("Payment callback failed")
+		} else {
+			_ = res.Body.Close()
+		}
+	}
+
+	if nodeStatusCallbackUrl != "" {
+		res, err := common.HttpPostWithoutContext(nodeStatusCallbackUrl, bytes.NewBuffer(jsonValue))
+
+		if err != nil {
+			log.Print("Payment nodes callback failed")
+		} else {
+			_ = res.Body.Close()
+		}
 	}
 }

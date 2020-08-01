@@ -33,7 +33,11 @@ func CreateTraceContext(ctx core.SpanContext) (TraceContext,error) {
 }
 
 func HttpGetWithContext(ctx context.Context, url string)  (*http.Response, error) {
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, req = httptrace.W3C(ctx, req)
 	httptrace.Inject(ctx, req)
@@ -42,7 +46,12 @@ func HttpGetWithContext(ctx context.Context, url string)  (*http.Response, error
 }
 
 func HttpPostWithContext(ctx context.Context, url string, body io.Reader)  (*http.Response, error) {
-	req, _ := http.NewRequest("POST", url, body)
+	req, err := http.NewRequest("POST", url, body)
+
+	if err != nil {
+		return nil, err
+	}
+
 	req.Header.Add("Content-Type","application/json")
 
 	ctx, req = httptrace.W3C(ctx, req)

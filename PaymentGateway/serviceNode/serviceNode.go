@@ -36,14 +36,20 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	priceList["ipfs"] = make(map[string]commodity.Descriptor)
 	priceList["tor"] = make(map[string]commodity.Descriptor)
+	priceList["http"] = make(map[string]commodity.Descriptor)
 
 	priceList["ipfs"]["data"] = commodity.Descriptor{
-		UnitPrice: common.PPTokenUnitPrice,
+		UnitPrice: 0.0000001,
 		Asset:     common.PPTokenAssetName,
 	}
 
 	priceList["tor"]["data"] = commodity.Descriptor{
-		UnitPrice: common.PPTokenUnitPrice,
+		UnitPrice: 0.1,
+		Asset:     common.PPTokenAssetName,
+	}
+
+	priceList["http"]["attention"] = commodity.Descriptor{
+		UnitPrice: 0.01,
 		Asset:     common.PPTokenAssetName,
 	}
 

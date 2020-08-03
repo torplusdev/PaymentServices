@@ -22,10 +22,10 @@ steps:
     go env
   displayName: 'Checking Go installation'
   
-- script: |
-    go test -v ./...
-  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
-  displayName: 'Running all the tests'
+# - script: |
+#     go test -v ./...
+#   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
+#   displayName: 'Running all the tests'
   
 - script: |
     go build -v

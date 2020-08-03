@@ -34,7 +34,7 @@ steps:
 
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/PaymentGateway'
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway'
     includeRootFolder: true
     archiveType: '7z'
     sevenZipCompression: 'ultra'
@@ -44,7 +44,7 @@ steps:
 
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/PaymentGateway'
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway'
     includeRootFolder: true
     archiveType: '7z'
     sevenZipCompression: 'ultra'

@@ -7,41 +7,48 @@ trigger:
 - master
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'Ubuntu_Pool'
 
 variables:
-  GOBIN:  '$(GOPATH)/bin' # Go binaries path
-  GOROOT: '/usr/local/go1.13' # Go installation path
-  GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
-  modulePath: '$(GOPATH)/src/github.com/PaymentServices/PaymentGateway' # Path to the module's code
-
-steps:
-- script: |
-    mkdir -p '$(GOBIN)'
-    mkdir -p '$(GOPATH)/pkg'
-    mkdir -p '$(modulePath)'
-    shopt -s extglob
-    shopt -s dotglob
-    mv !(gopath) '$(modulePath)'
-    echo '##vso[task.prependpath]$(GOBIN)'
-    echo '##vso[task.prependpath]$(GOROOT)/bin'
-  displayName: 'Set up the Go workspace'
+  GO_INSTALL: '/usr/lib/go-1.12'
 
 - script: |
     go version
-    go get -v -t -d ./...
-    if [ -f Gopkg.toml ]; then
-        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-        dep ensure
-    fi
-    go build -v .
-  workingDirectory: '$(modulePath)'
-  displayName: 'Get dependencies, then build'
+    go env
+  displayName: 'Checking Go installation'
   
-- task: Go@0
-  inputs:
-    command: 'test'
-    arguments: '-v'
-    workingDirectory: '$(modulePath)'  
+- script: |
+    go test -v ./...
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
+  displayName: 'Running all the cmd tests'
+  
+- script: |
+    go build -v
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
+  displayName: 'Building Go Ipfs'
 
-  
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/PaymentGateway'
+    includeRootFolder: true
+    archiveType: '7z'
+    sevenZipCompression: 'ultra'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(Build.BuildId).7z'
+    replaceExistingArchive: true
+    verbose: true
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/PaymentGateway'
+    includeRootFolder: true
+    archiveType: '7z'
+    sevenZipCompression: 'ultra'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-latest.7z'
+    replaceExistingArchive: true
+    verbose: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'payment-gateway'
+    publishLocation: 'Container'

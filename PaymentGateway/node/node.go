@@ -2,6 +2,10 @@ package node
 
 import (
 	"context"
+	"sort"
+	"sync"
+	"time"
+
 	"github.com/go-errors/errors"
 	"github.com/rs/xid"
 	"github.com/stellar/go/build"
@@ -14,9 +18,6 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/horizon"
-	"sort"
-	"sync"
-	"time"
 )
 
 const nodeTransactionFee = 10
@@ -527,7 +528,7 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		resultsMap[t.TransactionSourceAddress] = txSuccess.TransactionSuccessToString()
 
 		if err != nil {
-			log.Errorf("Error submitting transaction for %v: %w", a, err)
+			log.Errorf("Error submitting transaction for %v: %v", a, err)
 
 			internalTrans, _ := txnbuild.TransactionFromXDR(t.XDR)
 			accountSeqNumber, _ := internalTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()

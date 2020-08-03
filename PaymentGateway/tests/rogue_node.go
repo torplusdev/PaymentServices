@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+
 	"github.com/go-errors/errors"
 	"github.com/rs/xid"
 	"github.com/stellar/go/build"
@@ -9,19 +10,20 @@ import (
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
 	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/horizon"
+	"paidpiper.com/payment-gateway/node"
 )
 
 type RogueNode struct {
-	internalNode node.PPNode
-	transactionCreationFunction func(*RogueNode, context.Context, common.TransactionAmount,common.TransactionAmount,common.TransactionAmount, string) (common.PaymentTransactionReplacing,error)
-	signChainTransactionsFunction func(*RogueNode, context.Context,  *common.PaymentTransactionReplacing, *common.PaymentTransactionReplacing) error
+	internalNode                  node.PPNode
+	transactionCreationFunction   func(*RogueNode, context.Context, common.TransactionAmount, common.TransactionAmount, common.TransactionAmount, string) (common.PaymentTransactionReplacing, error)
+	signChainTransactionsFunction func(*RogueNode, context.Context, *common.PaymentTransactionReplacing, *common.PaymentTransactionReplacing) error
 }
 
-//func (r *RogueNode) AddPendingServicePayment(serviceSessionId string, amount common.TransactionAmount) {
-//	r.internalNode.AddPendingServicePayment(context,serviceSessionId,amount)
-//}
+// func (r *RogueNode) AddPendingServicePayment(context context.Context, serviceSessionId string, amount common.TransactionAmount) {
+// 	r.internalNode.AddPendingServicePayment(context, serviceSessionId, amount)
+// }
+
 //
 //func (r *RogueNode) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 //	r.internalNode.SetAccumulatingTransactionsMode(accumulateTransactions)
@@ -32,13 +34,13 @@ func (r *RogueNode) CreatePaymentRequest(context context.Context, serviceSession
 	return r.CreatePaymentRequest(context, serviceSessionId)
 }
 
-func (r *RogueNode) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing,error) {
+func (r *RogueNode) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error) {
 
 	return r.transactionCreationFunction(r, context, totalIn, fee, totalOut, sourceAddress)
 }
 
-func createTransactionCorrect(r *RogueNode,context context.Context,totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
-	return r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress,xid.New().String())
+func createTransactionCorrect(r *RogueNode, context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+	return r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress, xid.New().String())
 }
 
 func (r *RogueNode) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
@@ -46,15 +48,15 @@ func (r *RogueNode) SignTerminalTransactions(context context.Context, creditTran
 }
 
 func (r *RogueNode) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
-	return r.signChainTransactionsFunction(r,context, creditTransactionPayload,debitTransactionPayload)
+	return r.signChainTransactionsFunction(r, context, creditTransactionPayload, debitTransactionPayload)
 }
 
-func signChainTransactionsNoError(r *RogueNode,context context.Context,creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
-	return r.internalNode.SignChainTransactions(context, creditTransactionPayload,debitTransactionPayload)
+func signChainTransactionsNoError(r *RogueNode, context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+	return r.internalNode.SignChainTransactions(context, creditTransactionPayload, debitTransactionPayload)
 }
 
 func (r *RogueNode) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
-	return r.internalNode.CommitServiceTransaction(context, transaction,pr)
+	return r.internalNode.CommitServiceTransaction(context, transaction, pr)
 }
 
 func (r *RogueNode) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
@@ -66,8 +68,8 @@ func (r *RogueNode) GetAddress() string {
 	//return r.internalNode.GetAddress()
 }
 
-func createTransactionIncorrectSequence(r *RogueNode,context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing,error) {
-	transaction,err := r.internalNode.CreateTransaction(context, totalIn,fee,totalOut,sourceAddress,xid.New().String())
+func createTransactionIncorrectSequence(r *RogueNode, context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
+	transaction, err := r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress, xid.New().String())
 
 	if err != nil {
 		panic("unexpected error creating transaction")
@@ -77,16 +79,16 @@ func createTransactionIncorrectSequence(r *RogueNode,context context.Context, to
 	refTrans := transaction.GetReferenceTransaction()
 
 	if (refTrans == common.PaymentTransaction{}) {
-		return transaction,err
+		return transaction, err
 	}
 
-	payTransStellar,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
-	refTransStellar,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
+	payTransStellar, _ := txnbuild.TransactionFromXDR(payTrans.XDR)
+	refTransStellar, _ := txnbuild.TransactionFromXDR(refTrans.XDR)
 
-	paySequenceNumber,_ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
-	refSequenceNumber,_ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+	paySequenceNumber, _ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+	refSequenceNumber, _ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
 
-	if (paySequenceNumber != refSequenceNumber) {
+	if paySequenceNumber != refSequenceNumber {
 		panic("sequence numbers are already different, unexpected")
 	}
 
@@ -113,7 +115,7 @@ func createTransactionIncorrectSequence(r *RogueNode,context context.Context, to
 		build.Payment(
 			build.SourceAccount{payment.SourceAccount.GetAccountID()},
 			build.Destination{payment.Destination},
-			build.NativeAmount{payment.Amount}	),
+			build.NativeAmount{payment.Amount}),
 	)
 
 	if err != nil {
@@ -132,10 +134,10 @@ func createTransactionIncorrectSequence(r *RogueNode,context context.Context, to
 
 	transaction.UpdateTransactionXDR(xdr)
 
-	return transaction,nil
+	return transaction, nil
 }
 
-func signChainTransactionsBadSignature(r *RogueNode,context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+func signChainTransactionsBadSignature(r *RogueNode, context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()
@@ -191,7 +193,7 @@ func CreateRogueNode_NonidenticalSequenceNumbers(address string, seed string, ac
 
 	horizon := horizon.NewHorizon()
 
-	node := node.CreateNode(horizon,address,seed,accumulateTransactions)
+	node := node.CreateNode(horizon, address, seed, accumulateTransactions)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,
@@ -206,7 +208,7 @@ func CreateRogueNode_BadSignature(address string, seed string, accumulateTransac
 
 	horizon := horizon.NewHorizon()
 
-	node := node.CreateNode(horizon,address,seed,accumulateTransactions)
+	node := node.CreateNode(horizon, address, seed, accumulateTransactions)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,

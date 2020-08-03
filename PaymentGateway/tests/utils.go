@@ -2,6 +2,11 @@ package tests
 
 import (
 	"context"
+	"log"
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
@@ -16,11 +21,7 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"log"
 	"paidpiper.com/payment-gateway/common"
-	"strconv"
-	"strings"
-	"testing"
 )
 
 // ##############     Test seeds     #################################################
@@ -124,7 +125,7 @@ func CreateAndFundAccount(seed string) {
 			log.Fatal(err)
 		}
 
-		log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
+		log.Printf("Account "+seed+" created - trans#: %s", txSuccess.Hash)
 	}
 
 	if detail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress) == "0" {

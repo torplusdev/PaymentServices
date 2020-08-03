@@ -1,19 +1,8 @@
 package tests
 
-import (
-	"context"
-	"github.com/stellar/go/keypair"
-	"github.com/stretchr/testify/assert"
-	client "paidpiper.com/payment-gateway/client"
-	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/root"
-	"paidpiper.com/payment-gateway/routing"
-	"strconv"
-	"testing"
-)
-
 const user1Seed = "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 const service1Seed = "SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"
+const service1Port = 28084
 
 // public GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN
 const node1Seed = "SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN"
@@ -69,41 +58,41 @@ func TestMain(m *testing.M) {
 }
 */
 
-func TestPaymentByClientWithInsufficientBalanceFails(t *testing.T) {
+// func TestPaymentByClientWithInsufficientBalanceFails(t *testing.T) {
 
-	// Initialization
-	assert := assert.New(t)
+// 	// Initialization
+// 	assert := assert.New(t)
 
-	keyUser, _ := keypair.ParseFull(user1Seed)
-	keyService, _ := keypair.ParseFull(service1Seed)
+// 	keyUser, _ := keypair.ParseFull(user1Seed)
+// 	keyService, _ := keypair.ParseFull(service1Seed)
 
-	rootApi := root.CreateRootApi(true)
-	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
+// 	rootApi := root.CreateRootApi(true)
+// 	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
 
-	var client = client.CreateClient(rootApi, user1Seed, nm, nil)
-	assert.NotNil(client)
+// 	var client = client.CreateClient(rootApi, user1Seed, nm, nil)
+// 	assert.NotNil(client)
 
-	accPre, err := GetAccount(keyService.Address())
+// 	accPre, err := GetAccount(keyService.Address())
 
-	assert.NoError(err)
+// 	assert.NoError(err)
 
-	currentBalance, err := strconv.ParseFloat(accPre.Balances[0].Balance, 32)
-	assert.NoError(err)
+// 	currentBalance, err := strconv.ParseFloat(accPre.Balances[0].Balance, 32)
+// 	assert.NoError(err)
 
-	paymentAmount := common.TransactionAmount(currentBalance + 100/common.PPTokenUnitPrice)
+// 	paymentAmount := common.TransactionAmount(currentBalance + 100/common.PPTokenUnitPrice)
 
-	pr := common.PaymentRequest{
-		Address:    keyService.Address(),
-		Amount:     paymentAmount,
-		Asset:      "XLM",
-		ServiceRef: "test"}
+// 	pr := common.PaymentRequest{
+// 		Address:    keyService.Address(),
+// 		Amount:     paymentAmount,
+// 		Asset:      "XLM",
+// 		ServiceRef: "test"}
 
-	router := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+// 	router := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
-	transactions, err := client.InitiatePayment(context.Background(), router, pr)
-	assert.Error(err, "Client has insufficient account balance")
-	assert.Nil(transactions)
-}
+// 	transactions, err := client.InitiatePayment(context.Background(), router, pr)
+// 	assert.Error(err, "Client has insufficient account balance")
+// 	assert.Nil(transactions)
+// }
 
 /*
 func TestPaymentsChainWithAccumulation(t *testing.T) {

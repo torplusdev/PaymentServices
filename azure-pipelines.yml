@@ -12,6 +12,7 @@ pool:
 variables:
   GO_INSTALL: '/usr/lib/go-1.12'
 
+steps:
 - script: |
     go version
     go env

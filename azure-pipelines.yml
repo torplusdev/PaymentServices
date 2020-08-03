@@ -14,6 +14,10 @@ variables:
 
 steps:
 - script: |
+    echo '##vso[task.setvariable variable=path]$(PATH):$(GO_INSTALL)/bin'
+  displayName: 'Setting Go installation'
+  
+- script: |
     go version
     go env
   displayName: 'Checking Go installation'
@@ -21,12 +25,12 @@ steps:
 - script: |
     go test -v ./...
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
-  displayName: 'Running all the cmd tests'
+  displayName: 'Running all the tests'
   
 - script: |
     go build -v
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
-  displayName: 'Building Go Ipfs'
+  displayName: 'Building Payment Gateway'
 
 - task: ArchiveFiles@2
   inputs:

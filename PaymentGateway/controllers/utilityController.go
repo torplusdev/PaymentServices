@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/gorilla/mux"
+	"log"
+	"net/http"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/httptrace"
-	"log"
-	"net/http"
 	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
@@ -278,6 +279,18 @@ func (u *UtilityController) ListTransactions(w http.ResponseWriter, r *http.Requ
 	Respond(w, trx)
 }
 
+func (u *UtilityController) GetTransaction(w http.ResponseWriter, r *http.Request) {
+	_, span := spanFromRequest(r, "requesthandler:GetTransaction")
+	defer span.End()
+
+	vars := mux.Vars(r)
+	sessionId := vars["sessionId"]
+
+	trx := u.node.GetTransaction(sessionId)
+
+	Respond(w, trx)
+}
+
 func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Request) {
 
 	ctx, span := spanFromRequest(r, "requesthandler:FlushTransactions")
@@ -292,7 +305,7 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 	for k, v := range results {
 		switch v.(type) {
 		case error:
-			log.Printf("Error in transaction for node %s: %w", k, v)
+			log.Printf("Error in transaction for node %s: %v", k, v)
 		default:
 		}
 	}

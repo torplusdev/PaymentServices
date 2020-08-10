@@ -15,11 +15,7 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"log"
 	"paidpiper.com/payment-gateway/common"
-	"strconv"
-	"strings"
-	"testing"
 )
 
 // ##############     Test seeds     #################################################

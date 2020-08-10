@@ -5,16 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"time"
+
 	"github.com/stellar/go/keypair"
 	"go.opentelemetry.io/otel/api/core"
 	"google.golang.org/grpc/codes"
-	"io/ioutil"
-	"log"
-	"net/http"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
-	"paidpiper.com/payment-gateway/serviceNode"
-	"time"
 )
 
 type TestSetup struct {
@@ -43,13 +42,19 @@ func (setup *TestSetup) Shutdown() {
 }
 
 func (setup *TestSetup) startNode(seed string, nodePort int) {
-	srv, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false)
+	// TODO: eliminate cycle references
+	// srv, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false)
 
-	if err != nil {
-		log.Fatal("Coudn't start node")
-	}
-	setup.servers = append(setup.servers, srv)
+	// if err != nil {
+	// 	log.Fatal("Coudn't start node")
+	// }
+	// setup.servers = append(setup.servers, srv)
 }
+
+// func (setup *TestSetup) ReplaceNode(seed string, nodeImplementation node.PPNode) {
+// 	// TODO: add implementation
+// 	//srv := setup.servers[seed]
+// }
 
 func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodePort int) {
 

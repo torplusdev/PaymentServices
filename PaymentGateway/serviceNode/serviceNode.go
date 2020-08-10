@@ -3,10 +3,11 @@ package serviceNode
 import (
 	"context"
 	"fmt"
+	. "net/http"
+
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
 	"github.com/stellar/go/keypair"
-	. "net/http"
 	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/controllers"
@@ -24,8 +25,8 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	seed, err := keypair.ParseFull(keySeed)
 
 	if err != nil {
-		glog.Info("Error parsing node key: %v", err)
-		return &Server{}, err
+		glog.Infof("Error parsing node key: %s", err)
+		return nil, err
 	}
 
 	horizon := horizon.NewHorizon()
@@ -36,14 +37,20 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	priceList["ipfs"] = make(map[string]commodity.Descriptor)
 	priceList["tor"] = make(map[string]commodity.Descriptor)
+	priceList["http"] = make(map[string]commodity.Descriptor)
 
 	priceList["ipfs"]["data"] = commodity.Descriptor{
-		UnitPrice: common.PPTokenUnitPrice,
+		UnitPrice: 0.0000001,
 		Asset:     common.PPTokenAssetName,
 	}
 
 	priceList["tor"]["data"] = commodity.Descriptor{
-		UnitPrice: common.PPTokenUnitPrice,
+		UnitPrice: 0.1,
+		Asset:     common.PPTokenAssetName,
+	}
+
+	priceList["http"]["attention"] = commodity.Descriptor{
+		UnitPrice: 0.01,
 		Asset:     common.PPTokenAssetName,
 	}
 
@@ -53,15 +60,15 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	err = rootApi.CreateUser(seed.Address(), seed.Seed())
 
 	if err != nil {
-		glog.Info("Error creating user: %v", err)
-		return &Server{}, err
+		glog.Infof("Error creating user: %s", err)
+		return nil, err
 	}
 
 	balance, err := horizon.GetBalance(seed.Address())
 
 	if err != nil {
-		glog.Info("Error retrieving account data: %v", err)
-		return &Server{}, err
+		glog.Infof("Error retrieving account data: %s", err)
+		return nil, err
 	}
 
 	fmt.Printf("Current balance for %v:%v", seed.Address(), balance)
@@ -91,6 +98,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	router.HandleFunc("/api/utility/validatePayment", utilityController.ValidatePayment).Methods("POST")
 	router.HandleFunc("/api/utility/transactions/flush", utilityController.FlushTransactions).Methods("GET")
 	router.HandleFunc("/api/utility/transactions", utilityController.ListTransactions).Methods("GET")
+	router.HandleFunc("/api/utility/transaction/{sessionId}", utilityController.GetTransaction).Methods("GET")
 	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
 	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
 	router.HandleFunc("/api/gateway/processResponse", gatewayController.ProcessResponse).Methods("POST")
@@ -105,7 +113,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			glog.Warning("Error starting service node: %v", err)
+			glog.Warningf("Error starting service node: %s", err)
 		}
 	}()
 

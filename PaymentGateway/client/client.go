@@ -2,20 +2,21 @@ package client
 
 import (
 	"context"
+	"log"
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/go-errors/errors"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
 	"go.opentelemetry.io/otel/api/trace"
-	"log"
 	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 type Client struct {
@@ -176,12 +177,12 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	//validate route extremities
 	if strings.Compare(route[0].Address, client.fullKeyPair.Address()) != 0 {
 		log.Print("Bad routing: Incorrect starting address ", route[0].Address, " != ", client.fullKeyPair.Address())
-		return nil, errors.Errorf("Incorrect starting address", "")
+		return nil, errors.New("Incorrect starting address")
 	}
 
 	if strings.Compare(route[len(route)-1].Address, paymentRequest.Address) != 0 {
 		log.Print("Bad routing: Incorrect destination address")
-		return nil, errors.Errorf("Incorrect destination address", "")
+		return nil, errors.New("Incorrect destination address")
 	}
 
 	// TODO: Move out to external validation sequence
@@ -236,7 +237,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 		if err != nil {
 			log.Print("Error creating transaction for node " + sourceAddress + " : " + err.Error())
-			return nil, errors.Errorf("Error creating transaction for node %v: %w", sourceAddress, err)
+			return nil, errors.Errorf("Error creating transaction for node %v: %v", sourceAddress, err)
 		}
 
 		transactions = append(transactions, nodeTransaction)
@@ -269,7 +270,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 	if err != nil {
 		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())
-		return nil, errors.Errorf("Error signing terminal transaction (%v): %w", debitTransaction, err)
+		return nil, errors.Errorf("Error signing terminal transaction (%v): %v", debitTransaction, err)
 	}
 
 	// Consecutive signing process
@@ -300,8 +301,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 	if err != nil {
 		log.Print("Error in transaction: " + err.Error())
-		return nil, errors.Errorf("Error signing initial transaction has insufficient account balance", "")
-
+		return nil, errors.New("Error signing initial transaction has insufficient account balance")
 	}
 
 	// At this point all transactions are signed by all parties

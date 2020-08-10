@@ -52,6 +52,7 @@ type PPNode interface {
 
 type PPTransactionManager interface {
 	GetTransactions() []common.PaymentTransaction
+	GetTransaction(sessionId string) common.PaymentTransaction
 	FlushTransactions(context context.Context) (map[string]interface{}, error)
 }
 

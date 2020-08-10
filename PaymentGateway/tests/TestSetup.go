@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"paidpiper.com/payment-gateway/serviceNode"
 	"time"
 
 	"github.com/stellar/go/keypair"
@@ -43,12 +45,13 @@ func (setup *TestSetup) Shutdown() {
 
 func (setup *TestSetup) startNode(seed string, nodePort int) {
 	// TODO: eliminate cycle references
-	// srv, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false)
+	 srv, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false)
 
-	// if err != nil {
-	// 	log.Fatal("Coudn't start node")
-	// }
-	// setup.servers = append(setup.servers, srv)
+	 if err != nil {
+	 	log.Fatal("Coudn't start node")
+	 }
+
+	 setup.servers = append(setup.servers, srv)
 }
 
 // func (setup *TestSetup) ReplaceNode(seed string, nodeImplementation node.PPNode) {

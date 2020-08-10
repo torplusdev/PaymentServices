@@ -286,7 +286,7 @@ func (u *UtilityController) GetTransaction(w http.ResponseWriter, r *http.Reques
 	vars := mux.Vars(r)
 	sessionId := vars["sessionId"]
 
-	trx := u.node.GetTransaction(sessionId)
+	trx := u.transactionManager.GetTransaction(sessionId)
 
 	Respond(w, trx)
 }

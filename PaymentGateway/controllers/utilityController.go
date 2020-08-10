@@ -18,14 +18,18 @@ import (
 )
 
 type UtilityController struct {
-	node             *node.Node
+	node             node.PPNode
+	transactionManager node.PPTransactionManager
+	requestProvider node.PPPaymentRequestProvider
 	commodityManager *commodity.Manager
 }
 
-func NewUtilityController(node *node.Node, commodityManager *commodity.Manager) *UtilityController {
+func NewUtilityController(node node.PPNode, tm node.PPTransactionManager, rp node.PPPaymentRequestProvider, commodityManager *commodity.Manager) *UtilityController {
 	return &UtilityController{
 		node:             node,
 		commodityManager: commodityManager,
+		transactionManager: tm,
+		requestProvider: rp,
 	}
 }
 
@@ -255,7 +259,7 @@ func (u *UtilityController) CreatePaymentInfo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	pr, err := u.node.CreatePaymentRequest(ctx, price, asset, request.ServiceType)
+	pr, err := u.requestProvider.CreatePaymentRequest(ctx, price, asset, request.ServiceType)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
@@ -269,7 +273,7 @@ func (u *UtilityController) ListTransactions(w http.ResponseWriter, r *http.Requ
 	_, span := spanFromRequest(r, "requesthandler:ListTransactions")
 	defer span.End()
 
-	trx := u.node.GetTransactions()
+	trx := u.transactionManager.GetTransactions()
 
 	Respond(w, trx)
 }
@@ -279,7 +283,7 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 	ctx, span := spanFromRequest(r, "requesthandler:FlushTransactions")
 	defer span.End()
 
-	results, err := u.node.FlushTransactions(ctx)
+	results, err := u.transactionManager.FlushTransactions(ctx)
 
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Error in FlushTransactions:..."))
@@ -298,7 +302,7 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 
 func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Request) {
 	response := &models.GetStellarAddressResponse{
-		Address: u.node.Address,
+		Address: u.node.GetAddress(),
 	}
 
 	Respond(w, response)

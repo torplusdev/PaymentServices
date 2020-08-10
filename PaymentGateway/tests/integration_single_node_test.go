@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"github.com/stellar/go/keypair"
 	"go.opentelemetry.io/otel/api/core"
 	"google.golang.org/grpc/codes"
 	"os"
@@ -14,6 +15,11 @@ var testSetup *TestSetup
 
 var tracerShutdown func()
 
+func seed2addr(seed string) string {
+	kp,_ := keypair.ParseFull(seed)
+	return kp.Address()
+}
+
 func init() {
 
 	traceProvider, shutdownFunc := InitGlobalTracer()
@@ -22,14 +28,14 @@ func init() {
 	tracerShutdown = shutdownFunc
 
 	// Addresses reused from other tests
-	CreateAndFundAccount(User1Seed)
-	CreateAndFundAccount(Service1Seed)
+	CreateAndFundAccount(User1Seed,Client)
+	CreateAndFundAccount(Service1Seed,Node)
 
 	// Addresses specific to this test suite
-	CreateAndFundAccount(Node1Seed)
-	CreateAndFundAccount(Node2Seed)
-	CreateAndFundAccount(Node3Seed)
-	CreateAndFundAccount(Node4Seed)
+	CreateAndFundAccount(Node1Seed,Node)
+	CreateAndFundAccount(Node2Seed,Node)
+	CreateAndFundAccount(Node3Seed,Node)
+	CreateAndFundAccount(Node4Seed,Node)
 
 	testSetup = CreateTestSetup()
 	torPort := 57842
@@ -49,9 +55,10 @@ func init() {
 	span.SetStatus(codes.OK, "All Nodes Stared Up")
 
 	testSetup.SetDefaultPaymentRoute([]string{
-		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
-		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW"})
+		seed2addr(Node1Seed),
+		seed2addr(Node2Seed),
+		seed2addr(Node3Seed),
+	})
 
 	span.End()
 
@@ -78,9 +85,10 @@ func TestMain(m *testing.M) {
 func TestSingleChainPayment(t *testing.T) {
 
 	testSetup.SetDefaultPaymentRoute([]string{
-		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
-		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW"})
+		seed2addr(Node1Seed),
+		seed2addr(Node2Seed),
+		seed2addr(Node3Seed),
+	})
 
 	assert, ctx, span := InitTestCreateSpan(t, "TestSingleChainPayment")
 	defer span.End()
@@ -157,9 +165,9 @@ func TestSingleChainPayment(t *testing.T) {
 func TestTwoChainPayments(t *testing.T) {
 
 	testSetup.SetDefaultPaymentRoute([]string{
-		"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-		"GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
-		"GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW"})
+		seed2addr(Node1Seed),
+		seed2addr(Node2Seed),
+		seed2addr(Node3Seed)})
 
 	assert, ctx, span := InitTestCreateSpan(t, "TestTwoChainPayments")
 	defer span.End()
@@ -232,7 +240,43 @@ func TestTwoChainPayments(t *testing.T) {
 			Key:   "nodePaymentFee",
 			Value: core.Float64(nodePaymentFee)},
 	)
+
 	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
 	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
 	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+}
+
+func TestCheckAccountFunds(t *testing.T) {
+
+	nodes:= []string{"GBVIMI2NAJJ3TO5YSYKUAZXZCPJNX7MDTMLXI62KKU73V7AHTIKDKUOP",
+		"GCND2GZ2XUCXZ6URJWWD7PYJZUGPJHLMLQ5IJ6UEJM44VGZVNYH3LCB4",
+		"GB6ESPMHPSOJICYBQI2HNWNAUZWSU757CKHOYPDKQGWAFK3R4Z3INUDC",
+		"GAYAPB5WDZJ5OF4PFKUBWRPGYZKU4647DHVKLNFHN35DORH6H7F7N7VQ",
+		"GAFDLNCWMIBDSMQZ7DLR44OITBS627E3S7HZLL57OS6IL7SUMCUUDUIV",
+		"GCUORHKYF424MXVPK6TRDXC77RSPTNGAQ2B3XNIMF732RVO75FGURONN",
+		"GAAE7TA2EJLRRLYPVL3YPJ3TOTSYGJW7AYAIVY257COQ37UHCOWHPJIU",
+		"GCZB7HGSGWQDXPZ7IJBTV63WC7KW7RKZ4AZEUHYPHHTVJZZ2EZQ7E5W6",
+		"GAOIW2EK6ATYKKAUUGZH3ZNXG4CC7YIWOEHSPZHR4GYCMZQMRVSRCESD",
+		"GDM7URTN2RWOL34JZSAO26J4RKEZANRMCID4T6FKO72CROR3BTMYXRRX",
+		"GANKXDSXTFCSGSSZN33A2MQLRAJGTWS56SMXIQRIS2R63ZH4FW5L4KHZ",
+		"GDSSD7PKPJVVWYN2Z5ACYH42BFBRIIB3657NFDCYGOEYOWX4DF4FLOYW",
+		"GC45CU5MOJZXU5DQY2QND57TRR5FRSF45DAL7OOM7JFWQNPAJEE2BO3C",
+		"GARGQG2RJ5UIJRWTFP6E4PYBD2JXAKX2N5DJ3TQACQN2BTUBYFXHIJ4O",
+		"GADCWDBQZ2VXWEUAMSMYYFYUXEEQYVGAMOPTAYQUCZXYPIG65CFVKSW5",
+		"GDMXKGYUVGF3LIUFAN4CY6XCBPBDBRZKUXFEDK4TRZ6KBOLW5L7PIJF6",
+		"GCMK6EF25IURCHEOYCSUNX57HYJWRQS5QARISIZOVPLF5OBZS3746D4L",
+		"GAYAWF6IHQ5NE3JVM7ACHUK5YVHTB3VPS23H6JXRQABBMQGMAFSF6RLR",
+		"GCK5JSIF3CCFF56233UNJUFZPWZQOXOKLBISAPVFR3UDPVI63GJ43OQV",
+		"GAV2JMNJ3BJTZPYP7QPQ6ACWIOVR55LX6QGBQLSIV6XX6LZ5ZWXERJYX",
+		"GBMK6CBUUY2N4HU577RQXV5PC5DFLATBV3DUMA2ACK4JQT7R6OJZYR2Z",
+		"GC4GZW2TZ76RIQTIJI4MPLJKSRMVMJC5QQ5VITWNLBQ2J55KZ7MILLBD",
+		"GAEHHXGMJ43XOB2P2NG26RZW2QQJT27E2MMKEYZWO3LZN46WA7CUKW3J",
+	}
+
+	//seed := "SD3GOZWPM22EV2M3TSBPTOY5R5GHNLDHQFVJBEBONPXUB7KYDLI5K63C"
+
+	for _,node_seed := range nodes {
+		CreateAndFundAccount(node_seed, Node)
+	}
+
 }

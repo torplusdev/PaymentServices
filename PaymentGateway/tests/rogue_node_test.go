@@ -1,14 +1,13 @@
 package tests
 
 import (
-	"errors"
-	xid "github.com/rs/xid"
-	"github.com/stellar/go/clients/horizon"
+	"context"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stretchr/testify/assert"
 	client "paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/root"
 	"paidpiper.com/payment-gateway/routing"
 	"reflect"
@@ -23,10 +22,13 @@ func reverseAny(s interface{}) {
 	}
 }
 
+
 func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
 	assert := assert.New(t)
-	testSetup.startNode()
+
+	
+
 	nm.ReplaceNode("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
 		CreateRogueNode_NonidenticalSequenceNumbers("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
 			"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC",false))
@@ -40,7 +42,6 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 	assert.NotNil(client)
 
 	nm.SetAccumulatingTransactionsMode(true)
-	var servicePayment uint32 = 234
 
 	//Service
 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
@@ -48,35 +49,37 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
 	/*     ******                    Transaction 1			***********				*/
-	guid1 := xid.New()
+	//guid1 := xid.New()
+
+	paymentRequestProvider := serviceNode.(node.PPPaymentRequestProvider)
 
 	// Add pending credit
-	serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
-	pr1,err := serviceNode.CreatePaymentRequest(guid1.String())
+	//serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
+	pr1,err := paymentRequestProvider.CreatePaymentRequest(context.Background(),100e6,"data","ipfs")
 
 	// Initiate
-	transactions,err := client.InitiatePayment(nodes, pr1)
+	transactions,err := client.InitiatePayment(context.Background(),nodes, pr1)
 	assert.NotNil(transactions)
 
 	// Verify
-	ok, err := client.VerifyTransactions(nodes, pr1, transactions)
+	ok, err := client.VerifyTransactions(context.Background(),nodes, pr1, transactions)
 	assert.NoError(err)
 	assert.True(ok && err == nil)
 
 	// Commit
-	ok, err = client.FinalizePayment(nodes, transactions,pr1 )
+	ok, err = client.FinalizePayment(context.Background(),nodes, transactions,pr1 )
 
 
 	/*     ******                    Transaction 2			*************				*/
-	guid2 := xid.New()
+	//guid2 := xid.New()
 
 	// Add pending credit
-	serviceNode.AddPendingServicePayment(guid2.String(),servicePayment)
+	//serviceNode.AddPendingServicePayment(guid2.String(),servicePayment)
 
-	pr2,err := serviceNode.CreatePaymentRequest(guid2.String())
+	pr2,err := paymentRequestProvider.CreatePaymentRequest(context.Background(),100e6,"data","ipfs")
 
 	// Initiate
-	transactions,err = client.InitiatePayment(nodes, pr2)
+	transactions,err = client.InitiatePayment(context.Background(),nodes, pr2)
 
 	for _,t := range transactions {
 
@@ -84,11 +87,17 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 		payTrans := ptr.GetPaymentTransaction()
 		refTrans := ptr.GetReferenceTransaction()
 
-		payTransStellar,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
-		refTransStellar,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
+		payTransStellarWrapper,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
+		payTransStellar,_ := payTransStellarWrapper.Transaction()
 
-		paySequenceNumber,_ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
-		refSequenceNumber,_ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		refTransStellarWrapper,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
+		refTransStellar,_ := refTransStellarWrapper.Transaction()
+
+		account := payTransStellar.SourceAccount()
+		paySequenceNumber,_ := account.GetSequenceNumber()
+
+		account = refTransStellar.SourceAccount()
+		refSequenceNumber,_ := account.GetSequenceNumber()
 
 		_ = paySequenceNumber
 		_ = refSequenceNumber
@@ -96,9 +105,10 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
 
 	// Verify
-	ok, err = client.VerifyTransactions(nodes, pr2, transactions)
+	ok, err = client.VerifyTransactions(context.Background(),nodes, pr2, transactions)
 	var e *common.TransactionValidationError
-	assert.True(errors.As(err,&e), e.Error())
+	assert.EqualError(err,e.Err.Error())
+	//assert.True(errors.As(err,&e), e.Error())
 
 }
 
@@ -107,8 +117,7 @@ func TestAccumulatingTransactionWithBadSignatureShouldFail(t *testing.T) {
 	assert := assert.New(t)
 
 	nm.ReplaceNode("GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-		testutils.CreateRogueNode_BadSignature(horizon.DefaultTestNetClient,
-			"GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+		CreateRogueNode_BadSignature("GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
 			"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN",false))
 
 	keyUser, _ := keypair.ParseFull(user1Seed)
@@ -120,30 +129,32 @@ func TestAccumulatingTransactionWithBadSignatureShouldFail(t *testing.T) {
 	assert.NotNil(client)
 
 	nm.SetAccumulatingTransactionsMode(true)
-	var servicePayment uint32 = 234
+	//var servicePayment uint32 = 234
 
 	//Service
 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
 
 	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
+	paymentRequestProvider := serviceNode.(node.PPPaymentRequestProvider)
+
 	/*     ******                    Transaction 1			***********				*/
-	guid1 := xid.New()
+	//guid1 := xid.New()
 
 	// Add pending credit
-	serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
-	pr1,err := serviceNode.CreatePaymentRequest(guid1.String())
+	//serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
+	pr1,err := paymentRequestProvider.CreatePaymentRequest(context.Background(),100e6,"data","ipfs")
 
 	// Initiate
-	transactions,err := client.InitiatePayment(nodes, pr1)
+	transactions,err := client.InitiatePayment(context.Background(), nodes, pr1)
 	assert.NotNil(transactions)
 
 	// Verify
-	ok, err := client.VerifyTransactions(nodes, pr1, transactions)
+	ok, err := client.VerifyTransactions(context.Background(), nodes, pr1, transactions)
 	assert.NoError(err)
 	assert.True(ok && err == nil)
 
 	// Commit
-	ok, err = client.FinalizePayment(nodes, transactions,pr1 )
+	ok, err = client.FinalizePayment(context.Background(), nodes, transactions,pr1 )
 	assert.Error(err)
 }

@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
-	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/serviceNode"
 	"time"
 )
@@ -50,10 +49,6 @@ func (setup *TestSetup) startNode(seed string, nodePort int) {
 		log.Fatal("Coudn't start node")
 	}
 	setup.servers = append(setup.servers, srv)
-}
-
-func (setup *TestSetup) ReplaceNode(seed string,nodeImplementation node.PPNode) {
-	srv := setup.servers[seed]
 }
 
 func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodePort int) {
@@ -177,7 +172,9 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 	ctx, span := tr.Start(context, "FlushTransactions")
 	defer span.End()
 
-	for _, v := range setup.torMock.GetNodes() {
+	for k, v := range setup.torMock.GetNodes() {
+
+		log.Printf("Flushing node %s (%d).\n ",k,v)
 
 		resp, err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/transactions/flush", v))
 

@@ -13,14 +13,14 @@ type NodeManager struct {
 	nodesByNodeId  map[string]node.PPNode
 }
 
-func New(localNode *node.Node) *NodeManager {
+func New(localNode node.PPNode) *NodeManager {
 	manager := &NodeManager{
 		mutex:          &sync.Mutex{},
 		nodesByAddress: make(map[string]node.PPNode),
 		nodesByNodeId:  make(map[string]node.PPNode),
 	}
 
-	manager.nodesByAddress[localNode.Address] = localNode
+	manager.nodesByAddress[localNode.GetAddress()] = localNode
 
 	return manager
 }

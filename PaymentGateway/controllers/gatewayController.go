@@ -19,7 +19,9 @@ import (
 )
 
 type GatewayController struct {
-	localNode          *node.Node
+	localNode          node.PPNode
+	transactionManager node.PPTransactionManager
+	requestProvider    node.PPPaymentRequestProvider
 	commodityManager   *commodity.Manager
 	seed               *keypair.Full
 	rootApi            *root.RootApi
@@ -30,9 +32,11 @@ type GatewayController struct {
 	requestNodeManager map[string]*proxy.NodeManager
 }
 
-func NewGatewayController(localNode *node.Node, commodityManager *commodity.Manager, seed *keypair.Full, rootApi *root.RootApi, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
+func NewGatewayController(node node.PPNode,tm node.PPTransactionManager, rp node.PPPaymentRequestProvider, commodityManager *commodity.Manager, seed *keypair.Full, rootApi *root.RootApi, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
 	manager := &GatewayController{
-		localNode,
+		node,
+		tm,
+		rp,
 		commodityManager,
 		seed,
 		rootApi,

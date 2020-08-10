@@ -2,11 +2,10 @@ package tests
 
 import (
 	"context"
-	"github.com/stellar/go/build"
-	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/network"
+	hProtocol "github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
 	"github.com/stretchr/testify/assert"
@@ -24,20 +23,30 @@ import (
 )
 
 // ##############     Test seeds     #################################################
-const User1Seed = "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
-const Service1Seed = "SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"
+//GCR5Q6Y25VBRX4EDOH2IYEQFQ5BNJPWN5DGNYEWJ5PXH7IVJPIFAVMGO
+const User1Seed = "SBBHR4B4W4ENUXY23GQ2LBFJTOBRJLGRJYWEBQXOEUFTMN4NF4AHI2TD"
 
-// public GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN
-const Node1Seed = "SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN"
+//GBG6HV7GTZ2QWIERNEFYTSVEAXRINYJTKM3ZGWIMVXWD5II5TNMHJW2V
+const Service1Seed = "SBVKDDNEPATDCDAHEZZXWX6FA6MDOYIUJFKLNBEITGTVOQKNI2PDYCUO"
 
-// public GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ
-const Node2Seed = "SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC"
+// public GBDCHSBQ5ATYKLKR65AV3FNSWAJXUFT6EFIY2TEAJYAFG3NEEOH3PUQ6
+const Node1Seed = "SBY4B6ZQLH3NNDBRTHH6KHRS4MRRPEBOKFNSJSCUOMYVM4K734FTDUMG"
 
-// public GB3IKDN72HFZSLY3SYE5YWULA5HG32AAKEDJTG6J6X2YKITHBDDT2PIW
-const Node3Seed = "SBZMAHJPLZLDKJU4DUIT6AU3BEVWKPGP6M6L2KWZXAELKNAIDADGZO7A"
+// public GB4EMKPLFADFZGHSDQDLILGKX5T3VOMBG444ZXBOZCXN2VXVDFP7PH27
+const Node2Seed = "SBYKNN2PGYZNFEIZBSQJX6SXGQJ2MIZE5H7H54Z4OUBN7IFOLLKN5VH7"
 
-// publc GASFIR7LHA2IAAMLN4WMBKPSFL6GSQGWHF3E7PHHGFADT254PBOOY2I7
-const Node4Seed = "SBVOHS5MWK5OHDFSCURZD7XZXTETKSRTKSFMU2IKJXUBM23I5FJHWDXK"
+// public GBJP7NUQON35NK3AL2ECG64QIP6Y6D32NNZLQJDJ5NMDNVPXOOTVG72I
+const Node3Seed = "SCPAR4SZ225QLWP73VPNY5H3QEPXKFVFK6FDPC2EPG7DMLV3CZCZNVLF"
+
+// publc GCVNUZK4YIXYIH6GTOL42HR43O422CPCSGRURTCXVST77CRKIOV7QHQO
+const Node4Seed = "SBGW75JAGFA3JWH2MJEKLSUYMMXO42LKYBOIWTSI727MU7VH7FOOJLOZ"
+
+type NodeRoleType string
+
+const(
+	Client NodeRoleType = "client"
+	Node = "service_node"
+)
 
 type Sampler interface {
 	ShouldSample(parameters sdktrace.SamplingParameters) sdktrace.SamplingResult
@@ -102,11 +111,14 @@ func GetAccountBalances(seeds []string) []float64 {
 	return balances
 }
 
-func CreateAndFundAccount(seed string) {
+func CreateAndFundAccount(seed string, role NodeRoleType) {
 
 	client := horizonclient.DefaultTestNetClient
 
 	pair, err := keypair.ParseFull(seed)
+
+	// TODO: Move this to somewhere central
+	kpManager,_ := keypair.ParseFull("SAT3ZXAC5IQHF753DLROYVW5HRZGGFB2BHEXDWMDHCHE2URPSSDW3NY5")
 
 	if err != nil {
 		log.Fatal(err)
@@ -116,80 +128,118 @@ func CreateAndFundAccount(seed string) {
 		horizonclient.AccountRequest{
 			AccountID: pair.Address()})
 
+	// Check that account exists
 	if errAccount != nil {
-
-		txSuccess, errCreate := client.Fund(pair.Address())
-
-		if errCreate != nil {
-			log.Fatal(err)
-		}
-
-		log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
+		//TODO: call creation logic
+		log.Fatal ("Account doesn't exist")
+		//txSuccess, errCreate := client.Fund(pair.Address())
+		//
+		//if errCreate != nil {
+		//	log.Fatal(err)
+		//}
+		//
+		//log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
 	}
 
-	if detail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress) == "0" {
+	var weight byte
 
-		distributionKp, err := keypair.ParseFull("SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM")
-		if err != nil {
-			log.Fatal(err)
+	for _,signer := range detail.Signers {
+		if signer.Key == pair.Address() {
+			weight = byte(signer.Weight)
+		}
+	}
+
+	if ((role == Client) && (weight < detail.Thresholds.MedThreshold)) ||
+		((role == Node) && (weight < detail.Thresholds.MedThreshold)) {
+
+		targetWeight := byte(detail.Thresholds.MedThreshold)
+
+		//if (role == Client) {
+		//	targetWeight = 0
+		//}
+
+		threshold := txnbuild.Threshold(targetWeight)
+
+		setOptions := txnbuild.SetOptions{
+			MasterWeight: &threshold ,
+			//Signer: &txnbuild.Signer{
+			//	Address: pair.Address(),
+			//	Weight:  txnbuild.Threshold(targetWeight),
+			//},
+			SourceAccount: &detail,
 		}
 
-		issuerKp, err := keypair.ParseFull("SBMCAMFAYTXFIXBAOZJE5X2ZX4TJQI5X6P6NE5SHOEBHLHEMGKANRTOQ")
+		txChangeSignature,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+			SourceAccount:        &detail,
+			IncrementSequenceNum: true,
+			Operations:           []txnbuild.Operation{&setOptions},
+			BaseFee:              300,
+			Timebounds:           txnbuild.NewTimeout(300),
+		})
+
+		_ = err
+
+		signedTransactionManager, err := txChangeSignature.Sign(network.TestNetworkPassphrase,kpManager)
+		//signedTransactionManagerClient, err := signedTransactionManager.Sign(network.TestNetworkPassphrase,pair)
+		_, err = client.SubmitTransaction(signedTransactionManager)
+
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Can't change signature permissions: " + err.Error())
 		}
 
-		distributionAccountDetail, err := client.AccountDetail(
-			horizonclient.AccountRequest{
-				AccountID: distributionKp.Address()})
+	}
 
-		if err != nil {
-			log.Fatal(err)
+	hasBalance := false
+	for _,b := range detail.Balances {
+		if b.Issuer == common.PPTokenIssuerAddress && b.Code == common.PPTokenAssetName {
+			hasBalance = true;
 		}
+	}
+
+	hasBalance = false
+	if (!hasBalance) {
 
 		// Create trust line
 		tokenAsset := txnbuild.CreditAsset{
-			Code:   "pptoken",
-			Issuer: issuerKp.Address(),
+			Code:   common.PPTokenAssetName,
+			Issuer: common.PPTokenIssuerAddress,
 		}
 
 		changeTrust := txnbuild.ChangeTrust{
-			SourceAccount: &distributionAccountDetail,
+			SourceAccount: &detail,
 			Line:          tokenAsset,
-			Limit:         "100000",
+			Limit:         strconv.Itoa(1000),
 		}
 
-		txCreateTrustLine := txnbuild.Transaction{
-			SourceAccount: &distributionAccountDetail,
-			Operations:    []txnbuild.Operation{&changeTrust},
-			Timebounds:    txnbuild.NewTimeout(300),
-			Network:       network.TestNetworkPassphrase,
-		}
+		txCreateTrustLine,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+			SourceAccount:        &detail,
+			IncrementSequenceNum: true,
+			BaseFee: 200,
+			Operations:           []txnbuild.Operation{&changeTrust},
+			Timebounds:           txnbuild.NewTimeout(300),
+		})
 
-		xdr, err := txCreateTrustLine.BuildSignEncode(distributionKp)
+		signedTransaction, err := txCreateTrustLine.Sign(network.TestNetworkPassphrase,kpManager)
 
-		_ = xdr
-		if err != nil {
-			log.Print("Error signing transaction:")
-		}
-
-		_, err = client.SubmitTransaction(txCreateTrustLine)
+		_, err = client.SubmitTransaction(signedTransaction)
 
 		if err != nil {
-			log.Fatal(err)
+			log.Print("Error:" + err.Error())
 		}
+	}
 
-		strBalance := detail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
-		balance, _ := strconv.ParseFloat(strBalance, 32)
+	strBalance := detail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
+	balance, _ := strconv.ParseFloat(strBalance, 32)
 
-		if balance < 1000 {
-			err = injectFundsPPToken(pair)
-
+	if balance < 200 {
+		err = injectFundsPPToken(pair, int(299-balance))
+		if err != nil {
+			log.Print("Error injecting pptoken funds: " + err.Error())
 		}
 	}
 }
 
-func injectFundsPPToken(kp *keypair.Full) error {
+func injectFundsPPToken(kp *keypair.Full, amount int) error {
 
 	// Inject lumens, just in case
 	err := injectFundsXLM(kp.Address())
@@ -197,6 +247,9 @@ func injectFundsPPToken(kp *keypair.Full) error {
 	if err != nil {
 		return err
 	}
+
+
+	strAmount := strconv.Itoa(amount)
 
 	client := horizonclient.DefaultTestNetClient
 	pair, _ := keypair.Random()
@@ -208,67 +261,88 @@ func injectFundsPPToken(kp *keypair.Full) error {
 	}
 
 	distributionKp, _ := keypair.ParseFull("SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM")
+	issuerKp, _ := keypair.ParseFull("SBMCAMFAYTXFIXBAOZJE5X2ZX4TJQI5X6P6NE5SHOEBHLHEMGKANRTOQ")
 
 	accountDistribution, _ := client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: distributionKp.Address()})
 
+	accountIssuer, _ := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: issuerKp.Address()})
+
 	accountTarget, _ := client.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: kp.Address()})
 
+	_ = accountTarget
 	_ = accountDistribution
+	_ = accountIssuer
 
 	tokenAsset := txnbuild.CreditAsset{
 		Code:   "pptoken",
 		Issuer: common.PPTokenIssuerAddress,
 	}
 
-	changeTrust := txnbuild.ChangeTrust{
-		SourceAccount: &accountTarget,
-		Line:          tokenAsset,
-		Limit:         "2000",
+	hasPPTokenBalance := false
+
+	for _,b := range accountTarget.Balances {
+		if b.Asset.Code == common.PPTokenAssetName {
+			hasPPTokenBalance = true
+		}
 	}
 
-	txCreateTrustLine := txnbuild.Transaction{
-		SourceAccount: &accountTarget,
-		Operations:    []txnbuild.Operation{&changeTrust},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+	if (!hasPPTokenBalance) {
 
-	_, err = txCreateTrustLine.BuildSignEncode(kp)
-	resp, err := client.SubmitTransaction(txCreateTrustLine)
+		changeTrust := txnbuild.ChangeTrust{
+			SourceAccount: &accountIssuer,
+			Line:          tokenAsset,
+		}
 
-	if err != nil {
-		log.Fatal(err)
-		return err
+		txCreateTrustLine, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+			SourceAccount:  &accountTarget,
+			IncrementSequenceNum: true,
+			Operations:    	[]txnbuild.Operation{&changeTrust},
+			BaseFee: 200,
+			Timebounds:     txnbuild.NewTimeout(300),
+		})
+
+		if err != nil {
+			log.Print("Error creating transaction:")
+		}
+
+		txCreateTrustLineSignedBoth, err := txCreateTrustLine.Sign(network.TestNetworkPassphrase, kp)
+		_, err = client.SubmitTransaction(txCreateTrustLineSignedBoth)
+
+		if err != nil {
+			log.Fatal(err)
+			return err
+		}
 	}
 
 	distributeAssets := txnbuild.Payment{
 		Destination:   kp.Address(),
-		Amount:        "1000",
+		Amount:        strAmount,
 		Asset:         tokenAsset,
 		SourceAccount: &accountDistribution,
 	}
 
-	txDistributeAssets := txnbuild.Transaction{
-		SourceAccount: &accountDistribution,
+	txDistributeAssets, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &accountDistribution,
+		IncrementSequenceNum: true,
 		Operations:    []txnbuild.Operation{&distributeAssets},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+		BaseFee: 200,
+	})
 
-	_, err = txDistributeAssets.BuildSignEncode(distributionKp)
+	txDistributeAssetsSigned, err := txDistributeAssets.Sign(network.TestNetworkPassphrase, distributionKp)
 
-	resp, err = client.SubmitTransaction(txDistributeAssets)
+	_, err = client.SubmitTransaction(txDistributeAssetsSigned)
 
 	if err != nil {
 		log.Fatal(err)
 		return err
 	}
-
-	_ = resp
 
 	return nil
 }
@@ -293,27 +367,36 @@ func injectFundsXLM(address string) error {
 
 	amount := 9900
 
-	tx, err := build.Transaction(
-		build.TestNetwork,
-		build.SourceAccount{pair.Seed()},
-		build.AutoSequence{horizon.DefaultTestNetClient},
-		build.Payment(
-			build.Destination{address},
-			build.NativeAmount{strconv.Itoa(amount)},
-		),
-	)
+	sourceAccount, _ := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: pair.Address()})
+
+	payment := txnbuild.Payment{
+		Destination:   address,
+		Amount:        strconv.Itoa(amount),
+		Asset: txnbuild.NativeAsset{},
+		SourceAccount: &sourceAccount,
+	}
+
+	tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &sourceAccount,
+		IncrementSequenceNum: true,
+		BaseFee: 200,
+		Operations:           []txnbuild.Operation{&payment},
+		Timebounds: 		  txnbuild.NewTimeout(300),
+	})
 
 	if err != nil {
 		return err
 	}
 
-	txe, err := tx.Sign(pair.Seed())
+	txe, err := tx.Sign(network.TestNetworkPassphrase, pair)
 
-	txeB64, err := txe.Base64()
+	//txeB64, err := txe.Base64()
 
-	resp, err := horizon.DefaultTestNetClient.SubmitTransaction(txeB64)
+	txTrans,err := horizonclient.DefaultTestNetClient.SubmitTransaction(txe)
 
-	_ = resp.Hash
+	_ = txTrans
 
 	return nil
 }
@@ -343,15 +426,22 @@ func SetSigners(seed string, signerSeed string) {
 		},
 	}
 
-	tx := txnbuild.Transaction{
-		SourceAccount: &clientAccount,
+	tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &clientAccount,
 		Operations:    []txnbuild.Operation{&setOptionsChangeWeights},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
+		BaseFee: 200,
+	})
+
+	if err != nil {
+		log.Print("Error creating transaction")
 	}
 
-	tx.Build()
-	tx.Sign(pair)
+	_,err = tx.Sign(network.TestNetworkPassphrase,pair)
+
+	if err != nil {
+		log.Print("Error signing transaction")
+	}
 
 	resp, err := client.SubmitTransaction(tx)
 	if err != nil {
@@ -361,7 +451,7 @@ func SetSigners(seed string, signerSeed string) {
 
 	_ = resp
 }
-func GetAccount(address string) (account horizon.Account, err error) {
+func GetAccount(address string) (account hProtocol.Account, err error) {
 
 	client := horizonclient.DefaultTestNetClient
 
@@ -380,17 +470,25 @@ func Print(t *common.PaymentTransaction) string {
 
 	internalTrans, err := txnbuild.TransactionFromXDR(t.XDR)
 
+	trans, res := internalTrans.Transaction()
+
+	if !res {
+		b.WriteString("Error unpacking transaction!")
+		return b.String()
+	}
+
+
 	if err != nil {
 		return "Err: " + err.Error()
 	}
 
-	b.WriteString("trans.srcAccount: " + internalTrans.SourceAccount.GetAccountID() + "\n")
+	b.WriteString("trans.srcAccount: " + trans.SourceAccount().AccountID + "\n")
 
-	for _, signature := range internalTrans.TxEnvelope().Signatures {
+	for _, signature := range trans.Signatures() {
 		b.WriteString("Signature [" + strconv.Itoa(signature.Signature.XDRMaxSize()) + "]")
 	}
 
-	for _, op := range internalTrans.Operations {
+	for _, op := range trans.Operations() {
 		xdrOp, _ := op.BuildXDR()
 		b.WriteString("trans.op <" + xdrOp.Body.Type.String() + ">" + "\n")
 

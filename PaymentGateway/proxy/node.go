@@ -38,6 +38,10 @@ func (n NodeProxy) ProcessCommandNoReply(context context.Context, commandType in
 	return err
 }
 
+func (n NodeProxy) GetAddress() string {
+	return n.address
+}
+
 func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody []byte) ([]byte, error) {
 	id := uuid.New().String()
 

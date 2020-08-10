@@ -1,10 +1,10 @@
 package root
 
 import (
-	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/network"
+	"github.com/stellar/go/protocols/horizon"
 	"github.com/stellar/go/txnbuild"
 	"log"
 	"strconv"
@@ -61,7 +61,7 @@ func (api *RootApi) initialize() {
 				AccountID: pair.Address()})
 		api.rootAccount = rootAccountDetail
 
-		log.Printf("Account creation performed using transaction#: %s", txSuccess.Result)
+		log.Printf("Account creation performed using transaction#: %s", txSuccess.ResultXdr)
 	}
 
 }
@@ -81,7 +81,10 @@ func (api RootApi) CreateUser(address string, seed string) error {
 		horizonclient.AccountRequest{
 			AccountID: address})
 
-	accountData, _ := horizon.DefaultTestNetClient.LoadAccount(api.fullKeyPair.Address())
+
+	accountData, _ := api.client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: api.fullKeyPair.Address()})
 
 	if err == nil {
 		return nil
@@ -123,18 +126,16 @@ func (api RootApi) CreateUser(address string, seed string) error {
 		Asset: txnbuild.NativeAsset{},
 	}
 
-	// Construct the transaction that will carry the operation
-	tx := txnbuild.Transaction{
-		SourceAccount: &accountData,
-		Operations:    []txnbuild.Operation{&createAccountOp, &setOptionsChangeWeights, &payment},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+	tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &accountData,
+		IncrementSequenceNum: true,
+		Operations:           []txnbuild.Operation{&createAccountOp, &setOptionsChangeWeights, &payment},
+		Timebounds: 		  txnbuild.NewTimeout(300),
+	})
 
 	clientKey, _ := keypair.ParseFull(seed)
 
-	tx.Build()
-	tx.Sign(&api.fullKeyPair)
+	tx.Sign(network.TestNetworkPassphrase,&api.fullKeyPair)
 
 	strTrans, er1 := tx.Base64()
 
@@ -142,15 +143,19 @@ func (api RootApi) CreateUser(address string, seed string) error {
 
 	}
 
-	clientTrans, er2 := txnbuild.TransactionFromXDR(strTrans)
+	clientTransWrapper, er2 := txnbuild.TransactionFromXDR(strTrans)
 
 	if er2 != nil {
 		log.Fatal("Cannot deserialize transaction:", er2.Error())
 	}
-	// Work around serialization bug (??): network passphrase isn't serialized
-	clientTrans.Network = network.TestNetworkPassphrase
 
-	clientTrans.Sign(clientKey)
+	clientTrans, result := clientTransWrapper.Transaction()
+
+	if !result {
+		log.Fatal("Cannot deserialize transaction (GenericTransaction):", er2.Error())
+	}
+	
+	clientTrans.Sign(network.TestNetworkPassphrase,clientKey)
 
 	resp, err := api.client.SubmitTransaction(clientTrans)
 	if err != nil {

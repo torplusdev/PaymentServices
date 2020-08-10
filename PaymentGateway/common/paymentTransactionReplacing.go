@@ -51,10 +51,16 @@ func (payload *PaymentTransactionReplacing) ToSpanAttributes(span trace.Span, tr
 
 	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".source-address"),Value: core.String(transaction.TransactionSourceAddress) })
 
-	xdrTrans, _ := txnbuild.TransactionFromXDR(transaction.XDR)
+	genericTransaction, _ := txnbuild.TransactionFromXDR(transaction.XDR)
+	xdrTrans, result := genericTransaction.Transaction()
+
+	if !result {
+		span.SetAttributes(core.KeyValue{Key: core.Key(name + ".source-address"), Value: core.String("Error unpacking Transaction from GenericTransaction")})
+		return
+	}
 
 
-	for i,op := range xdrTrans.Operations {
+	for i,op := range xdrTrans.Operations() {
 		xdrOp, _ := op.BuildXDR()
 
 		key := fmt.Sprintf("%s.xdr.op-%d-%s",name, i, xdrOp.Body.Type.String())
@@ -81,17 +87,15 @@ func (payload *PaymentTransactionReplacing) ToSpanAttributes(span trace.Span, tr
 		}
 	}
 
-	for i, signature := range xdrTrans.TxEnvelope().Signatures {
+	for i, signature := range xdrTrans.Signatures() {
 		span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.signature" + strconv.Itoa(i)),
 			Value: core.String("Signature [" + strconv.Itoa(signature.Signature.XDRMaxSize()) + "]") })
 	}
 
-	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.sourceAccount"),Value: core.String(xdrTrans.SourceAccount.GetAccountID()) })
-	xdrTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
-
-	seq,_ := xdrTrans.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.sourceAccount"),Value: core.String(xdrTrans.SourceAccount().AccountID) })
+	account := xdrTrans.SourceAccount()
+	seq,_ := account.GetSequenceNumber()
 	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.sequence"),Value: core.Int64(int64(seq)) })
-	span.SetAttributes(core.KeyValue{ Key:core.Key(name + ".xdr.network"),Value: core.String(xdrTrans.Network) })
 }
 
 func (payload *PaymentTransactionReplacing) validateSingleTransaction() error {
@@ -119,11 +123,19 @@ func (payload *PaymentTransactionReplacing) Validate() error {
 	payTrans := payload.GetPaymentTransaction()
 	refTrans := payload.GetReferenceTransaction()
 
-	payTransStellar,err := txnbuild.TransactionFromXDR(payTrans.XDR)
+	payTransStellarWrapper,err := txnbuild.TransactionFromXDR(payTrans.XDR)
 
 	if err != nil {
 		return &TransactionValidationError{Source: "PaymentTransaction",
 			Err: errors.New("validation error: couldn't deserialize payment transaction"),
+		}
+	}
+
+	payTransStellar, result := payTransStellarWrapper.Transaction()
+
+	if !result {
+		return &TransactionValidationError{Source: "PaymentTransaction",
+			Err: errors.New("validation error: couldn't deserialize payment transaction (GenericTransaction)"),
 		}
 	}
 
@@ -136,7 +148,7 @@ func (payload *PaymentTransactionReplacing) Validate() error {
 	}
 
 	if refTrans != (PaymentTransaction{}) {
-		refTransStellar,err := txnbuild.TransactionFromXDR(refTrans.XDR)
+		refTransStellarWrapper,err := txnbuild.TransactionFromXDR(refTrans.XDR)
 
 		if err != nil {
 			return &TransactionValidationError{Source: "PaymentTransaction",
@@ -144,8 +156,19 @@ func (payload *PaymentTransactionReplacing) Validate() error {
 			}
 		}
 
-		paySequenceNumber,_ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
-		refSequenceNumber,_ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+		refTransStellar,result := refTransStellarWrapper.Transaction()
+
+		if !result {
+			return &TransactionValidationError{Source: "PaymentTransaction",
+				Err: errors.New("validation error: couldn't deserialize reference transaction (GenericTransaction)"),
+			}
+		}
+
+		account := payTransStellar.SourceAccount()
+		paySequenceNumber,_ := account.GetSequenceNumber()
+
+		account = refTransStellar.SourceAccount()
+		refSequenceNumber,_ := account.GetSequenceNumber()
 
 		if paySequenceNumber != refSequenceNumber {
 			return &TransactionValidationError{Source: "TransactionPayload",

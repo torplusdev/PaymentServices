@@ -26,7 +26,7 @@ func TestMultinodePayments(t *testing.T) {
 	for i:=0; i<N;i++ {
 		kp,_ := keypair.Random()
 
-		CreateAndFundAccount(kp.Seed())
+		CreateAndFundAccount(kp.Seed(),Node)
 		nodes = append(nodes,kp.Address() )
 		seeds = append(seeds,kp.Seed() )
 

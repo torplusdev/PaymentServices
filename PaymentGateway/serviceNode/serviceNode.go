@@ -68,10 +68,14 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	utilityController := controllers.NewUtilityController(
 		localNode,
+		localNode,
+		localNode,
 		commodityManager,
 	)
 
 	gatewayController := controllers.NewGatewayController(
+		localNode,
+		localNode,
 		localNode,
 		commodityManager,
 		seed,

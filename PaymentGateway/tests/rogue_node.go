@@ -4,13 +4,12 @@ import (
 	"context"
 	"github.com/go-errors/errors"
 	"github.com/rs/xid"
-	"github.com/stellar/go/build"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
 	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/horizon"
+	"paidpiper.com/payment-gateway/node"
 )
 
 type RogueNode struct {
@@ -80,17 +79,22 @@ func createTransactionIncorrectSequence(r *RogueNode,context context.Context, to
 		return transaction,err
 	}
 
-	payTransStellar,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
-	refTransStellar,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
+	payTransStellarWrapper,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
+	payTransStellar,_ := payTransStellarWrapper.Transaction()
 
-	paySequenceNumber,_ := payTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
-	refSequenceNumber,_ := refTransStellar.SourceAccount.(*txnbuild.SimpleAccount).GetSequenceNumber()
+	refTransStellarWrapper,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
+	refTransStellar,_ := refTransStellarWrapper.Transaction()
+
+	account := payTransStellar.SourceAccount()
+	paySequenceNumber,_ := account.GetSequenceNumber()
+	account = refTransStellar.SourceAccount()
+	refSequenceNumber,_ := account.GetSequenceNumber()
 
 	if (paySequenceNumber != refSequenceNumber) {
 		panic("sequence numbers are already different, unexpected")
 	}
 
-	op := payTransStellar.Operations[0]
+	op := payTransStellar.Operations()[0]
 	xdrOp, _ := op.BuildXDR()
 	var payment *txnbuild.Payment
 
@@ -107,28 +111,53 @@ func createTransactionIncorrectSequence(r *RogueNode,context context.Context, to
 
 	}
 
-	tx, err := build.Transaction(
-		build.SourceAccount{payTransStellar.SourceAccount.GetAccountID()},
-		build.AutoSequence{common.CreateStaticSequence(uint64(refSequenceNumber + 1))},
-		build.Payment(
-			build.SourceAccount{payment.SourceAccount.GetAccountID()},
-			build.Destination{payment.Destination},
-			build.NativeAmount{payment.Amount}	),
-	)
+	sourceAccount := payTransStellar.SourceAccount()
+
+	seq,_ := payment.SourceAccount.GetSequenceNumber()
+
+	tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount: &txnbuild.SimpleAccount{
+			AccountID: sourceAccount.AccountID,
+			Sequence:  sourceAccount.Sequence,
+		},
+		BaseFee: 200,
+		Timebounds: txnbuild.NewTimeout(300),
+		Operations: []txnbuild.Operation{&txnbuild.Payment{
+			Destination: payment.Destination,
+			Amount:      payment.Amount,
+			Asset: txnbuild.CreditAsset{
+				Code:   common.PPTokenAssetName,
+				Issuer: common.PPTokenIssuerAddress,
+			},
+			SourceAccount: &txnbuild.SimpleAccount{
+				AccountID: payment.SourceAccount.GetAccountID(),
+				Sequence:  seq,
+			},
+		},
+		},
+	})
+	//	build.SourceAccount{payTransStellar.SourceAccount.GetAccountID()},
+	//	build.AutoSequence{common.CreateStaticSequence(uint64(refSequenceNumber + 1))},
+	//	build.Payment(
+	//		build.SourceAccount{payment.SourceAccount.GetAccountID()},
+	//		build.Destination{payment.Destination},
+	//		build.NativeAmount{payment.Amount}	),
+	//)
 
 	if err != nil {
 		panic("unexpected error - transaction injection")
 	}
 
-	tx.Mutate(build.TestNetwork)
+	//tx.Mutate(build.TestNetwork)
 
-	txe, err := tx.Envelope()
 
-	if err != nil {
-		panic("unexpected error - envelope")
-	}
+	//txe, err := tx.TxEnvelope()
+	//
+	//if err != nil {
+	//	panic("unexpected error - envelope")
+	//}
 
-	xdr, err := txe.Base64()
+	xdr, err := tx.Base64()
 
 	transaction.UpdateTransactionXDR(xdr)
 
@@ -142,27 +171,28 @@ func signChainTransactionsBadSignature(r *RogueNode,context context.Context, cre
 
 	kp, err := keypair.Random()
 
-	credit, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
-	credit.Network = creditTransaction.StellarNetworkToken
+	creditWrapper, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
+
+	credit, _ := creditWrapper.Transaction()
 
 	if err != nil {
 		return errors.New("Transaction deser error")
 	}
 
-	debit, err := txnbuild.TransactionFromXDR(debitTransaction.XDR)
-	debit.Network = debitTransaction.StellarNetworkToken
+	debitWrapper, err := txnbuild.TransactionFromXDR(debitTransaction.XDR)
+	debit,_ := debitWrapper.Transaction()
 
 	if err != nil {
 		return errors.New("Transaction parse error")
 	}
 
-	err = credit.Sign(kp)
+	credit,err = credit.Sign(creditTransaction.StellarNetworkToken,kp)
 
 	if err != nil {
 		return errors.New("Failed to sign transaction")
 	}
 
-	err = debit.Sign(kp)
+	debit,err = debit.Sign(debitTransaction.StellarNetworkToken, kp)
 
 	if err != nil {
 		return errors.New("Failed to sign transaction")

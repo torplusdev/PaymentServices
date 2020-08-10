@@ -77,17 +77,23 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 
 	transaction := fundingTransactionPayload.GetPaymentTransaction()
 
-	t, err := txnbuild.TransactionFromXDR(transaction.XDR)
+	transactionWrapper, err := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if err != nil {
 		return errors.Errorf("transaction parse error: %v", err)
 	}
 
-	if len(t.Operations) != 1 {
+	innerTransaction, result := transactionWrapper.Transaction()
+
+	if !result {
+		return errors.Errorf("transaction parse error (GenericTransaction) ")
+	}
+
+	if len(innerTransaction.Operations()) != 1 {
 		return errors.Errorf("Transaction shall have only a single payment operation")
 	}
 
-	op, ok := t.Operations[0].(*txnbuild.Payment)
+	op, ok := innerTransaction.Operations()[0].(*txnbuild.Payment)
 
 	if !ok {
 		return errors.Errorf("Error in payment operation format")
@@ -107,15 +113,15 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 		return errors.Errorf("Transaction amount is incorrect")
 	}
 
-	t.Network = transaction.StellarNetworkToken
 
-	err = t.Sign(client.fullKeyPair)
+
+	resultTransaction,err := innerTransaction.Sign(transaction.StellarNetworkToken, client.fullKeyPair)
 
 	if err != nil {
 		return errors.Errorf("Failed to sign transaction")
 	}
 
-	xdr, err := t.Base64()
+	xdr, err := resultTransaction.Base64()
 
 	if err != nil {
 		return errors.Errorf("Error converting transaction to binary xdr: %v", err)
@@ -274,7 +280,12 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 		creditTransaction := t
 
-		stepNode.SignChainTransactions(ctx, creditTransaction, debitTransaction)
+		err  = stepNode.SignChainTransactions(ctx, creditTransaction, debitTransaction)
+
+		if err != nil {
+			log.Print("Error signing transaction ( node " + t.GetPaymentDestinationAddress() + ") : " + err.Error())
+			return nil, errors.Errorf("Error signing transaction (%v): %w", debitTransaction, err)
+		}
 
 		debitTransaction = creditTransaction
 	}

@@ -483,6 +483,11 @@ func (n *Node) GetTransactions() []common.PaymentTransaction {
 	return n.paymentRegistry.getActiveTransactions()
 }
 
+func (n *Node) GetTransaction(sessionId string) common.PaymentTransaction {
+
+	return n.paymentRegistry.getTransactionBySessionId(sessionId)
+}
+
 func (n *Node) FlushTransactions(context context.Context) (map[string]interface{}, error) {
 
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.Address)

@@ -93,6 +93,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	router.HandleFunc("/api/utility/validatePayment", utilityController.ValidatePayment).Methods("POST")
 	router.HandleFunc("/api/utility/transactions/flush", utilityController.FlushTransactions).Methods("GET")
 	router.HandleFunc("/api/utility/transactions", utilityController.ListTransactions).Methods("GET")
+	router.HandleFunc("/api/utility/transaction/{sessionId}", utilityController.GetTransaction).Methods("GET")
 	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
 	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
 	router.HandleFunc("/api/gateway/processResponse", gatewayController.ProcessResponse).Methods("POST")

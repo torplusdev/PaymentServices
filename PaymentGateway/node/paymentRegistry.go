@@ -77,6 +77,13 @@ func (r * paymentRegistry) getEntryByAddress(sourceAddress string) *paymentRegis
 	return r.entriesBySourceAddress[sourceAddress]
 }
 
+func (r * paymentRegistry) getTransactionBySessionId(sessionId string) common.PaymentTransaction {
+	r.registryMutex.Lock()
+	defer r.registryMutex.Unlock()
+
+	return r.paidTransactionsBySessionId[sessionId]
+}
+
 func (r *paymentRegistry) AddServiceUsage(sourceAddress string, amount common.TransactionAmount) {
 	entry := r.getEntryByAddress(sourceAddress)
 

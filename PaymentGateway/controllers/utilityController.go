@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/trace"
@@ -270,6 +271,18 @@ func (u *UtilityController) ListTransactions(w http.ResponseWriter, r *http.Requ
 	defer span.End()
 
 	trx := u.node.GetTransactions()
+
+	Respond(w, trx)
+}
+
+func (u *UtilityController) GetTransaction(w http.ResponseWriter, r *http.Request) {
+	_, span := spanFromRequest(r, "requesthandler:GetTransaction")
+	defer span.End()
+
+	vars := mux.Vars(r)
+	sessionId := vars["sessionId"]
+
+	trx := u.node.GetTransaction(sessionId)
 
 	Respond(w, trx)
 }

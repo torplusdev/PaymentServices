@@ -1,20 +1,20 @@
 package root
 
 import (
+	"os"
+	"testing"
+
 	"github.com/stellar/go/build"
 	"github.com/stellar/go/clients/horizon"
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stretchr/testify/assert"
-	"os"
 	testutils "paidpiper.com/payment-gateway/tests"
-	"testing"
 )
 
 const gw1Seed = "SBZIQ67KEAM3T5M6VQBVKAPBXCL5GMIEPYSJZHDRVDBMQRUYLQGWRJWO"
 const user1Seed = "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 const service1Seed = "SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"
-
 
 func setup() {
 	testutils.CreateAndFundAccount(gw1Seed)
@@ -35,13 +35,13 @@ func TestMain(m *testing.M) {
 
 func TestUserAccountCreation(t *testing.T) {
 	assert := assert.New(t)
-	k,_ := keypair.Random()
+	k, _ := keypair.Random()
 
 	rootApi := CreateRootApi(true)
 
 	/**** *User Creation ***/
 
-	rootApi.CreateUser(k.Address(),k.Seed())
+	rootApi.CreateUser(k.Address(), k.Seed())
 
 	rootAccountDetail, errAccount := testutils.GetAccount(k.Address())
 
@@ -49,12 +49,12 @@ func TestUserAccountCreation(t *testing.T) {
 		t.Errorf("Account should exist")
 	}
 
-	if rootAccountDetail.AccountID !=  k.Address() {
+	if rootAccountDetail.AccountID != k.Address() {
 		t.Errorf("Account should have correct address")
 	}
 
 	/**** *User cannot perform payment with only his signature ***/
-	destination,_ := keypair.Parse(gw1Seed)
+	destination, _ := keypair.Parse(gw1Seed)
 
 	tx, err := build.Transaction(
 		build.TestNetwork,
@@ -68,13 +68,15 @@ func TestUserAccountCreation(t *testing.T) {
 
 	assert.Nil(err)
 
-	txe,err := (tx.Sign(k.Seed()));  assert.Nil(err)
+	txe, err := (tx.Sign(k.Seed()))
+	assert.Nil(err)
 
-	txStr,err := txe.Base64(); 	assert.Nil(err)
+	txStr, err := txe.Base64()
+	assert.Nil(err)
 
 	_, err = horizonclient.DefaultTestNetClient.SubmitTransactionXDR(txStr)
-	for k,v := range err.(*horizonclient.Error).Problem.Extras["result_codes"].(map[string]interface{}) {
-		assert.True(k == "transaction" && v == "tx_bad_auth","User signature is insufficient for executing payment orders")
+	for k, v := range err.(*horizonclient.Error).Problem.Extras["result_codes"].(map[string]interface{}) {
+		assert.True(k == "transaction" && v == "tx_bad_auth", "User signature is insufficient for executing payment orders")
 	}
 
 	/**** *Root can perform payment with only his signature ***/
@@ -92,9 +94,11 @@ func TestUserAccountCreation(t *testing.T) {
 	assert.Nil(err)
 
 	//TODO: Remove explicit root seed
-	txe,err = (tx.Sign("SAVD5NOJUVUJJIRFMPWSVIP4S6PXSEWAYWAG4WOALSSLKLVONW4YL3VT"));  assert.Nil(err)
+	txe, err = (tx.Sign("SAVD5NOJUVUJJIRFMPWSVIP4S6PXSEWAYWAG4WOALSSLKLVONW4YL3VT"))
+	assert.Nil(err)
 
-	txStr,err = txe.Base64(); 	assert.Nil(err)
+	txStr, err = txe.Base64()
+	assert.Nil(err)
 
 	_, err = horizonclient.DefaultTestNetClient.SubmitTransactionXDR(txStr)
 	assert.Nil(err)

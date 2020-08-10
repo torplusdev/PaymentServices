@@ -1,0 +1,11 @@
+[Unit]
+Description=PaidPiper payment gateway service
+
+[Service]
+User=edikk202
+WorkingDirectory=/opt/paidpiper/PaymentServices/PaymentGateway
+ExecStart=/opt/paidpiper/PaymentServices/PaymentGateway/service.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

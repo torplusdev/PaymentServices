@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/rs/xid v1.2.1
-	github.com/stellar/go v0.0.0-20200804130752-fdc4eca4f6ce
+	github.com/stellar/go v0.0.0-20200306220739-bfc713ce1dad
 	github.com/stretchr/testify v1.5.1
 	github.com/wI2L/jettison v0.7.1
 	go.opentelemetry.io/otel v0.4.2

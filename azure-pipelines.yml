@@ -9,13 +9,13 @@ trigger:
 pool:
   name: 'Ubuntu_Pool'
 
-variables:
-  GO_INSTALL: '/usr/lib/go-1.12'
+#variables:
+#  GO_INSTALL: '/usr/lib/go-1.12'
 
 steps:
-- script: |
-    echo '##vso[task.setvariable variable=path]$(PATH):$(GO_INSTALL)/bin'
-  displayName: 'Setting Go installation'
+#- script: |
+#    echo '##vso[task.setvariable variable=path]$(PATH):$(GO_INSTALL)/bin'
+#  displayName: 'Setting Go installation'
   
 - script: |
     go version

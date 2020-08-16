@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	. "net/http"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/gorilla/mux"
@@ -16,7 +17,7 @@ import (
 	"paidpiper.com/payment-gateway/root"
 )
 
-func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool) (*Server, error) {
+func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool, autoFlushDuration time.Duration) (*Server, error) {
 	tracer := common.CreateTracer("paidpiper/serviceNode")
 
 	_, span := tracer.Start(context.Background(), "serviceNode-initialization")
@@ -31,7 +32,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	horizon := horizon.NewHorizon()
 
-	localNode := node.CreateNode(horizon, seed.Address(), seed.Seed(), true)
+	localNode := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration)
 
 	priceList := make(map[string]map[string]commodity.Descriptor)
 

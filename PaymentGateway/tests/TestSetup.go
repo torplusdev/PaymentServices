@@ -45,7 +45,7 @@ func (setup *TestSetup) Shutdown() {
 
 func (setup *TestSetup) startNode(seed string, nodePort int) {
 	// TODO: eliminate cycle references
-	 srv, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false)
+	 srv, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, 1*time.Minute)
 
 	 if err != nil {
 	 	log.Fatal("Coudn't start node")

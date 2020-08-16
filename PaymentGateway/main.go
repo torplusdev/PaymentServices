@@ -17,6 +17,7 @@ func main() {
 
 	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 	//port := 28080
+	autoFlushPeriod := 15*time.Minute
 
 	runtime.GOMAXPROCS(10)
 	runtime.NumGoroutine()
@@ -30,7 +31,7 @@ func main() {
 	// Set up signal channel
 	stop := make(chan os.Signal, 1)
 
-	server, err := serviceNode.StartServiceNode(s, numericPort, "http://localhost:5900", true)
+	server, err := serviceNode.StartServiceNode(s, numericPort, "http://localhost:5900", true, autoFlushPeriod)
 
 	if err != nil {
 		log.Panicf("Error starting serviceNode: %v", err.Error())

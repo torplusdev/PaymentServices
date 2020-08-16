@@ -36,9 +36,11 @@ type Node struct {
 	paymentRegistry              paymentRegistry
 	//pendingPayment               map[string]serviceUsageCredit
 	//activeTransactions           map[string]common.PaymentTransaction
-	tracer         trace.Tracer
-	lastSequenceId xdr.SequenceNumber
-	mux            sync.Mutex
+	tracer         			trace.Tracer
+	lastSequenceId 			xdr.SequenceNumber
+	autoFlushPeriod 		time.Duration
+	sequenceMux            	sync.Mutex
+	flushMux			   	sync.Mutex
 }
 
 type PPNode interface {
@@ -60,7 +62,7 @@ type PPPaymentRequestProvider interface {
 	CreatePaymentRequest(context context.Context, amount common.TransactionAmount, asset string, serviceType string) (common.PaymentRequest, error)
 }
 
-func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool) *Node {
+func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration) *Node {
 	node := Node{
 		Address:         address,
 		secretSeed:      seed,
@@ -71,7 +73,25 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 		//activeTransactions:           make(map[string]common.PaymentTransaction),
 		accumulatingTransactionsMode: accumulateTransactions,
 		tracer:                       common.CreateTracer("node"),
+		autoFlushPeriod: autoFlushPeriodSeconds,
+		flushMux: sync.Mutex{},
+		sequenceMux: sync.Mutex{},
 	}
+
+	go func() {
+		if (node.autoFlushPeriod > 0) {
+			for now := range time.Tick(node.autoFlushPeriod) {
+				log.Debugf("Node %s autoflush tick: %s",address,now.String())
+				_,err := node.FlushTransactions(context.Background())
+
+				if err != nil {
+					log.Errorf("Error during autoflush of node %s: %s",err.Error())
+				}
+			}
+		} else {
+			log.Debug("Node %s: autoflush disabled.")
+		}
+	}()
 
 	return &node
 }
@@ -181,10 +201,10 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 
 	// If this is the first transaction for the node+client pair and there's no reference transaction
 	if transactionPayload.GetReferenceTransaction() == (common.PaymentTransaction{}) {
-		n.mux.Lock()
+		n.sequenceMux.Lock()
+		defer n.sequenceMux.Unlock()
 		sequenceProvider = int64(n.lastSequenceId) // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
 		n.lastSequenceId = n.lastSequenceId + 1
-		n.mux.Unlock()
 	} else {
 		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
 
@@ -565,10 +585,14 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.Address)
 	defer span.End()
 
+
 	resultsMap := make(map[string]interface{})
 
 	//TODO Sort transaction by sequence number and make sure to submit them only in sequence number order
 	transactions := n.paymentRegistry.getActiveTransactions()
+
+	n.flushMux.Lock()
+	defer n.flushMux.Unlock()
 
 	sort.Slice(transactions, func(i, j int) bool {
 		transiWrapper, erri := txnbuild.TransactionFromXDR(transactions[i].XDR)

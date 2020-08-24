@@ -6,6 +6,7 @@ User=edikk202
 WorkingDirectory=/opt/paidpiper/PaymentServices/PaymentGateway
 ExecStart=/opt/paidpiper/PaymentServices/PaymentGateway/service.sh
 Restart=always
+LimitCORE=infinity
 
 [Install]
 WantedBy=multi-user.target

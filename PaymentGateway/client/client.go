@@ -44,10 +44,10 @@ func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager,
 		return nil,errors.Errorf("Error in client keypair initialization: %s ", err.Error())
 	}
 
-	gwAccountDetail, err := apiClient.AccountDetail(
+	gwAccountDetail, errAccount := apiClient.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: pair.Address()})
-]
+
 	if errAccount != nil {
 		return nil,errors.Errorf("Client account doesnt exist: %s ", err.Error())
 	} else {
@@ -114,7 +114,6 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 		return errors.Errorf("Transaction amount is incorrect: expected %d, received %d",amount,expectedAmount)
 	}
 
-	resultTransaction, err := innerTransaction.Sign(transaction.StellarNetworkToken, client.fullKeyPair)
 	resultTransaction, err := innerTransaction.Sign(transaction.StellarNetworkToken, client.fullKeyPair)
 
 	if err != nil {
@@ -220,7 +219,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		var sourceAddress = route[i+1].Address
 		stepNode := client.nodeManager.GetNodeByAddress(e.Address)
 
-		if (stepNode != nil) {
+		if (stepNode == nil) {
 			return nil, errors.Errorf("Error: couldn't find a node with address %s", e.Address)
 		}
 
@@ -264,7 +263,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
 
-	if (serviceNode != nil) {
+	if (serviceNode == nil) {
 		return nil, errors.Errorf("Error: couldn't find a service node with address %s", route[0].Address)
 	}
 
@@ -282,7 +281,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 
-		if (stepNode != nil) {
+		if (stepNode == nil) {
 			return nil, errors.Errorf("Error: couldn't find a chain step node with address %s", t.GetPaymentDestinationAddress())
 		}
 

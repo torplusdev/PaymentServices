@@ -322,9 +322,6 @@ func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Req
 }
 
 func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Request) {
-
-	log.Print("Process command call")
-
 	ctx, span := spanFromRequest(r, "requesthandler:ProcessCommand")
 	defer span.End()
 

@@ -53,6 +53,8 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 		CommandBody: commandBody,
 	}
 
+	log.Printf("Process command SessionId=%s, NodeId=%s, CommandId=%s CommandType:%d", n.sessionId, n.nodeId, id, commandType)
+
 	jsonValue, _ := json.Marshal(command)
 
 	ch := n.openCommandChannel(id)
@@ -63,6 +65,8 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 	defer res.Body.Close()
 
 	if err != nil {
+		log.Fatal(err)
+
 		return nil, err
 	}
 
@@ -70,6 +74,10 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 
 	if err == nil && len(bodyBytes) > 0 {
 		return bodyBytes, nil
+	}
+
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// Wait

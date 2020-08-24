@@ -31,7 +31,7 @@ type GatewayController struct {
 	requestNodeManager map[string]*proxy.NodeManager
 }
 
-func NewGatewayController(node node.PPNode,tm node.PPTransactionManager, rp node.PPPaymentRequestProvider, commodityManager *commodity.Manager, seed *keypair.Full, rootApi *root.RootApi, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
+func NewGatewayController(node node.PPNode, tm node.PPTransactionManager, rp node.PPPaymentRequestProvider, commodityManager *commodity.Manager, seed *keypair.Full, rootApi *root.RootApi, torCommandUrl string, torRouteUrl string, asyncMode bool) *GatewayController {
 	manager := &GatewayController{
 		node,
 		tm,
@@ -141,7 +141,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	nodeStatusCallbackUrl := ""
 
 	if request.Route == nil {
-		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl + paymentRequest.ServiceSessionId)
+		resp, err := common.HttpGetWithContext(ctx, g.torRouteUrl+paymentRequest.ServiceSessionId)
 
 		if err != nil {
 			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Cant get payment route"))
@@ -200,7 +200,13 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	go func(pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
 		r := routing.CreatePaymentRouterStubFromAddresses(addr)
 
-		c := client.CreateClient(g.rootApi, g.seed.Seed(), nodeManager, g.commodityManager)
+		c,err := client.CreateClient(g.rootApi, g.seed.Seed(), nodeManager, g.commodityManager)
+
+		if err != nil {
+			if !g.asyncMode {
+				future <- MessageWithStatus(http.StatusBadRequest, "Client creation failed")
+			}
+		}
 
 		if g.asyncMode {
 			future <- MessageWithData(http.StatusCreated, &models.ProcessPaymentAccepted{
@@ -220,13 +226,16 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 			g.DeleteNodeManager(pr.ServiceSessionId)
 
+			log.Printf("Payment failed SessionId=%s", pr.ServiceSessionId)
+			log.Print(err)
+
 			return
 		}
 
 		// Verify
 		ok, err := c.VerifyTransactions(ctx, r, pr, transactions)
 
-		if !ok {
+		if !ok || err != nil {
 			if !g.asyncMode {
 				future <- MessageWithStatus(http.StatusBadRequest, "Verification failed")
 			}
@@ -235,20 +244,26 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 			g.DeleteNodeManager(pr.ServiceSessionId)
 
+			log.Printf("Payment failed SessionId=%s", pr.ServiceSessionId)
+			log.Print(err)
+
 			return
 		}
 
 		// Commit
 		ok, err = c.FinalizePayment(ctx, r, transactions, pr)
 
-		if !ok {
+		if !ok || err != nil {
 			if !g.asyncMode {
 				future <- MessageWithStatus(http.StatusBadRequest, "Finalize failed")
 			}
 
-			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, nodeStatusCallbackUrl,0)
+			g.SendPaymentCallback(pr.ServiceSessionId, request.StatusCallbackUrl, nodeStatusCallbackUrl, 0)
 
 			g.DeleteNodeManager(pr.ServiceSessionId)
+
+			log.Printf("Payment failed SessionId=%s", pr.ServiceSessionId)
+			log.Print(err)
 
 			return
 		}
@@ -261,7 +276,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 		g.DeleteNodeManager(pr.ServiceSessionId)
 
-		log.Print("Payment completed")
+		log.Printf("Payment completed SessionId=%s", pr.ServiceSessionId)
 	}(*paymentRequest, future)
 
 	Respond(w, future)

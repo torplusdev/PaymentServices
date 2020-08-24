@@ -200,7 +200,13 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 	go func(pr common.PaymentRequest, responseChannel chan<- ResponseMessage) {
 		r := routing.CreatePaymentRouterStubFromAddresses(addr)
 
-		c := client.CreateClient(g.rootApi, g.seed.Seed(), nodeManager, g.commodityManager)
+		c,err := client.CreateClient(g.rootApi, g.seed.Seed(), nodeManager, g.commodityManager)
+
+		if err != nil {
+			if !g.asyncMode {
+				future <- MessageWithStatus(http.StatusBadRequest, "Client creation failed")
+			}
+		}
 
 		if g.asyncMode {
 			future <- MessageWithData(http.StatusCreated, &models.ProcessPaymentAccepted{

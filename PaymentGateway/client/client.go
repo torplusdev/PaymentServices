@@ -28,7 +28,7 @@ type Client struct {
 	tracer           trace.Tracer
 }
 
-func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager, commodityManager *commodity.Manager) *Client {
+func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager, commodityManager *commodity.Manager) (*Client,error) {
 
 	client := Client{
 		nodeManager:      nm,
@@ -41,7 +41,7 @@ func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager,
 	pair, err := keypair.ParseFull(clientSeed)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil,errors.Errorf("Error in client keypair initialization: %s ", err.Error())
 	}
 
 	gwAccountDetail, errAccount := apiClient.AccountDetail(
@@ -49,14 +49,14 @@ func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager,
 			AccountID: pair.Address()})
 
 	if errAccount != nil {
-		log.Fatal("Client account doesnt exist")
+		return nil,errors.Errorf("Client account doesnt exist: %s ", err.Error())
 	} else {
 		client.client = apiClient
 		client.fullKeyPair = pair
 		client.account = gwAccountDetail
 	}
 
-	return &client
+	return &client,nil
 }
 
 func reverseAny(s interface{}) {
@@ -111,10 +111,8 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 	expectedAmount = expectedAmount + fundingTransactionPayload.ReferenceTransaction.ReferenceAmountIn
 
 	if err != nil || amount != uint64(expectedAmount) {
-		return errors.Errorf("Transaction amount is incorrect")
+		return errors.Errorf("Transaction amount is incorrect: expected %d, received %d",amount,expectedAmount)
 	}
-
-
 
 	resultTransaction,err := innerTransaction.Sign(transaction.StellarNetworkToken, client.fullKeyPair)
 
@@ -148,15 +146,13 @@ func (client *Client) VerifyTransactions(context context.Context, router common.
 		e := t.Validate()
 
 		if e != nil {
-			log.Print("Error validating transaction: " + e.Error())
-			return false, e
+			return false, errors.Errorf("Error validating transaction: %s", e.Error())
 		}
 
 		trans, e := txnbuild.TransactionFromXDR(t.GetPaymentTransaction().XDR)
 
 		if e != nil {
-			log.Print("Error deserializing xdr: " + e.Error())
-			return false, e
+			return false, errors.Errorf("Error deserializing xdr: %s", e.Error())
 		}
 		_ = trans
 	}
@@ -176,13 +172,11 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 	//validate route extremities
 	if strings.Compare(route[0].Address, client.fullKeyPair.Address()) != 0 {
-		log.Print("Bad routing: Incorrect starting address ", route[0].Address, " != ", client.fullKeyPair.Address())
-		return nil, errors.New("Incorrect starting address")
+		return nil, errors.Errorf("Bad routing: Incorrect starting address %s != %s", route[0].Address, client.fullKeyPair.Address())
 	}
 
 	if strings.Compare(route[len(route)-1].Address, paymentRequest.Address) != 0 {
-		log.Print("Bad routing: Incorrect destination address")
-		return nil, errors.New("Incorrect destination address")
+		return nil, errors.Errorf("Incorrect destination address, %s != %s",route[len(route)-1].Address, paymentRequest.Address)
 	}
 
 	// TODO: Move out to external validation sequence
@@ -225,6 +219,10 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		var sourceAddress = route[i+1].Address
 		stepNode := client.nodeManager.GetNodeByAddress(e.Address)
 
+		if (stepNode != nil) {
+			return nil, errors.Errorf("Error: couldn't find a node with address %s", e.Address)
+		}
+
 		var transactionFee = e.Fee
 
 		// We don't let service node to have transaction fees
@@ -236,7 +234,6 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		nodeTransaction, err := stepNode.CreateTransaction(ctx, paymentRequest.Amount+totalFee+transactionFee, transactionFee, paymentRequest.Amount+totalFee, sourceAddress, paymentRequest.ServiceSessionId)
 
 		if err != nil {
-			log.Print("Error creating transaction for node " + sourceAddress + " : " + err.Error())
 			return nil, errors.Errorf("Error creating transaction for node %v: %v", sourceAddress, err)
 		}
 
@@ -256,7 +253,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	for _, t := range transactions {
 		log.Printf("Transaction detail: %s ==> %s", t.PendingTransaction.PaymentSourceAddress, t.PendingTransaction.PaymentDestinationAddress)
 		if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
-			log.Print("Error")
+			return nil, errors.Errorf("Error invalid transaction chain, address targets itself %s.", t.PendingTransaction.PaymentSourceAddress)
 		}
 	}
 
@@ -265,6 +262,10 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 	// Signing terminal transaction
 	serviceNode := client.nodeManager.GetNodeByAddress(route[0].Address)
+
+	if (serviceNode != nil) {
+		return nil, errors.Errorf("Error: couldn't find a service node with address %s", route[0].Address)
+	}
 
 	err := serviceNode.SignTerminalTransactions(ctx, debitTransaction)
 
@@ -279,6 +280,11 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		t := &transactions[idx]
 
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
+
+		if (stepNode != nil) {
+			return nil, errors.Errorf("Error: couldn't find a chain step node with address %s", t.GetPaymentDestinationAddress())
+		}
+
 		creditTransaction := t
 
 		err  = stepNode.SignChainTransactions(ctx, creditTransaction, debitTransaction)
@@ -293,7 +299,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 	for _, t := range transactions {
 		if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
-			log.Print("Error")
+			return nil, errors.Errorf("Error invalid transaction chain, address targets itself %s.", t.PendingTransaction.PaymentSourceAddress)
 		}
 	}
 
@@ -302,14 +308,6 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	if err != nil {
 		log.Print("Error in transaction: " + err.Error())
 		return nil, errors.New("Error signing initial transaction has insufficient account balance")
-	}
-
-	// At this point all transactions are signed by all parties
-
-	for _, t := range transactions {
-		if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
-			log.Print("Error")
-		}
 	}
 
 	return transactions, nil
@@ -336,6 +334,10 @@ func (client *Client) FinalizePayment(context context.Context, router common.Pay
 
 		stepNode := client.nodeManager.GetNodeByAddress(paymentNode.Address)
 
+		if stepNode == nil {
+			return false, errors.Errorf("Finalize: couldn't find node with address %s.", paymentNode.Address)
+		}
+
 		var res = false
 
 		// If this is a payment to the requesting node
@@ -346,7 +348,6 @@ func (client *Client) FinalizePayment(context context.Context, router common.Pay
 		}
 
 		if err != nil {
-			log.Print("Error committing transaction: " + err.Error())
 			return false, errors.Errorf("Error committing transaction %s", err.Error())
 		}
 

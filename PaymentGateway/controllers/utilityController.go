@@ -6,12 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"log"
-	"net/http"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/httptrace"
+	"log"
+	"net/http"
 	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
@@ -19,18 +19,18 @@ import (
 )
 
 type UtilityController struct {
-	node             node.PPNode
+	node               node.PPNode
 	transactionManager node.PPTransactionManager
-	requestProvider node.PPPaymentRequestProvider
-	commodityManager *commodity.Manager
+	requestProvider    node.PPPaymentRequestProvider
+	commodityManager   *commodity.Manager
 }
 
 func NewUtilityController(node node.PPNode, tm node.PPTransactionManager, rp node.PPPaymentRequestProvider, commodityManager *commodity.Manager) *UtilityController {
 	return &UtilityController{
-		node:             node,
-		commodityManager: commodityManager,
+		node:               node,
+		commodityManager:   commodityManager,
 		transactionManager: tm,
-		requestProvider: rp,
+		requestProvider:    rp,
 	}
 }
 
@@ -323,6 +323,8 @@ func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Req
 
 func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Request) {
 
+	log.Print("Process command call")
+
 	ctx, span := spanFromRequest(r, "requesthandler:ProcessCommand")
 	defer span.End()
 
@@ -330,6 +332,8 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {
+		log.Fatal(err)
+
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
@@ -369,6 +373,7 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 
 			if err != nil {
 				log.Printf("Command response marshal failed: %s", err.Error())
+				log.Fatal(err)
 
 				return
 			}
@@ -386,6 +391,8 @@ func (u *UtilityController) ProcessCommand(w http.ResponseWriter, r *http.Reques
 
 			if err != nil {
 				log.Printf("Callback url execution failed: : %s", err.Error())
+				log.Fatal(err)
+
 				future <- MessageWithStatus(http.StatusConflict, err.Error())
 
 				return

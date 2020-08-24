@@ -53,6 +53,8 @@ func (n NodeProxy) ProcessCommand(context context.Context, commandType int, comm
 		CommandBody: commandBody,
 	}
 
+	log.Printf("Process command SessionId=%s, NodeId=%s, CommandId=%s CommandType:%d", n.sessionId, n.nodeId, id, commandType)
+
 	jsonValue, _ := json.Marshal(command)
 
 	ch := n.openCommandChannel(id)

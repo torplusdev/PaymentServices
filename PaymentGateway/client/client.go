@@ -44,12 +44,13 @@ func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager,
 		log.Fatal(err)
 	}
 
-	gwAccountDetail, errAccount := apiClient.AccountDetail(
+	gwAccountDetail, err := apiClient.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: pair.Address()})
 
-	if errAccount != nil {
-		log.Fatal("Client account doesnt exist")
+	if err != nil {
+		log.Fatalf("Client account doesnt exist %s", pair.Address())
+		log.Fatal(err)
 	} else {
 		client.client = apiClient
 		client.fullKeyPair = pair
@@ -114,9 +115,7 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 		return errors.Errorf("Transaction amount is incorrect")
 	}
 
-
-
-	resultTransaction,err := innerTransaction.Sign(transaction.StellarNetworkToken, client.fullKeyPair)
+	resultTransaction, err := innerTransaction.Sign(transaction.StellarNetworkToken, client.fullKeyPair)
 
 	if err != nil {
 		return errors.Errorf("Failed to sign transaction")
@@ -281,7 +280,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 		creditTransaction := t
 
-		err  = stepNode.SignChainTransactions(ctx, creditTransaction, debitTransaction)
+		err = stepNode.SignChainTransactions(ctx, creditTransaction, debitTransaction)
 
 		if err != nil {
 			log.Print("Error signing transaction ( node " + t.GetPaymentDestinationAddress() + ") : " + err.Error())

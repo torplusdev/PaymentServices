@@ -3,9 +3,11 @@ package serviceNode
 import (
 	"context"
 	"fmt"
+	"log"
 	. "net/http"
 
 	"github.com/golang/glog"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/stellar/go/keypair"
 	"paidpiper.com/payment-gateway/commodity"
@@ -94,19 +96,19 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/api/utility/createPaymentInfo", utilityController.CreatePaymentInfo).Methods("POST")
-	router.HandleFunc("/api/utility/validatePayment", utilityController.ValidatePayment).Methods("POST")
-	router.HandleFunc("/api/utility/transactions/flush", utilityController.FlushTransactions).Methods("GET")
-	router.HandleFunc("/api/utility/transactions", utilityController.ListTransactions).Methods("GET")
-	router.HandleFunc("/api/utility/transaction/{sessionId}", utilityController.GetTransaction).Methods("GET")
-	router.HandleFunc("/api/utility/stellarAddress", utilityController.GetStellarAddress).Methods("GET")
-	router.HandleFunc("/api/utility/processCommand", utilityController.ProcessCommand).Methods("POST")
-	router.HandleFunc("/api/gateway/processResponse", gatewayController.ProcessResponse).Methods("POST")
-	router.HandleFunc("/api/gateway/processPayment", gatewayController.ProcessPayment).Methods("POST")
+	router.Handle("/api/utility/createPaymentInfo", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.CreatePaymentInfo))).Methods("POST")
+	router.Handle("/api/utility/validatePayment", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ValidatePayment))).Methods("POST")
+	router.Handle("/api/utility/transactions/flush", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.FlushTransactions))).Methods("GET")
+	router.Handle("/api/utility/transactions", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ListTransactions))).Methods("GET")
+	router.Handle("/api/utility/transaction/{sessionId}", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetTransaction))).Methods("GET")
+	router.Handle("/api/utility/stellarAddress", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetStellarAddress))).Methods("GET")
+	router.Handle("/api/utility/processCommand", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ProcessCommand))).Methods("POST")
+	router.Handle("/api/gateway/processResponse", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessResponse))).Methods("POST")
+	router.Handle("/api/gateway/processPayment", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessPayment))).Methods("POST")
 
 	server := &Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: router,
+		Handler: handlers.RecoveryHandler()(router),
 	}
 
 	server.SetKeepAlivesEnabled(false)

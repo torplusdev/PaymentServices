@@ -180,31 +180,31 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	}
 
 	// TODO: Move out to external validation sequence
-	/*
-		accountDetail, errAccount := client.client.AccountDetail(
-			horizonclient.AccountRequest{
-				AccountID:client.fullKeyPair.Address() })
 
-		if errAccount != nil {
-			log.Print("Error retrieving account data: ", errAccount.Error())
-			return nil,errors.Errorf("Account validation error","")
-		}
+	accountDetail, errAccount := client.client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID:client.fullKeyPair.Address() })
+
+	if errAccount != nil {
+		log.Print("Error retrieving account data: ", errAccount.Error())
+		return nil,errors.Errorf("Account validation error","")
+	}
 
 
-		balance := accountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
+	balance := accountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
 
-		numericBalance, err := strconv.ParseFloat(balance,32)
+	numericBalance, err := strconv.ParseFloat(balance,32)
 
-		if err != nil {
-			log.Print("Error parsing account balance: ", err.Error())
-			return nil, errors.Errorf("Account balance parse error","")
-		}
+	if err != nil {
+		log.Print("Error parsing account balance: ", err.Error())
+		return nil, errors.Errorf("Account balance parse error","")
+	}
 
-		if paymentRequest.Amount > uint32(numericBalance) {
-			log.Print("Insufficient client balance: ")
-			return nil, errors.Errorf("Client has insufficient account balance","")
-		}
-	*/
+	if paymentRequest.Amount > uint32(numericBalance) {
+		log.Print("Insufficient client balance: ")
+		return nil, errors.Errorf("Client has insufficient account balance","")
+	}
+
 
 	var totalFee common.TransactionAmount = 0
 
@@ -267,7 +267,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		return nil, errors.Errorf("Error: couldn't find a service node with address %s", route[0].Address)
 	}
 
-	err := serviceNode.SignTerminalTransactions(ctx, debitTransaction)
+	err = serviceNode.SignTerminalTransactions(ctx, debitTransaction)
 
 	if err != nil {
 		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())

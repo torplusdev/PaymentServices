@@ -63,6 +63,9 @@ type PPPaymentRequestProvider interface {
 }
 
 func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration) *Node {
+
+	log.SetLevel(log.InfoLevel)
+
 	node := Node{
 		Address:         address,
 		secretSeed:      seed,
@@ -155,6 +158,8 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	span.SetAttributes(core.KeyValue{Key: "payment.amount-in", Value: core.Uint32(totalIn)})
 	span.SetAttributes(core.KeyValue{Key: "payment.amount-out", Value: core.Uint32(totalOut)})
 
+	log.Infof("CreateTransaction: %s => %s (%d/%d) ",sourceAddress,n.Address,totalIn,totalOut)
+
 	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction{
 		TransactionSourceAddress:  n.Address,
 		ReferenceAmountIn:         totalIn,
@@ -182,14 +187,17 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		return common.PaymentTransactionReplacing{}, errors.Errorf("Error getting source account data: %s", err.Error())
 	}
 
-
-
 	// Uninitialized
 	if n.lastSequenceId == 0 {
-
 		account, err := n.horizon.GetAccount(n.Address)
 
+		if err != nil {
+			return common.PaymentTransactionReplacing{}, errors.Errorf("Error getting horizon account: %s", err.Error())
+		}
+
 		seq, err := account.GetSequenceNumber()
+
+		log.Infof("Sequence number initialization: %d",seq)
 		//seq,err := n.horizon.GetAccount(n.Address).SequenceForAccount(n.Address)
 
 		if err != nil {
@@ -203,6 +211,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	if transactionPayload.GetReferenceTransaction() == (common.PaymentTransaction{}) {
 		n.sequenceMux.Lock()
 		defer n.sequenceMux.Unlock()
+		log.Infof("No reference transaction, assigning id %d and promoting",n.lastSequenceId)
 		sequenceProvider = int64(n.lastSequenceId) // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
 		n.lastSequenceId = n.lastSequenceId + 1
 	} else {
@@ -223,6 +232,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		referenceSequenceNumber, err := account.GetSequenceNumber()
 
 		sequenceProvider = referenceSequenceNumber-1 //build.AutoSequence{common.CreateStaticSequence(uint64(referenceSequenceNumber - 1))}
+		log.Infof("Reference transaction found, assigning id %d",sequenceProvider)
 	}
 
 	tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
@@ -280,7 +290,6 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	//}
 
 	xdr,err := tx.Base64()
-
 
 	if err != nil {
 		return common.PaymentTransactionReplacing{}, errors.Errorf("Error serializing transaction: %v", err)
@@ -653,6 +662,8 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 			for _,operror := range resultCodes.OperationCodes {
 				log.Errorf("Stellar error details - operation error: %s", operror)
 			}
+		} else {
+			log.Errorf("Couldn't parse error as stellar")
 		}
 
 		resultsMap[t.TransactionSourceAddress] = txSuccess

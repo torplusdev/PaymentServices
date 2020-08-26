@@ -299,7 +299,7 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 	results, err := u.transactionManager.FlushTransactions(ctx)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusBadRequest, "Error in FlushTransactions:..."))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Error in FlushTransactions: " + err.Error()))
 	}
 
 	for k, v := range results {

@@ -425,6 +425,47 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 	return nil
 }
 
+func (n *Node) verifyTransactionSequence(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+
+	_, span := n.tracer.Start(context, "node-verifyTransactionSequence"+n.Address)
+	defer span.End()
+
+	transaction := transactionPayload.GetPaymentTransaction()
+
+	// Deserialize transactions
+	transactionWrapper, e := txnbuild.TransactionFromXDR(transaction.XDR)
+
+	if e != nil {
+		return false, errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
+	}
+
+	t,result := transactionWrapper.Transaction()
+
+	if !result {
+		return false, errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
+	}
+
+	nodeAccount, err := n.horizon.GetAccount(n.Address)
+	if err != nil {
+		return false, errors.Errorf("Error reading account: " + err.Error())
+	}
+
+	currentSequence,err := nodeAccount.GetSequenceNumber()
+	if err != nil {
+		return false, errors.Errorf("Error getting sequence: " + err.Error())
+	}
+
+	account := t.SourceAccount()
+	transactionSequence, err := account.GetSequenceNumber()
+
+	if (transactionSequence <= currentSequence) {
+		log.Warn("Incorrect sequence detected, current account is at %d, transaction is %d",currentSequence,transactionSequence)
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (n *Node) verifyTransactionSignatures(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
 
 	_, span := n.tracer.Start(context, "node-verifyTransactionSignatures "+n.Address)
@@ -537,9 +578,18 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 		return false, errors.Errorf("Error during transaction deser: %v", e)
 	}
 
+	ok, err = n.verifyTransactionSequence(context,transactionPayload)
+
+	if !ok || err != nil {
+		log.Warn("Transaction verification failed (sequence)")
+		return false, err
+	}
+
+
 	ok, err = n.verifyTransactionSignatures(context, transactionPayload)
 
 	if !ok || err != nil {
+		log.Warn("Transaction verification failed (signatures)")
 		return false, err
 	}
 
@@ -599,6 +649,11 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	//TODO Sort transaction by sequence number and make sure to submit them only in sequence number order
 	transactions := n.paymentRegistry.getActiveTransactions()
 
+	if len(transactions) == 0 {
+		log.Info("FlushTransactions: No transactions to flush.")
+		return resultsMap,nil
+	}
+
 	n.flushMux.Lock()
 	defer n.flushMux.Unlock()
 
@@ -643,6 +698,83 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 
 		return seqi < seqj
 	})
+
+	nodeAccount, err := n.horizon.GetAccount(n.Address)
+
+	if err != nil {
+		return resultsMap, errors.Errorf("Error gettings account details: %v", err)
+	}
+
+	if err != nil {
+		return resultsMap, errors.Errorf("Error getting horizon account: %s", err.Error())
+	}
+
+	wrapper, err := txnbuild.TransactionFromXDR(transactions[0].XDR)
+
+	if err != nil {
+		return resultsMap, errors.Errorf("Error converting first transaction from xdr: %v", err)
+	}
+
+	firstTransaction,ok := wrapper.Transaction()
+
+	if !ok {
+		return resultsMap, errors.Errorf("Can't get first transaction from wrapper")
+	}
+
+	wrapper, err = txnbuild.TransactionFromXDR(transactions[len(transactions)-1].XDR)
+
+	lastTransaction,ok := wrapper.Transaction()
+	_ = lastTransaction
+
+	if !ok {
+		return resultsMap, errors.Errorf("Can't get last transaction from wrapper")
+	}
+
+	if err != nil {
+		return resultsMap, errors.Errorf("Error converting last transaction from xdr: %v", err)
+	}
+
+	// Handle unfulfilled transactions, if needed
+	currentSequence, err := nodeAccount.GetSequenceNumber()
+
+	if err != nil {
+		return resultsMap, errors.Errorf("Error reading sequence: %v", err)
+	}
+
+	// Bump if needed
+	if firstTransaction.SourceAccount().Sequence > currentSequence+1 {
+		log.Warn("Sequence bump needed, unfullfilled transactions detected: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
+
+
+		tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+			SourceAccount: &txnbuild.SimpleAccount{
+				AccountID: n.Address,
+				Sequence:  currentSequence,
+			},
+			IncrementSequenceNum: true,
+			BaseFee: 200,
+			Timebounds: txnbuild.NewTimeout(30),
+			Operations: []txnbuild.Operation{&txnbuild.BumpSequence{
+				BumpTo:        firstTransaction.SourceAccount().Sequence - 1,
+				SourceAccount: &nodeAccount,
+			}}})
+
+		if err != nil {
+			return resultsMap, errors.Errorf("Error creating seq bump tx: %v", err)
+		}
+
+		tx,err = tx.Sign(n.secretSeed)
+
+		if err != nil {
+			return resultsMap, errors.Errorf("Error signing seq bump tx: %v", err)
+		}
+
+		_, err = horizonclient.DefaultTestNetClient.SubmitTransaction(tx)
+
+		if err != nil {
+			return resultsMap, errors.Errorf("Error submitting seq bump tx: %v", err)
+		}
+	}
 
 	for a, t := range transactions {
 

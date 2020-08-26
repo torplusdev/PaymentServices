@@ -78,7 +78,7 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 
 	log.Printf("SignInitialTransactions: Starting %s %d => %s ",fundingTransactionPayload.PendingTransaction.PaymentSourceAddress,
 		fundingTransactionPayload.PendingTransaction.AmountOut,
-		fundingTransactionPayload.PendingTransaction.PaymentSourceAddress)
+		fundingTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	transaction := fundingTransactionPayload.GetPaymentTransaction()
 
@@ -138,7 +138,7 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 
 	log.Printf("SignInitialTransactions: Finished %s %d => %s ",fundingTransactionPayload.PendingTransaction.PaymentSourceAddress,
 		fundingTransactionPayload.PendingTransaction.AmountOut,
-		fundingTransactionPayload.PendingTransaction.PaymentSourceAddress)
+		fundingTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	return nil
 }

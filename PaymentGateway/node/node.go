@@ -150,7 +150,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	_, span := n.tracer.Start(context, "node-CreateTransaction "+n.Address)
 	defer span.End()
 
-	log.Infof("CreateTransaction: Starting $s %d + %d = %d => %s ",sourceAddress,totalIn,fee,totalOut,n.Address)
+	log.Infof("CreateTransaction: Starting %s %d + %d = %d => %s ",sourceAddress,totalIn,fee,totalOut,n.Address)
 
 	//Verify fee
 	if totalIn-totalOut != fee {
@@ -214,7 +214,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		n.sequenceMux.Lock()
 		defer n.sequenceMux.Unlock()
 		log.Infof("No reference transaction, assigning id %d and promoting",n.lastSequenceId)
-		sequenceProvider = int64(n.lastSequenceId) // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
+		sequenceProvider = int64(n.lastSequenceId) + 7 // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
 		n.lastSequenceId = n.lastSequenceId + 1
 	} else {
 		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
@@ -302,7 +302,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	// TODO: This should be configurable via profile/strategy
 	transactionPayload.UpdateStellarToken(network.TestNetworkPassphrase)
 
-	log.Infof("CreateTransaction: Done $s => %s ",sourceAddress,n.Address)
+	log.Infof("CreateTransaction: Done %s => %s ",sourceAddress,n.Address)
 
 	transactionPayload.ToSpanAttributes(span, "credit")
 	return transactionPayload, nil
@@ -313,7 +313,7 @@ func (n *Node) SignTerminalTransactions(context context.Context, creditTransacti
 	_, span := n.tracer.Start(context, "node-SignTerminalTransactions "+n.Address)
 	defer span.End()
 
-	log.Infof("SignTerminalTransactions: starting $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+	log.Infof("SignTerminalTransactions: starting %s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
 		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
@@ -355,7 +355,7 @@ func (n *Node) SignTerminalTransactions(context context.Context, creditTransacti
 
 	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
 
-	log.Infof("SignTerminalTransactions: done $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+	log.Infof("SignTerminalTransactions: done %s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
 		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	creditTransactionPayload.ToSpanAttributes(span, "credit")
@@ -368,7 +368,7 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 	_, span := n.tracer.Start(context, "node-SignChainTransactions "+n.Address)
 	defer span.End()
 
-	log.Infof("SignChainTransactions: started $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+	log.Infof("SignChainTransactions: started %s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
 		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
@@ -436,7 +436,7 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 
 	debitTransactionPayload.UpdateTransactionXDR(debitTransaction.XDR)
 
-	log.Infof("SignChainTransactions: done $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+	log.Infof("SignChainTransactions: done %s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
 		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	creditTransactionPayload.ToSpanAttributes(span, "credit")
@@ -792,7 +792,7 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 			},
 			IncrementSequenceNum: true,
 			BaseFee: 200,
-			Timebounds: txnbuild.NewTimeout(30),
+			Timebounds: txnbuild.NewTimeout(300),
 			Operations: []txnbuild.Operation{&txnbuild.BumpSequence{
 				BumpTo:        firstTransaction.SourceAccount().Sequence - 1,
 				SourceAccount: &nodeAccount,
@@ -802,7 +802,13 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 			return resultsMap, errors.Errorf("Error creating seq bump tx: %v", err)
 		}
 
-		tx,err = tx.Sign(n.secretSeed)
+		kp,err := keypair.ParseFull(n.secretSeed)
+
+		if err != nil {
+			return resultsMap, errors.Errorf("Error getting key: %v", err)
+		}
+
+		tx,err = tx.Sign(network.TestNetworkPassphrase,kp)
 
 		if err != nil {
 			return resultsMap, errors.Errorf("Error signing seq bump tx: %v", err)

@@ -244,7 +244,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 			},
 		}},
 		BaseFee:    200,
-		Timebounds: txnbuild.NewTimeout(300),
+		Timebounds: txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
 	})
 
 	//tx, err := build.Transaction(
@@ -585,7 +585,6 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.Address)
 	defer span.End()
 
-
 	resultsMap := make(map[string]interface{})
 
 	//TODO Sort transaction by sequence number and make sure to submit them only in sequence number order
@@ -638,12 +637,29 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 
 	for a, t := range transactions {
 
+		log.Infof("Submitting transaction for session %s",t.ServiceSessionId)
 		txSuccess, err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+
+		stellarError,ok := err.(horizonclient.Error)
+		if ok {
+			resultCodes, innerErr := stellarError.ResultCodes()
+
+			if innerErr != nil {
+				log.Errorf("Error unwrapping stellar errors: %v", innerErr.Error())
+			}
+
+			log.Errorf("Stellar error details - transaction error: %s", resultCodes.TransactionCode)
+
+			for _,operror := range resultCodes.OperationCodes {
+				log.Errorf("Stellar error details - operation error: %s", operror)
+			}
+		}
 
 		resultsMap[t.TransactionSourceAddress] = txSuccess
 
 		if err != nil {
 			log.Errorf("Error submitting transaction for %v: %v", a, err)
+
 
 			internalTransWrapper, err := txnbuild.TransactionFromXDR(t.XDR)
 

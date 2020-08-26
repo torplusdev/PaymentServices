@@ -174,7 +174,7 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 			IncrementSequenceNum: true,
 			Operations:           []txnbuild.Operation{&setOptions},
 			BaseFee:              300,
-			Timebounds:           txnbuild.NewTimeout(300),
+			Timebounds:           txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
 		})
 
 		_ = err
@@ -304,7 +304,7 @@ func injectFundsPPToken(kp *keypair.Full, amount int) error {
 			IncrementSequenceNum: true,
 			Operations:    	[]txnbuild.Operation{&changeTrust},
 			BaseFee: 200,
-			Timebounds:     txnbuild.NewTimeout(300),
+			Timebounds:     txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
 		})
 
 		if err != nil {
@@ -331,7 +331,7 @@ func injectFundsPPToken(kp *keypair.Full, amount int) error {
 		SourceAccount:        &accountDistribution,
 		IncrementSequenceNum: true,
 		Operations:    []txnbuild.Operation{&distributeAssets},
-		Timebounds:    txnbuild.NewTimeout(300),
+		Timebounds:    txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
 		BaseFee: 200,
 	})
 

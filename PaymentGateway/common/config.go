@@ -31,6 +31,7 @@ type configuration struct {
 
 var (
 	instance configuration
+	TransactionTimeoutSeconds int64 = 21600
 )
 
 func ParseConfiguration(configFile string) (configuration,error) {

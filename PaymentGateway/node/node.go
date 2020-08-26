@@ -120,6 +120,8 @@ func (n *Node) CreatePaymentRequest(context context.Context, amount common.Trans
 	_, span := n.tracer.Start(context, "node-CreatePaymentRequest "+n.Address)
 	defer span.End()
 
+	log.Infof("CreatePaymentRequest: Starting %d  %s/%s ",amount,asset,serviceType)
+
 	serviceSessionId := xid.New().String()
 
 	n.paymentRegistry.AddServiceUsage(serviceSessionId, amount)
@@ -148,6 +150,8 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	_, span := n.tracer.Start(context, "node-CreateTransaction "+n.Address)
 	defer span.End()
 
+	log.Infof("CreateTransaction: Starting $s %d + %d = %d => %s ",sourceAddress,totalIn,fee,totalOut,n.Address)
+
 	//Verify fee
 	if totalIn-totalOut != fee {
 		return common.PaymentTransactionReplacing{}, errors.Errorf("Incorrect fee requested: %d != %d", totalIn-totalOut, fee)
@@ -157,8 +161,6 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	span.SetAttributes(core.KeyValue{Key: "payment.destination-address", Value: core.String(n.Address)})
 	span.SetAttributes(core.KeyValue{Key: "payment.amount-in", Value: core.Uint32(totalIn)})
 	span.SetAttributes(core.KeyValue{Key: "payment.amount-out", Value: core.Uint32(totalOut)})
-
-	log.Infof("CreateTransaction: %s => %s (%d/%d) ",sourceAddress,n.Address,totalIn,totalOut)
 
 	transactionPayload, err := n.createTransactionWrapper(common.PaymentTransaction{
 		TransactionSourceAddress:  n.Address,
@@ -300,6 +302,8 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 	// TODO: This should be configurable via profile/strategy
 	transactionPayload.UpdateStellarToken(network.TestNetworkPassphrase)
 
+	log.Infof("CreateTransaction: Done $s => %s ",sourceAddress,n.Address)
+
 	transactionPayload.ToSpanAttributes(span, "credit")
 	return transactionPayload, nil
 }
@@ -308,6 +312,9 @@ func (n *Node) SignTerminalTransactions(context context.Context, creditTransacti
 
 	_, span := n.tracer.Start(context, "node-SignTerminalTransactions "+n.Address)
 	defer span.End()
+
+	log.Infof("SignTerminalTransactions: starting $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 
@@ -347,6 +354,10 @@ func (n *Node) SignTerminalTransactions(context context.Context, creditTransacti
 	}
 
 	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
+
+	log.Infof("SignTerminalTransactions: done $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
+
 	creditTransactionPayload.ToSpanAttributes(span, "credit")
 
 	return nil
@@ -356,6 +367,9 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 
 	_, span := n.tracer.Start(context, "node-SignChainTransactions "+n.Address)
 	defer span.End()
+
+	log.Infof("SignChainTransactions: started $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
 	debitTransaction := debitTransactionPayload.GetPaymentTransaction()
@@ -368,13 +382,15 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 
 	creditWrapper, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
 
+	if err != nil {
+		return errors.Errorf("Error building transaction from XDR: %v", err)
+	}
+
 	credit, result := creditWrapper.Transaction()
 
 	if !result {
 		return errors.Errorf("Error deserializing transaction (GenericTransaction)")
 	}
-
-
 
 	if err != nil {
 		return errors.Errorf("Error parsing credit transaction: %v", err)
@@ -420,6 +436,9 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 
 	debitTransactionPayload.UpdateTransactionXDR(debitTransaction.XDR)
 
+	log.Infof("SignChainTransactions: done $s => %s ",creditTransactionPayload.PendingTransaction.PaymentSourceAddress,
+		creditTransactionPayload.PendingTransaction.PaymentDestinationAddress)
+
 	creditTransactionPayload.ToSpanAttributes(span, "credit")
 	debitTransactionPayload.ToSpanAttributes(span, "debit")
 	return nil
@@ -463,6 +482,7 @@ func (n *Node) verifyTransactionSequence(context context.Context, transactionPay
 		return false, nil
 	}
 
+	log.Infof("verifyTransactionSequence finished successfully - account#:%d transaction#:%d",currentSequence,transactionSequence)
 	return true, nil
 }
 
@@ -470,6 +490,9 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 
 	_, span := n.tracer.Start(context, "node-verifyTransactionSignatures "+n.Address)
 	defer span.End()
+
+	log.Infof("verifyTransactionSignatures started %s => %s", transactionPayload.PendingTransaction.PaymentSourceAddress,
+		transactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	transaction := transactionPayload.GetPaymentTransaction()
 
@@ -553,6 +576,8 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 		return false, errors.Errorf("Error validating source signature")
 	}
 
+	log.Infof("verifyTransactionSequence finished successfully")
+
 	//TODO: Validate timebounds
 
 	return true, nil
@@ -562,6 +587,9 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 
 	_, span := n.tracer.Start(context, "node-CommitPaymentTransaction "+n.Address)
 	defer span.End()
+
+	log.Infof("CommitPaymentTransaction started %s => %s", transactionPayload.PendingTransaction.PaymentSourceAddress,
+		transactionPayload.PendingTransaction.PaymentDestinationAddress)
 
 	ok = false
 	transaction := transactionPayload.GetPaymentTransaction()
@@ -606,6 +634,9 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 		n.paymentRegistry.saveTransaction(transaction.PaymentSourceAddress, transaction)
 	}
 
+	log.Infof("CommitPaymentTransaction finished %s => %s", transactionPayload.PendingTransaction.PaymentSourceAddress,
+		transactionPayload.PendingTransaction.PaymentDestinationAddress)
+
 	transactionPayload.ToSpanAttributes(span, "single")
 
 	return true, nil
@@ -616,6 +647,9 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	_, span := n.tracer.Start(context, "node-CommitServiceTransaction "+n.Address)
 	defer span.End()
 
+	log.Infof("CommitServiceTransaction started %s => %s", transaction.PendingTransaction.PaymentSourceAddress,
+		transaction.PendingTransaction.PaymentDestinationAddress)
+
 	ok, err := n.CommitPaymentTransaction(context, transaction)
 
 	if ok {
@@ -625,6 +659,9 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	} else {
 		return false, err
 	}
+
+	log.Infof("CommitServiceTransaction finished %s => %s", transaction.PendingTransaction.PaymentSourceAddress,
+		transaction.PendingTransaction.PaymentDestinationAddress)
 
 	return true, nil
 }
@@ -643,6 +680,8 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.Address)
 	defer span.End()
+
+	log.Infof("FlushTransactions started")
 
 	resultsMap := make(map[string]interface{})
 

@@ -74,7 +74,7 @@ func main() {
 	traceProvider, tracerShutdownFunc := initGlobalTracer(config.JaegerUrl, config.JaegerServiceName)
 	common.InitializeTracer(traceProvider)
 
-	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
+	//s := "SC2SCPAPTSPITDLJYR5WQRH23XK267D2KM5SFMUKBCVKSLI3TVFNEQHQ"
 	//port := 28080
 
 	runtime.GOMAXPROCS(config.MaxConcurrency)

@@ -780,10 +780,59 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		return resultsMap, errors.Errorf("Error reading sequence: %v", err)
 	}
 
+	transactionToRemove := 0
+
+	// Filter out missed transactions
+
+	if firstTransaction.SourceAccount().Sequence <= currentSequence {
+		for _, t := range transactions {
+
+			wrapper, err = txnbuild.TransactionFromXDR(t.XDR)
+
+			if err != nil {
+				log.Warn("Problematic transaction detected, couldn't convert from XDR - removing.")
+
+				transactionToRemove = transactionToRemove + 1
+				continue
+			}
+
+			innerTransaction,ok := wrapper.Transaction()
+
+			if !ok {
+				log.Warn("Problematic transaction detected, couldn't extract inner transaction - removing.")
+
+				transactionToRemove = transactionToRemove + 1
+				continue
+			}
+
+			if innerTransaction.SourceAccount().Sequence <= currentSequence {
+				log.Warnf("Problematic transaction detected  -bad sequence %d <= %d- removing.",innerTransaction.SourceAccount().Sequence,currentSequence)
+				transactionToRemove = transactionToRemove + 1
+			}
+		}
+
+		if transactionToRemove > 0 {
+			log.Warnf("Bad transactions detected (%d) and where removed.", transactionToRemove)
+
+			transactions = transactions[transactionToRemove:]
+
+			wrapper, err := txnbuild.TransactionFromXDR(transactions[0].XDR)
+
+			if err != nil {
+				return resultsMap, errors.Errorf("Error converting first transaction from xdr: %v", err)
+			}
+
+			firstTransaction,ok = wrapper.Transaction()
+
+			if !ok {
+				return resultsMap, errors.Errorf("Can't get first transaction from wrapper")
+			}
+		}
+	}
+
 	// Bump if needed
 	if firstTransaction.SourceAccount().Sequence > currentSequence+1 {
 		log.Warn("Sequence bump needed, unfullfilled transactions detected: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
-
 
 		tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
 			SourceAccount: &txnbuild.SimpleAccount{

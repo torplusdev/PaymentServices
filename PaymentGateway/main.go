@@ -50,7 +50,7 @@ func initGlobalTracer(url string, serviceName string) (*sdktrace.Provider, func(
 
 func main() {
 
-	config,err := common.ParseConfiguration("config.json")
+	config, err := common.ParseConfiguration("config.json")
 
 	if err != nil {
 		log.Print("Error reading configuration file (config.json), trying cmdline params: " + err.Error())
@@ -60,7 +60,7 @@ func main() {
 		}
 
 		config.StellarSeed = os.Args[1]
-		config.AutoFlushPeriod = 15*time.Minute
+		config.AutoFlushPeriod = 15 * time.Minute
 		config.MaxConcurrency = 10
 		config.JaegerUrl = "http://192.168.162.128:14268/api/traces"
 		config.JaegerServiceName = "PaymentGatewayTest"
@@ -71,10 +71,10 @@ func main() {
 		}
 	}
 
-	traceProvider, tracerShutdownFunc := initGlobalTracer(config.JaegerUrl,config.JaegerServiceName)
+	traceProvider, tracerShutdownFunc := initGlobalTracer(config.JaegerUrl, config.JaegerServiceName)
 	common.InitializeTracer(traceProvider)
 
-	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
+	//s := "SC2SCPAPTSPITDLJYR5WQRH23XK267D2KM5SFMUKBCVKSLI3TVFNEQHQ"
 	//port := 28080
 
 	runtime.GOMAXPROCS(config.MaxConcurrency)
@@ -83,7 +83,7 @@ func main() {
 	// Set up signal channel
 	stop := make(chan os.Signal, 1)
 
-	server, err := serviceNode.StartServiceNode(config.StellarSeed, config.Port, "http://localhost:5900", true, config.AutoFlushPeriod)
+	server, err := serviceNode.StartServiceNode(config.StellarSeed, config.Port, "http://localhost:5817", true, config.AutoFlushPeriod)
 
 	if err != nil {
 		log.Panicf("Error starting serviceNode: %v", err.Error())

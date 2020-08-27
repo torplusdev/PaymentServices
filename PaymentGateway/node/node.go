@@ -782,7 +782,7 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 
 	// Bump if needed
 	if firstTransaction.SourceAccount().Sequence > currentSequence+1 {
-		log.Warn("Sequence bump needed, unfullfilled transactions detected: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
+		log.Warnf("Sequence bump needed, unfullfilled transactions detected: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
 
 
 		tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
@@ -817,6 +817,8 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		_, err = horizonclient.DefaultTestNetClient.SubmitTransaction(tx)
 
 		if err != nil {
+			xdr,_ := tx.Base64()
+			log.Errorf("Error in seq bump transaction: %s" + xdr)
 			return resultsMap, errors.Errorf("Error submitting seq bump tx: %v", err)
 		}
 	}
@@ -826,21 +828,26 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		log.Infof("Submitting transaction for session %s",t.ServiceSessionId)
 		txSuccess, err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
 
-		stellarError,ok := err.(horizonclient.Error)
-		if ok {
-			resultCodes, innerErr := stellarError.ResultCodes()
+		if err != nil {
 
-			if innerErr != nil {
-				log.Errorf("Error unwrapping stellar errors: %v", innerErr.Error())
+			log.Errorf("Error in submit transaction: %s" + t.XDR)
+
+			stellarError, ok := err.(horizonclient.Error)
+			if ok {
+				resultCodes, innerErr := stellarError.ResultCodes()
+
+				if innerErr != nil {
+					log.Errorf("Error unwrapping stellar errors: %v", innerErr.Error())
+				}
+
+				log.Errorf("Stellar error details - transaction error: %s", resultCodes.TransactionCode)
+
+				for _, operror := range resultCodes.OperationCodes {
+					log.Errorf("Stellar error details - operation error: %s", operror)
+				}
+			} else {
+				log.Errorf("Couldn't parse error as stellar: " + err.Error())
 			}
-
-			log.Errorf("Stellar error details - transaction error: %s", resultCodes.TransactionCode)
-
-			for _,operror := range resultCodes.OperationCodes {
-				log.Errorf("Stellar error details - operation error: %s", operror)
-			}
-		} else {
-			log.Errorf("Couldn't parse error as stellar")
 		}
 
 		resultsMap[t.TransactionSourceAddress] = txSuccess

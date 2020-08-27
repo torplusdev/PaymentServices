@@ -217,7 +217,7 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 	if paymentRequest.Amount > uint32(numericBalance) {
 		log.Print("Insufficient client balance: ")
-		return nil, errors.Errorf("Client has insufficient account balance","")
+		return nil, errors.Errorf("Client has insufficient account balance")
 	}
 
 	var totalFee common.TransactionAmount = 0

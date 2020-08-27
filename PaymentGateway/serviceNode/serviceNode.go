@@ -53,7 +53,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	}
 
 	priceList["http"]["attention"] = commodity.Descriptor{
-		UnitPrice: 0.01,
+		UnitPrice: 0.1,
 		Asset:     common.PPTokenAssetName,
 	}
 

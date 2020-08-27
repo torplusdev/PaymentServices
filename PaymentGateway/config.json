@@ -1,0 +1,8 @@
+{
+  "Port"        : 28080,
+  "StellarSeed"	: "SCVOPYRRBA2CNCKD2V6ABA74IYTLSS2C6G3FXY2QYIYRQQKP6SUDOJIC",
+  "JaegerUrl"   : "http://192.168.162.128:14268/api/traces",
+  "JaegerServiceName" : "TestNode",
+  "AutoFlushPeriod"	  : "15m",
+  "MaxConcurrency"	  : 10
+}

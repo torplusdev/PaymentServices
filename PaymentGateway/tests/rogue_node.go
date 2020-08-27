@@ -123,7 +123,7 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, t
 			Sequence:  sourceAccount.Sequence,
 		},
 		BaseFee: 200,
-		Timebounds: txnbuild.NewTimeout(300),
+		Timebounds: txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
 		Operations: []txnbuild.Operation{&txnbuild.Payment{
 			Destination: payment.Destination,
 			Amount:      payment.Amount,

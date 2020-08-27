@@ -6,6 +6,7 @@ import (
 	"github.com/stellar/go/network"
 	"github.com/stellar/go/txnbuild"
 	"log"
+	"paidpiper.com/payment-gateway/common"
 )
 
 // Source
@@ -74,7 +75,7 @@ func createAsset() {
 		txCreateAccounts := txnbuild.Transaction{
 			SourceAccount: &sourceAccountDetail,
 			Operations:    []txnbuild.Operation{&createIssuerAccount, &createDistributionAccount},
-			Timebounds:    txnbuild.NewTimeout(300),
+			Timebounds:    txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
 			Network:       network.TestNetworkPassphrase,
 		}
 

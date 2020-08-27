@@ -76,6 +76,10 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 	_, span := client.tracer.Start(context, "client-SignInitialTransactions")
 	defer span.End()
 
+	log.Printf("SignInitialTransactions: Starting %s %d => %s ",fundingTransactionPayload.PendingTransaction.PaymentSourceAddress,
+		fundingTransactionPayload.PendingTransaction.AmountOut,
+		fundingTransactionPayload.PendingTransaction.PaymentDestinationAddress)
+
 	transaction := fundingTransactionPayload.GetPaymentTransaction()
 
 	transactionWrapper, err := txnbuild.TransactionFromXDR(transaction.XDR)
@@ -132,6 +136,10 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 		return errors.Errorf("Error writing transaction envelope: %v", err)
 	}
 
+	log.Printf("SignInitialTransactions: Finished %s %d => %s ",fundingTransactionPayload.PendingTransaction.PaymentSourceAddress,
+		fundingTransactionPayload.PendingTransaction.AmountOut,
+		fundingTransactionPayload.PendingTransaction.PaymentDestinationAddress)
+
 	return nil
 }
 
@@ -140,6 +148,7 @@ func (client *Client) VerifyTransactions(context context.Context, router common.
 	_, span := client.tracer.Start(context, "client-VerifyTransactions")
 	defer span.End()
 
+	log.Printf("VerifyTransactions: started   %d => %s ",paymentRequest.Amount, paymentRequest.Address)
 	ok := false
 
 	for _, t := range transactions {
@@ -155,6 +164,9 @@ func (client *Client) VerifyTransactions(context context.Context, router common.
 			return false, errors.Errorf("Error deserializing xdr: %s", e.Error())
 		}
 		_ = trans
+
+		log.Printf("VerifyTransactions: Validated %s => %s ",t.GetPaymentTransaction().PaymentSourceAddress,
+			t.GetPaymentTransaction().PaymentDestinationAddress)
 	}
 
 	// stub
@@ -170,6 +182,9 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 
 	route := router.CreatePaymentRoute(paymentRequest)
 
+	log.Printf("InitiatePayment: Started (%s) %d => %s, route size %d",paymentRequest.ServiceRef,
+		paymentRequest.Amount, paymentRequest.Address, len(route))
+
 	//validate route extremities
 	if strings.Compare(route[0].Address, client.fullKeyPair.Address()) != 0 {
 		return nil, errors.Errorf("Bad routing: Incorrect starting address %s != %s", route[0].Address, client.fullKeyPair.Address())
@@ -180,31 +195,30 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	}
 
 	// TODO: Move out to external validation sequence
-	/*
-		accountDetail, errAccount := client.client.AccountDetail(
-			horizonclient.AccountRequest{
-				AccountID:client.fullKeyPair.Address() })
 
-		if errAccount != nil {
-			log.Print("Error retrieving account data: ", errAccount.Error())
-			return nil,errors.Errorf("Account validation error","")
-		}
+	accountDetail, errAccount := client.client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID:client.fullKeyPair.Address() })
+
+	if errAccount != nil {
+		log.Print("Error retrieving account data: ", errAccount.Error())
+		return nil,errors.Errorf("Account validation error","")
+	}
 
 
-		balance := accountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
+	balance := accountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
 
-		numericBalance, err := strconv.ParseFloat(balance,32)
+	numericBalance, err := strconv.ParseFloat(balance,32)
 
-		if err != nil {
-			log.Print("Error parsing account balance: ", err.Error())
-			return nil, errors.Errorf("Account balance parse error","")
-		}
+	if err != nil {
+		log.Print("Error parsing account balance: ", err.Error())
+		return nil, errors.Errorf("Account balance parse error","")
+	}
 
-		if paymentRequest.Amount > uint32(numericBalance) {
-			log.Print("Insufficient client balance: ")
-			return nil, errors.Errorf("Client has insufficient account balance","")
-		}
-	*/
+	if paymentRequest.Amount > uint32(numericBalance) {
+		log.Print("Insufficient client balance: ")
+		return nil, errors.Errorf("Client has insufficient account balance","")
+	}
 
 	var totalFee common.TransactionAmount = 0
 
@@ -217,6 +231,9 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	for i, e := range route[0 : len(route)-1] {
 
 		var sourceAddress = route[i+1].Address
+
+		log.Printf("InitiatePayment: Creating transaction %s => %s",sourceAddress,e.Address)
+
 		stepNode := client.nodeManager.GetNodeByAddress(e.Address)
 
 		if (stepNode == nil) {
@@ -237,6 +254,10 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 			return nil, errors.Errorf("Error creating transaction for node %v: %v", sourceAddress, err)
 		}
 
+		log.Printf("InitiatePayment: Transaction created  %s %d => %s",nodeTransaction.PendingTransaction.PaymentSourceAddress,
+			nodeTransaction.PendingTransaction.AmountOut,
+			nodeTransaction.PendingTransaction.PaymentDestinationAddress)
+
 		transactions = append(transactions, nodeTransaction)
 
 		// Accumulate fees
@@ -251,7 +272,6 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	*/
 
 	for _, t := range transactions {
-		log.Printf("Transaction detail: %s ==> %s", t.PendingTransaction.PaymentSourceAddress, t.PendingTransaction.PaymentDestinationAddress)
 		if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
 			return nil, errors.Errorf("Error invalid transaction chain, address targets itself %s.", t.PendingTransaction.PaymentSourceAddress)
 		}
@@ -267,7 +287,9 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		return nil, errors.Errorf("Error: couldn't find a service node with address %s", route[0].Address)
 	}
 
-	err := serviceNode.SignTerminalTransactions(ctx, debitTransaction)
+	log.Printf("InitiatePayment: SignTerminalTransactions (%s) ",route[0].Address)
+
+	err = serviceNode.SignTerminalTransactions(ctx, debitTransaction)
 
 	if err != nil {
 		log.Print("Error signing terminal transaction ( node " + route[0].Address + ") : " + err.Error())
@@ -278,6 +300,8 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	for idx := 1; idx < len(transactions); idx++ {
 
 		t := &transactions[idx]
+
+		log.Printf("InitiatePayment: Sign chain  (%s) ",t.GetPaymentDestinationAddress())
 
 		stepNode := client.nodeManager.GetNodeByAddress(t.GetPaymentDestinationAddress())
 
@@ -303,6 +327,8 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 		}
 	}
 
+	log.Printf("InitiatePayment: SignInitial   %d => %s ",paymentRequest.Amount+totalFee,transactions[len(transactions)-1].PendingTransaction.PaymentDestinationAddress)
+
 	err = client.SignInitialTransactions(ctx, &transactions[len(transactions)-1], route[len(transactions)-1].Address, paymentRequest.Amount+totalFee)
 
 	if err != nil {
@@ -317,6 +343,8 @@ func (client *Client) FinalizePayment(context context.Context, router common.Pay
 
 	ctx, span := client.tracer.Start(context, "client-FinalizePayment")
 	defer span.End()
+
+	log.Printf("Started FinalizePayment (%s) %d => %s",pr.ServiceRef,pr.Amount, pr.Address)
 
 	ok := true
 
@@ -342,8 +370,10 @@ func (client *Client) FinalizePayment(context context.Context, router common.Pay
 
 		// If this is a payment to the requesting node
 		if trans.PaymentDestinationAddress == pr.Address {
+			log.Printf("Requesting CommitServiceTransaction (%s) => %s",t.PendingTransaction.ServiceSessionId,t.PendingTransaction.PaymentDestinationAddress)
 			res, err = stepNode.CommitServiceTransaction(ctx, &t, pr)
 		} else {
+			log.Printf("Requesting CommitPaymentTransaction (%s) => %s",t.PendingTransaction.ServiceSessionId,t.PendingTransaction.PaymentDestinationAddress)
 			res, err = stepNode.CommitPaymentTransaction(ctx, &t)
 		}
 

@@ -279,7 +279,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 		g.DeleteNodeManager(pr.ServiceSessionId)
 
-		log.Printf("Payment completed SessionId=%s", pr.ServiceSessionId)
+		log.Printf("Payment completed SessionId=%s, ServiceRef=%s", pr.ServiceSessionId, pr.ServiceRef)
 	}(*paymentRequest, future)
 
 	Respond(w, future)

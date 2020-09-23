@@ -44,12 +44,12 @@ func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager,
 		return nil,errors.Errorf("Error in client keypair initialization: %s ", err.Error())
 	}
 
-	gwAccountDetail, errAccount := apiClient.AccountDetail(
+	gwAccountDetail, err := apiClient.AccountDetail(
 		horizonclient.AccountRequest{
 			AccountID: pair.Address()})
 
-	if errAccount != nil {
-		return nil,errors.Errorf("Client account doesnt exist: %s ", err.Error())
+	if err != nil {
+		return nil, errors.Errorf("Client account doesnt exist: %s ", err.Error())
 	} else {
 		client.client = apiClient
 		client.fullKeyPair = pair

@@ -223,7 +223,7 @@ func CreateRogueNode_NonidenticalSequenceNumbers(address string, seed string, ac
 
 	horizon := horizon.NewHorizon()
 
-	node := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
+	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,
@@ -238,7 +238,7 @@ func CreateRogueNode_BadSignature(address string, seed string, accumulateTransac
 
 	horizon := horizon.NewHorizon()
 
-	node := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
+	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,

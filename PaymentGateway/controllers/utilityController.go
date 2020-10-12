@@ -150,14 +150,13 @@ func (u *UtilityController) CommitServiceTransaction(context context.Context, co
 	ctx, span := spanFromContext(context, request.Context, "utility-CommitServiceTransaction")
 	defer span.End()
 
-	ok, err := u.node.CommitServiceTransaction(ctx, &request.Transaction, request.PaymentRequest)
+	err = u.node.CommitServiceTransaction(ctx, &request.Transaction, request.PaymentRequest)
 
 	if err != nil {
 		return nil, err
 	}
 
-	response := &models.CommitServiceTransactionResponse{
-		Ok: ok,
+	response := &models.CommitServiceTransactionResponse {
 	}
 
 	return response, nil
@@ -172,14 +171,13 @@ func (u *UtilityController) CommitPaymentTransaction(context context.Context, co
 		return nil, err
 	}
 
-	ok, err := u.node.CommitPaymentTransaction(context, &request.Transaction)
+	err = u.node.CommitPaymentTransaction(context, &request.Transaction)
 
 	if err != nil {
 		return nil, err
 	}
 
 	response := &models.CommitPaymentTransactionResponse{
-		Ok: ok,
 	}
 
 	return response, nil

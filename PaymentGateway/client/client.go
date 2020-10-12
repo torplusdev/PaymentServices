@@ -143,25 +143,24 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 	return nil
 }
 
-func (client *Client) VerifyTransactions(context context.Context, router common.PaymentRouter, paymentRequest common.PaymentRequest, transactions []common.PaymentTransactionReplacing) (bool, error) {
+func (client *Client) VerifyTransactions(context context.Context, router common.PaymentRouter, paymentRequest common.PaymentRequest, transactions []common.PaymentTransactionReplacing) error {
 
 	_, span := client.tracer.Start(context, "client-VerifyTransactions")
 	defer span.End()
 
 	log.Printf("VerifyTransactions: started   %d => %s ",paymentRequest.Amount, paymentRequest.Address)
-	ok := false
 
 	for _, t := range transactions {
 		e := t.Validate()
 
 		if e != nil {
-			return false, errors.Errorf("Error validating transaction: %s", e.Error())
+			return errors.Errorf("Error validating transaction: %s", e.Error())
 		}
 
 		trans, e := txnbuild.TransactionFromXDR(t.GetPaymentTransaction().XDR)
 
 		if e != nil {
-			return false, errors.Errorf("Error deserializing xdr: %s", e.Error())
+			return errors.Errorf("Error deserializing xdr: %s", e.Error())
 		}
 		_ = trans
 
@@ -170,9 +169,7 @@ func (client *Client) VerifyTransactions(context context.Context, router common.
 	}
 
 	// stub
-	ok = true
-
-	return ok, nil
+	return nil
 }
 
 func (client *Client) InitiatePayment(context context.Context, router common.PaymentRouter, paymentRequest common.PaymentRequest) ([]common.PaymentTransactionReplacing, error) {
@@ -339,14 +336,12 @@ func (client *Client) InitiatePayment(context context.Context, router common.Pay
 	return transactions, nil
 }
 
-func (client *Client) FinalizePayment(context context.Context, router common.PaymentRouter, transactions []common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (client *Client) FinalizePayment(context context.Context, router common.PaymentRouter, transactions []common.PaymentTransactionReplacing, pr common.PaymentRequest) error {
 
 	ctx, span := client.tracer.Start(context, "client-FinalizePayment")
 	defer span.End()
 
 	log.Printf("Started FinalizePayment (%s) %d => %s",pr.ServiceRef,pr.Amount, pr.Address)
-
-	ok := true
 
 	// TODO: Refactor to minimize possible mid-chain errors
 	for _, t := range transactions {
@@ -355,7 +350,7 @@ func (client *Client) FinalizePayment(context context.Context, router common.Pay
 
 		if err != nil {
 			log.Print("Error retrieving node object: " + err.Error())
-			return false, errors.Errorf("Error retrieving node object %s", err.Error())
+			return errors.Errorf("Error retrieving node object %s", err.Error())
 		}
 
 		_ = paymentNode
@@ -363,26 +358,22 @@ func (client *Client) FinalizePayment(context context.Context, router common.Pay
 		stepNode := client.nodeManager.GetNodeByAddress(paymentNode.Address)
 
 		if stepNode == nil {
-			return false, errors.Errorf("Finalize: couldn't find node with address %s.", paymentNode.Address)
+			return errors.Errorf("Finalize: couldn't find node with address %s.", paymentNode.Address)
 		}
-
-		var res = false
 
 		// If this is a payment to the requesting node
 		if trans.PaymentDestinationAddress == pr.Address {
 			log.Printf("Requesting CommitServiceTransaction (%s) => %s",t.PendingTransaction.ServiceSessionId,t.PendingTransaction.PaymentDestinationAddress)
-			res, err = stepNode.CommitServiceTransaction(ctx, &t, pr)
+			err = stepNode.CommitServiceTransaction(ctx, &t, pr)
 		} else {
 			log.Printf("Requesting CommitPaymentTransaction (%s) => %s",t.PendingTransaction.ServiceSessionId,t.PendingTransaction.PaymentDestinationAddress)
-			res, err = stepNode.CommitPaymentTransaction(ctx, &t)
+			err = stepNode.CommitPaymentTransaction(ctx, &t)
 		}
 
 		if err != nil {
-			return false, errors.Errorf("Error committing transaction %s", err.Error())
+			return errors.Errorf("Error committing transaction %s", err.Error())
 		}
-
-		ok = ok && res
 	}
 
-	return ok, nil
+	return nil
 }

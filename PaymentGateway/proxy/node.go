@@ -238,7 +238,7 @@ func (n NodeProxy) SignChainTransactions(context context.Context, creditTransact
 	return nil
 }
 
-func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error {
 
 	ctx, span := n.tracer.Start(context, "proxy-CommitServiceTransaction-"+n.address)
 	defer span.End()
@@ -246,7 +246,7 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 	traceContext, err := common.CreateTraceContext(span.SpanContext())
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	var request = &models.CommitServiceTransactionCommand{
@@ -258,13 +258,13 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 	body, err := json.Marshal(request)
 
 	if err != nil {
-		return false, errors.Errorf(err.Error())
+		return errors.Errorf(err.Error())
 	}
 
 	reply, err := n.ProcessCommand(ctx, 4, body)
 
 	if err != nil {
-		return false, errors.Errorf(err.Error())
+		return errors.Errorf(err.Error())
 	}
 
 	var response = &models.CommitServiceTransactionResponse{}
@@ -272,13 +272,13 @@ func (n NodeProxy) CommitServiceTransaction(context context.Context, transaction
 	err = json.Unmarshal(reply, response)
 
 	if err != nil {
-		return false, errors.Errorf(err.Error())
+		return errors.Errorf(err.Error())
 	}
 
-	return response.Ok, nil
+	return nil
 }
 
-func (n NodeProxy) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n NodeProxy) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 
 	ctx, span := n.tracer.Start(context, "proxy-CommitPaymentTransaction-"+n.address)
 	defer span.End()
@@ -286,7 +286,7 @@ func (n NodeProxy) CommitPaymentTransaction(context context.Context, transaction
 	traceContext, err := common.CreateTraceContext(span.SpanContext())
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	var request = &models.CommitPaymentTransactionCommand{
@@ -297,13 +297,13 @@ func (n NodeProxy) CommitPaymentTransaction(context context.Context, transaction
 	body, err := json.Marshal(request)
 
 	if err != nil {
-		return false, errors.Errorf(err.Error())
+		return errors.Errorf(err.Error())
 	}
 
 	reply, err := n.ProcessCommand(ctx, 3, body)
 
 	if err != nil {
-		return false, errors.Errorf(err.Error())
+		return errors.Errorf(err.Error())
 	}
 
 	var response = &models.CommitPaymentTransactionResponse{}
@@ -311,8 +311,8 @@ func (n NodeProxy) CommitPaymentTransaction(context context.Context, transaction
 	err = json.Unmarshal(reply, response)
 
 	if err != nil {
-		return false, errors.Errorf(err.Error())
+		return errors.Errorf(err.Error())
 	}
 
-	return response.Ok, nil
+	return nil
 }

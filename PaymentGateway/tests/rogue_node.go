@@ -54,11 +54,11 @@ func signChainTransactionsNoError(r *RogueNode, context context.Context, creditT
 	return r.internalNode.SignChainTransactions(context, creditTransactionPayload, debitTransactionPayload)
 }
 
-func (r *RogueNode) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (r *RogueNode) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error {
 	return r.internalNode.CommitServiceTransaction(context, transaction, pr)
 }
 
-func (r *RogueNode) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (r *RogueNode) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 	return r.internalNode.CommitPaymentTransaction(context, transactionPayload)
 }
 

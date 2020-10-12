@@ -47,8 +47,8 @@ type PPNode interface {
 	CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error
 	SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error
-	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
-	CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
+	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error
+	CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error
 	GetAddress() (string)
 }
 
@@ -444,7 +444,7 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 	return nil
 }
 
-func (n *Node) verifyTransactionSequence(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) verifyTransactionSequence(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 
 	_, span := n.tracer.Start(context, "node-verifyTransactionSequence"+n.Address)
 	defer span.End()
@@ -455,38 +455,38 @@ func (n *Node) verifyTransactionSequence(context context.Context, transactionPay
 	transactionWrapper, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		return false, errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
+		return errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
 	}
 
 	t,result := transactionWrapper.Transaction()
 
 	if !result {
-		return false, errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
+		return errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
 	}
 
 	nodeAccount, err := n.horizon.GetAccount(n.Address)
 	if err != nil {
-		return false, errors.Errorf("Error reading account: " + err.Error())
+		return errors.Errorf("Error reading account: " + err.Error())
 	}
 
 	currentSequence,err := nodeAccount.GetSequenceNumber()
 	if err != nil {
-		return false, errors.Errorf("Error getting sequence: " + err.Error())
+		return errors.Errorf("Error getting sequence: " + err.Error())
 	}
 
 	account := t.SourceAccount()
 	transactionSequence, err := account.GetSequenceNumber()
 
-	if (transactionSequence <= currentSequence) {
+	if transactionSequence <= currentSequence {
 		log.Warn("Incorrect sequence detected, current account is at %d, transaction is %d",currentSequence,transactionSequence)
-		return false, nil
+		return errors.Errorf("incorrect sequence detected")
 	}
 
 	log.Infof("verifyTransactionSequence finished successfully - account#:%d transaction#:%d",currentSequence,transactionSequence)
-	return true, nil
+	return nil
 }
 
-func (n *Node) verifyTransactionSignatures(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) verifyTransactionSignatures(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 
 	_, span := n.tracer.Start(context, "node-verifyTransactionSignatures "+n.Address)
 	defer span.End()
@@ -500,17 +500,17 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 	transactionWrapper, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		return false, errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
+		return errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
 	}
 
 	t,result := transactionWrapper.Transaction()
 
 	if !result {
-		return false, errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
+		return errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
 	}
 
 	if t.SourceAccount().AccountID != n.Address {
-		return false, errors.Errorf("Incorrect transaction source account")
+		return errors.Errorf("Incorrect transaction source account")
 	}
 	//transaction.StellarNetworkToken
 
@@ -522,15 +522,15 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 		case xdr.OperationTypePayment:
 			payment := &txnbuild.Payment{}
 
-			err = payment.FromXDR(xdrOp)
+			err := payment.FromXDR(xdrOp)
 
 			if err != nil {
-				return false, errors.Errorf("Error converting operation")
+				return errors.Errorf("Error converting operation")
 			}
 
 			payerAccount = payment.SourceAccount.GetAccountID()
 		default:
-			return false, errors.Errorf("Unexpected operation during verification")
+			return errors.Errorf("Unexpected operation during verification")
 		}
 	}
 
@@ -541,13 +541,13 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 		from, err := keypair.ParseAddress(payerAccount)
 
 		if err != nil {
-			return false, errors.Errorf("Error in operation source address")
+			return errors.Errorf("Error in operation source address")
 		}
 
 		bytes, err := t.Hash(transaction.StellarNetworkToken)
 
 		if err != nil {
-			return false, errors.Errorf("Error during tx hashing")
+			return errors.Errorf("Error during tx hashing")
 		}
 
 		err = from.Verify(bytes[:], signature.Signature)
@@ -558,7 +558,7 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 
 		own, err := keypair.ParseFull(n.secretSeed)
 		if err != nil {
-			return false, errors.Errorf("Error creating key")
+			return errors.Errorf("Error creating key")
 		}
 
 		err = own.Verify(bytes[:], signature.Signature)
@@ -569,21 +569,21 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 	}
 
 	if !payerVerified {
-		return false, errors.Errorf("Error validating payer signature")
+		return errors.Errorf("Error validating payer signature")
 	}
 
 	if !sourceVerified {
-		return false, errors.Errorf("Error validating source signature")
+		return errors.Errorf("Error validating source signature")
 	}
 
 	log.Infof("verifyTransactionSequence finished successfully")
 
 	//TODO: Validate timebounds
 
-	return true, nil
+	return nil
 }
 
-func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 
 	_, span := n.tracer.Start(context, "node-CommitPaymentTransaction "+n.Address)
 	defer span.End()
@@ -591,34 +591,32 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 	log.Infof("CommitPaymentTransaction started %s => %s", transactionPayload.PendingTransaction.PaymentSourceAddress,
 		transactionPayload.PendingTransaction.PaymentDestinationAddress)
 
-	ok = false
 	transaction := transactionPayload.GetPaymentTransaction()
 
 	transactionWrapper, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		return false, errors.Errorf("Error during transaction deser: %v", e)
+		return errors.Errorf("Error during transaction deser: %v", e)
 	}
 
 	t,result := transactionWrapper.Transaction()
 
 	if !result {
-		return false, errors.Errorf("Error during transaction deser: %v", e)
+		return errors.Errorf("Error during transaction deser: %v", e)
 	}
 
-	ok, err = n.verifyTransactionSequence(context,transactionPayload)
+	e = n.verifyTransactionSequence(context,transactionPayload)
 
-	if !ok || err != nil {
+	if e != nil {
 		log.Warn("Transaction verification failed (sequence)")
-		return false, err
+		return e
 	}
 
+	e = n.verifyTransactionSignatures(context, transactionPayload)
 
-	ok, err = n.verifyTransactionSignatures(context, transactionPayload)
-
-	if !ok || err != nil {
+	if e != nil {
 		log.Warn("Transaction verification failed (signatures)")
-		return false, err
+		return e
 	}
 
 	if !n.accumulatingTransactionsMode {
@@ -626,7 +624,7 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 
 		if err != nil {
 			log.Error("Error submitting transaction: " + err.Error())
-			return false, err
+			return err
 		}
 
 		log.Debug("Transaction submitted: ")
@@ -639,10 +637,10 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 
 	transactionPayload.ToSpanAttributes(span, "single")
 
-	return true, nil
+	return nil
 }
 
-func (n *Node) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (n *Node) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error {
 
 	_, span := n.tracer.Start(context, "node-CommitServiceTransaction "+n.Address)
 	defer span.End()
@@ -650,20 +648,18 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	log.Infof("CommitServiceTransaction started %s => %s", transaction.PendingTransaction.PaymentSourceAddress,
 		transaction.PendingTransaction.PaymentDestinationAddress)
 
-	ok, err := n.CommitPaymentTransaction(context, transaction)
+	err := n.CommitPaymentTransaction(context, transaction)
 
-	if ok {
-		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId, transaction.GetPaymentTransaction().AmountOut)
-		return err == nil, err
-
-	} else {
-		return false, err
+	if err != nil {
+		return err
 	}
+
+	err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId, transaction.GetPaymentTransaction().AmountOut)
 
 	log.Infof("CommitServiceTransaction finished %s => %s", transaction.PendingTransaction.PaymentSourceAddress,
 		transaction.PendingTransaction.PaymentDestinationAddress)
 
-	return true, nil
+	return err
 }
 
 func (n *Node) GetTransactions() []common.PaymentTransaction {

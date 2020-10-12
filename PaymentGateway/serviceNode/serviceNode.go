@@ -34,7 +34,12 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	horizon := horizon.NewHorizon()
 
-	localNode := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration)
+	localNode,err := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration)
+
+	if err != nil {
+		glog.Infof("Error creating Node object: %s", err)
+		return nil, err
+	}
 
 	priceList := make(map[string]map[string]commodity.Descriptor)
 

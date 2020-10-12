@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -62,7 +63,7 @@ type PPPaymentRequestProvider interface {
 	CreatePaymentRequest(context context.Context, amount common.TransactionAmount, asset string, serviceType string) (common.PaymentRequest, error)
 }
 
-func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration) *Node {
+func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration) (*Node,error) {
 
 	log.SetLevel(log.InfoLevel)
 
@@ -81,6 +82,29 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 		sequenceMux: sync.Mutex{},
 	}
 
+	nodeAccountDetail,err := horizon.GetAccount(address)
+
+	if err != nil {
+		return nil, errors.Errorf("Client account doesnt exist: %s ", err.Error())
+	}
+
+	// Account validation
+	strBalance := nodeAccountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
+	balance, _ := strconv.ParseFloat(strBalance, 32)
+
+	if balance < common.PPTokenMinAllowedBalance {
+		return nil,errors.Errorf("Error in client account: PPToken balance is too low: %d. Should be at least %d.",
+			balance, common.PPTokenMinAllowedBalance )
+	}
+
+	signerMap := nodeAccountDetail.SignerSummary()
+	masterWeight := signerMap[address]
+
+	if masterWeight < int32(nodeAccountDetail.Thresholds.MedThreshold) {
+		return nil,errors.Errorf("Error in client account: master weight (%d) should be at least at medium threshold (%d) ",
+			masterWeight, nodeAccountDetail.Thresholds.MedThreshold )
+	}
+
 	go func() {
 		if (node.autoFlushPeriod > 0) {
 			for now := range time.Tick(node.autoFlushPeriod) {
@@ -96,7 +120,7 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 		}
 	}()
 
-	return &node
+	return &node, nil
 }
 
 type NodeManager interface {
@@ -808,20 +832,25 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		}
 
 		if transactionToRemove > 0 {
-			log.Warnf("Bad transactions detected (%d) and where removed.", transactionToRemove)
+			log.Warnf("Bad transactions detected (%d) and were removed.", transactionToRemove)
 
 			transactions = transactions[transactionToRemove:]
 
-			wrapper, err := txnbuild.TransactionFromXDR(transactions[0].XDR)
+			if len(transactions) > 0 {
+				wrapper, err := txnbuild.TransactionFromXDR(transactions[0].XDR)
 
-			if err != nil {
-				return resultsMap, errors.Errorf("Error converting first transaction from xdr: %v", err)
-			}
+				if err != nil {
+					return resultsMap, errors.Errorf("Error converting first transaction from xdr: %v", err)
+				}
 
-			firstTransaction,ok = wrapper.Transaction()
+				firstTransaction, ok = wrapper.Transaction()
 
-			if !ok {
-				return resultsMap, errors.Errorf("Can't get first transaction from wrapper")
+				if !ok {
+					return resultsMap, errors.Errorf("Can't get first transaction from wrapper")
+				}
+			} else {
+				log.Warnf("No further transactions to process after removing %d transactions", transactionToRemove)
+				return resultsMap, nil
 			}
 		}
 	}
@@ -877,7 +906,7 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 
 			log.Errorf("Error in submit transaction: %s" + t.XDR)
 
-			stellarError, ok := err.(horizonclient.Error)
+			stellarError, ok := err.(*horizonclient.Error)
 			if ok {
 				resultCodes, innerErr := stellarError.ResultCodes()
 

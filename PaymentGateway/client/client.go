@@ -56,6 +56,22 @@ func CreateClient(rootApi *root.RootApi, clientSeed string, nm node.NodeManager,
 		client.account = gwAccountDetail
 	}
 
+	strBalance := gwAccountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
+	balance, _ := strconv.ParseFloat(strBalance, 32)
+
+	if balance < common.PPTokenMinAllowedBalance {
+		return nil,errors.Errorf("Error in client account: PPToken balance is too low: %d. Should be at least %d.",
+			balance, common.PPTokenMinAllowedBalance )
+	}
+
+	signerMap := gwAccountDetail.SignerSummary()
+	masterWeight := signerMap[pair.Address()]
+
+	if masterWeight < int32(gwAccountDetail.Thresholds.MedThreshold) {
+		return nil,errors.Errorf("Error in client account: master weight (%d) should be at least at medium threshold (%d) ",
+			masterWeight, gwAccountDetail.Thresholds.MedThreshold )
+	}
+
 	return &client,nil
 }
 

@@ -631,6 +631,7 @@ func TestIncorrectTransactionsAreDiscardedByFlush(t *testing.T) {
 
 	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(600);
 	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(600);
+	testSetup.GetNode(Node1Seed).SetTransactionValiditySecs(600);
 
 	testSetup.SetDefaultPaymentRoute([]string{ seed2addr(Node1Seed)})
 

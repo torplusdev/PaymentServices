@@ -23,14 +23,14 @@ import (
 )
 
 // ##############     Test seeds     #################################################
-//GCJI4VRUBYAFWRZPYUZBU3AT6DGOVWC43ZL5PLFMGPJIK64KHQMZGBDX
-const User1Seed = "SDJNXOR4IDMBJSRHERKADOLBCJWYZO77H63XNYDD4RDQBNW7XVBJIALF"
+//GDTMVPOW2IOPAKEIOSTNPH2F6HWP64RUTCIDP3IFGTNU6JXTMNQMQUSC
+const User1Seed = "SAGWKBJQ5J2AJAM5YTEUGSOEXUBOVNZJ6FNJDN7CBKZ543VRQ7XTDFIQ"
 
-//GD2GUTGIHK6LRPJUMQFDMIC2IP45MFI6QBHPPDXJD5BU3NKAIHVAEJWS
-const Service1Seed = "SAVL4JQE6UCNSQXUXRBXE5PKP4TDDHU433DXRBRZ4MDMJGQDOT3WUCDS"
+//GCPMC7U46LFEI3AKOMU4JBUQ77V5E6WGXKQLODZWMMSOOIRFWM75JAPP
+const Service1Seed = "SBBC6533GFLXOLI4RSOZFF7XYTS3BVVIEJZHGNCZE4D3KDX4L5JP3D4T"
 
-// public GDE6ADSQKUNMIDQXOXACXSN7HWHPHGW2GFFP7C6VUXUAQSKBNGJJJBWC
-const Node1Seed = "SDTTMBTBJJ4CDU222KL5LLPWIB56OLDDP7SLXF3BWFSCXIXVCIU5W3BL"
+// public GCFGW6GFPKF5J2TVXBATXX2DIXGMTAFXRJRB273JT4C2NXPJ3F4KYTUU
+const Node1Seed = "SAL6AJ7OED5TGNB6V3HV5XONL5J3YCQ545V5CVHYWTLGMVYBEWJW665R"
 
 // public GBJKVEPWK3SGY3AO6HVY6FD3Z7GUHVFL5YL67253LFOLZWGROVGBBA2N
 const Node2Seed = "SBU7JQN3JP43WTZCM2EILLX3QNHMJREBYCCQATTWIY4AD4CKBH3ZHNYX"
@@ -174,7 +174,7 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 			IncrementSequenceNum: true,
 			Operations:           []txnbuild.Operation{&setOptions},
 			BaseFee:              300,
-			Timebounds:           txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+			Timebounds:           txnbuild.NewTimeout(600),
 		})
 
 		_ = err
@@ -304,7 +304,7 @@ func injectFundsPPToken(kp *keypair.Full, amount int) error {
 			IncrementSequenceNum: true,
 			Operations:    	[]txnbuild.Operation{&changeTrust},
 			BaseFee: 200,
-			Timebounds:     txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+			Timebounds:     txnbuild.NewTimeout(600),
 		})
 
 		if err != nil {
@@ -331,7 +331,7 @@ func injectFundsPPToken(kp *keypair.Full, amount int) error {
 		SourceAccount:        &accountDistribution,
 		IncrementSequenceNum: true,
 		Operations:    []txnbuild.Operation{&distributeAssets},
-		Timebounds:    txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+		Timebounds:    txnbuild.NewTimeout(600),
 		BaseFee: 200,
 	})
 

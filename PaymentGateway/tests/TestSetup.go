@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/serviceNode"
 	"time"
 
@@ -20,9 +21,13 @@ import (
 
 type TestSetup struct {
 	servers          []*http.Server
+	nodes            map[string]*node.Node
 	torMock          *TorMock
 	torAddressPrefix string
 }
+
+const validityPeriod int64 = 1
+const autoFlushPeriod time.Duration = 15*time.Minute
 
 func (setup *TestSetup) ConfigureTor(port int) {
 	setup.torMock = CreateTorMock(port)
@@ -43,15 +48,21 @@ func (setup *TestSetup) Shutdown() {
 	}
 }
 
-func (setup *TestSetup) startNode(seed string, nodePort int) {
+func (setup *TestSetup) startNode(seed string, nodePort int, flushPeriod time.Duration, transactionValidity int64) {
 	// TODO: eliminate cycle references
-	 srv, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, 1*time.Minute)
+	 srv,node, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, flushPeriod, transactionValidity)
 
 	 if err != nil {
 	 	log.Fatal("Coudn't start node")
 	 }
 
+	 setup.nodes[seed] = node
 	 setup.servers = append(setup.servers, srv)
+}
+
+func (setup *TestSetup) GetNode(seed string) *node.Node {
+
+	return setup.nodes[seed]
 }
 
 // func (setup *TestSetup) ReplaceNode(seed string, nodeImplementation node.PPNode) {
@@ -65,7 +76,7 @@ func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodeP
 	_, span := tr.Start(ctx, fmt.Sprintf("service-node-start:%d %s", nodePort, seed))
 	defer span.End()
 
-	setup.startNode(seed, nodePort)
+	setup.startNode(seed, nodePort,autoFlushPeriod,validityPeriod)
 	span.SetAttributes(core.KeyValue{
 		Key:   "seed",
 		Value: core.String(seed),
@@ -84,7 +95,7 @@ func (setup *TestSetup) StartTorNode(ctx context.Context, seed string, nodePort 
 	_, span := tr.Start(ctx, fmt.Sprintf("tor-node-start:%d %s", nodePort, seed))
 	defer span.End()
 
-	setup.startNode(seed, nodePort)
+	setup.startNode(seed, nodePort, autoFlushPeriod,validityPeriod)
 
 	span.SetAttributes(core.KeyValue{
 		Key:   core.Key("seed"),
@@ -105,7 +116,7 @@ func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort
 	_, span := tr.Start(ctx, fmt.Sprintf("user-node-start:%d %s", nodePort, seed))
 	defer span.End()
 
-	setup.startNode(seed, nodePort)
+	setup.startNode(seed, nodePort, autoFlushPeriod,validityPeriod)
 
 	span.SetAttributes(core.KeyValue{
 		Key:   core.Key("seed"),
@@ -286,6 +297,7 @@ func (setup *TestSetup) SetDefaultPaymentRoute(route []string) {
 func CreateTestSetup() *TestSetup {
 
 	setup := TestSetup{}
+	setup.nodes = make(map[string]*node.Node )
 
 	return &setup
 }

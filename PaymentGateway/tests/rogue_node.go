@@ -123,7 +123,7 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, t
 			Sequence:  sourceAccount.Sequence,
 		},
 		BaseFee: 200,
-		Timebounds: txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+		Timebounds: txnbuild.NewTimeout(600),
 		Operations: []txnbuild.Operation{&txnbuild.Payment{
 			Destination: payment.Destination,
 			Amount:      payment.Amount,
@@ -223,7 +223,7 @@ func CreateRogueNode_NonidenticalSequenceNumbers(address string, seed string, ac
 
 	horizon := horizon.NewHorizon()
 
-	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
+	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0,600)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,
@@ -238,7 +238,7 @@ func CreateRogueNode_BadSignature(address string, seed string, accumulateTransac
 
 	horizon := horizon.NewHorizon()
 
-	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
+	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0,600)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,

@@ -19,7 +19,7 @@ import (
 	"paidpiper.com/payment-gateway/root"
 )
 
-func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool, autoFlushDuration time.Duration) (*Server, error) {
+func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool, autoFlushDuration time.Duration, transactionValiditySecs int64) (*Server,*node.Node, error) {
 	tracer := common.CreateTracer("paidpiper/serviceNode")
 
 	_, span := tracer.Start(context.Background(), "serviceNode-initialization")
@@ -29,16 +29,16 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	if err != nil {
 		glog.Infof("Error parsing node key: %s", err)
-		return nil, err
+		return nil, nil,  err
 	}
 
 	horizon := horizon.NewHorizon()
 
-	localNode,err := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration)
+	localNode,err := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration, transactionValiditySecs)
 
 	if err != nil {
 		glog.Infof("Error creating Node object: %s", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	priceList := make(map[string]map[string]commodity.Descriptor)
@@ -48,7 +48,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	priceList["http"] = make(map[string]commodity.Descriptor)
 
 	priceList["ipfs"]["data"] = commodity.Descriptor{
-		UnitPrice: 0.0000001,
+		UnitPrice: 0.00000002,
 		Asset:     common.PPTokenAssetName,
 	}
 
@@ -69,14 +69,14 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	if err != nil {
 		glog.Infof("Error creating user: %s", err)
-		return nil, err
+		return nil,nil, err
 	}
 
 	balance, err := horizon.GetBalance(seed.Address())
 
 	if err != nil {
 		glog.Infof("Error retrieving account data: %s", err)
-		return nil, err
+		return nil,nil,  err
 	}
 
 	fmt.Printf("Current balance for %v:%v", seed.Address(), balance)
@@ -125,5 +125,5 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		}
 	}()
 
-	return server, nil
+	return server,localNode, nil
 }

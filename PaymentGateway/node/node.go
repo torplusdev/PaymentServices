@@ -2,6 +2,9 @@ package node
 
 import (
 	"context"
+	"github.com/google/go-cmp/cmp"
+	hProtocol "github.com/stellar/go/protocols/horizon"
+	"paidpiper.com/payment-gateway/utility"
 	"sort"
 	"strconv"
 	"sync"
@@ -40,6 +43,7 @@ type Node struct {
 	tracer         			trace.Tracer
 	lastSequenceId 			xdr.SequenceNumber
 	autoFlushPeriod 		time.Duration
+	transactionValiditySecs  int64
 	sequenceMux            	sync.Mutex
 	flushMux			   	sync.Mutex
 }
@@ -63,7 +67,7 @@ type PPPaymentRequestProvider interface {
 	CreatePaymentRequest(context context.Context, amount common.TransactionAmount, asset string, serviceType string) (common.PaymentRequest, error)
 }
 
-func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration) (*Node,error) {
+func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration, transactionValiditySecs int64) (*Node,error) {
 
 	log.SetLevel(log.InfoLevel)
 
@@ -78,6 +82,7 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 		accumulatingTransactionsMode: accumulateTransactions,
 		tracer:                       common.CreateTracer("node"),
 		autoFlushPeriod: autoFlushPeriodSeconds,
+		transactionValiditySecs: transactionValiditySecs,
 		flushMux: sync.Mutex{},
 		sequenceMux: sync.Mutex{},
 	}
@@ -129,6 +134,14 @@ type NodeManager interface {
 
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 	n.accumulatingTransactionsMode = accumulateTransactions
+}
+
+func (n *Node) SetAutoFlush(autoFlush time.Duration) {
+	n.autoFlushPeriod = autoFlush
+}
+
+func (n *Node) SetTransactionValiditySecs(transactionValiditySecs int64) {
+	n.transactionValiditySecs = transactionValiditySecs
 }
 
 //func (n *Node) GetPendingPayment(address string) (common.TransactionAmount, time.Time, error) {
@@ -238,7 +251,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		n.sequenceMux.Lock()
 		defer n.sequenceMux.Unlock()
 		log.Infof("No reference transaction, assigning id %d and promoting",n.lastSequenceId)
-		sequenceProvider = int64(n.lastSequenceId) + 7 // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
+		sequenceProvider = int64(n.lastSequenceId) // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
 		n.lastSequenceId = n.lastSequenceId + 1
 	} else {
 		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
@@ -280,7 +293,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 			},
 		}},
 		BaseFee:    200,
-		Timebounds: txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+		Timebounds: txnbuild.NewTimeout(n.transactionValiditySecs),
 	})
 
 	//tx, err := build.Transaction(
@@ -696,6 +709,18 @@ func (n *Node) GetTransaction(sessionId string) common.PaymentTransaction {
 	return n.paymentRegistry.getTransactionBySessionId(sessionId)
 }
 
+// Find takes a slice and looks for an element in it. If found it will
+// return it's key, otherwise it will return -1 and a bool of false.
+func Find(slice []common.PaymentTransaction, val common.PaymentTransaction) (int, bool) {
+	for i, item := range slice {
+
+		if cmp.Equal(item, val) {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 func (n *Node) FlushTransactions(context context.Context) (map[string]interface{}, error) {
 
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.Address)
@@ -717,29 +742,18 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	defer n.flushMux.Unlock()
 
 	sort.Slice(transactions, func(i, j int) bool {
-		transiWrapper, erri := txnbuild.TransactionFromXDR(transactions[i].XDR)
+
+		transi, erri := utility.PaymentTransactionToStellar(&transactions[i])
+		transj, errj := utility.PaymentTransactionToStellar(&transactions[j])
+
 
 		if erri != nil {
-			log.Errorf("Error converting transaction from xdr: %s", erri.Error())
+			log.Errorf("Error converting transaction 1: %s", erri.Error())
 		}
-
-		transi, result := transiWrapper.Transaction()
-
-		if !result {
-			log.Errorf("Error converting transaction i from xdr (GenericTransaction)")
-		}
-
-		transjWrapper, errj := txnbuild.TransactionFromXDR(transactions[j].XDR)
-
 		if errj != nil {
-			log.Errorf("Error converting transaction from xdr: %s", errj.Error())
+			log.Errorf("Error converting transaction 2: %s", errj.Error())
 		}
 
-		transj, result := transjWrapper.Transaction()
-
-		if !result {
-			log.Errorf("Error converting transaction j from xdr (GenericTransaction)")
-		}
 
 		account := transi.SourceAccount()
 		seqi, erri := account.GetSequenceNumber()
@@ -750,7 +764,6 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		if erri != nil {
 			log.Errorf("Error getting sequence number transaction from xdr: %s", erri.Error())
 		}
-
 		if errj != nil {
 			log.Errorf("Error converting transaction from xdr: %s", errj.Error())
 		}
@@ -758,40 +771,22 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		return seqi < seqj
 	})
 
-	nodeAccount, err := n.horizon.GetAccount(n.Address)
+	var (
+		nodeAccount hProtocol.Account
+		err error
+	)
 
-	if err != nil {
+
+	if nodeAccount, err = n.horizon.GetAccount(n.Address); err!=nil {
 		return resultsMap, errors.Errorf("Error gettings account details: %v", err)
 	}
 
-	if err != nil {
-		return resultsMap, errors.Errorf("Error getting horizon account: %s", err.Error())
-	}
-
-	wrapper, err := txnbuild.TransactionFromXDR(transactions[0].XDR)
+	firstTransaction, err := utility.PaymentTransactionToStellar(&transactions[0])
 
 	if err != nil {
-		return resultsMap, errors.Errorf("Error converting first transaction from xdr: %v", err)
+		return resultsMap, errors.Errorf("Can't get first transaction from wrapper: %s", err.Error())
 	}
 
-	firstTransaction,ok := wrapper.Transaction()
-
-	if !ok {
-		return resultsMap, errors.Errorf("Can't get first transaction from wrapper")
-	}
-
-	wrapper, err = txnbuild.TransactionFromXDR(transactions[len(transactions)-1].XDR)
-
-	lastTransaction,ok := wrapper.Transaction()
-	_ = lastTransaction
-
-	if !ok {
-		return resultsMap, errors.Errorf("Can't get last transaction from wrapper")
-	}
-
-	if err != nil {
-		return resultsMap, errors.Errorf("Error converting last transaction from xdr: %v", err)
-	}
 
 	// Handle unfulfilled transactions, if needed
 	currentSequence, err := nodeAccount.GetSequenceNumber()
@@ -807,19 +802,10 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	if firstTransaction.SourceAccount().Sequence <= currentSequence {
 		for _, t := range transactions {
 
-			wrapper, err = txnbuild.TransactionFromXDR(t.XDR)
+			innerTransaction, err := utility.PaymentTransactionToStellar(&t)
 
 			if err != nil {
 				log.Warn("Problematic transaction detected, couldn't convert from XDR - removing.")
-
-				transactionToRemove = transactionToRemove + 1
-				continue
-			}
-
-			innerTransaction,ok := wrapper.Transaction()
-
-			if !ok {
-				log.Warn("Problematic transaction detected, couldn't extract inner transaction - removing.")
 
 				transactionToRemove = transactionToRemove + 1
 				continue
@@ -832,129 +818,151 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		}
 
 		if transactionToRemove > 0 {
-			log.Warnf("Bad transactions detected (%d) and were removed.", transactionToRemove)
+			log.Warnf("Bad first transactions were detected (%d) and removed.", transactionToRemove)
 
 			transactions = transactions[transactionToRemove:]
 
-			if len(transactions) > 0 {
-				wrapper, err := txnbuild.TransactionFromXDR(transactions[0].XDR)
-
-				if err != nil {
-					return resultsMap, errors.Errorf("Error converting first transaction from xdr: %v", err)
-				}
-
-				firstTransaction, ok = wrapper.Transaction()
-
-				if !ok {
-					return resultsMap, errors.Errorf("Can't get first transaction from wrapper")
-				}
-			} else {
+			if len(transactions) == 0 {
 				log.Warnf("No further transactions to process after removing %d transactions", transactionToRemove)
 				return resultsMap, nil
 			}
 		}
 	}
 
-	// Bump if needed
-	if firstTransaction.SourceAccount().Sequence > currentSequence+1 {
-		log.Warnf("Sequence bump needed, unfullfilled transactions detected: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
 
+
+
+	bumper := func(current int64, bumpTo int64)  error {
 		tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
 			SourceAccount: &txnbuild.SimpleAccount{
 				AccountID: n.Address,
-				Sequence:  currentSequence,
+				Sequence:  current,
 			},
 			IncrementSequenceNum: true,
-			BaseFee: 200,
-			Timebounds: txnbuild.NewTimeout(300),
+			BaseFee: common.StellarImmediateOperationBaseFee,
+			Timebounds: txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
 			Operations: []txnbuild.Operation{&txnbuild.BumpSequence{
-				BumpTo:        firstTransaction.SourceAccount().Sequence - 1,
+				BumpTo:        bumpTo,
 				SourceAccount: &nodeAccount,
 			}}})
 
 		if err != nil {
-			return resultsMap, errors.Errorf("Error creating seq bump tx: %v", err)
+			return errors.Errorf("Error creating seq bump tx: %v", err)
 		}
 
 		kp,err := keypair.ParseFull(n.secretSeed)
 
 		if err != nil {
-			return resultsMap, errors.Errorf("Error getting key: %v", err)
+			return errors.Errorf("Error getting key: %v", err)
 		}
 
 		tx,err = tx.Sign(network.TestNetworkPassphrase,kp)
 
 		if err != nil {
-			return resultsMap, errors.Errorf("Error signing seq bump tx: %v", err)
+			return errors.Errorf("Error signing seq bump tx: %v", err)
 		}
 
-		_, err = horizonclient.DefaultTestNetClient.SubmitTransaction(tx)
+		_, err = n.horizon.Client.SubmitTransaction(tx)
 
 		if err != nil {
 			xdr,_ := tx.Base64()
 			log.Errorf("Error in seq bump transaction: %s" + xdr)
-			return resultsMap, errors.Errorf("Error submitting seq bump tx: %v", err)
+			return  errors.Errorf("Error submitting seq bump tx: %v", err)
 		}
+
+		return nil
 	}
 
-	for a, t := range transactions {
+	var processedTransactions []common.PaymentTransaction
 
-		log.Infof("Submitting transaction for session %s",t.ServiceSessionId)
-		txSuccess, err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+	for len(transactions) > 0 {
+
+		currentSequence, err = nodeAccount.GetSequenceNumber()
 
 		if err != nil {
-
-			log.Errorf("Error in submit transaction: %s" + t.XDR)
-
-			stellarError, ok := err.(*horizonclient.Error)
-			if ok {
-				resultCodes, innerErr := stellarError.ResultCodes()
-
-				if innerErr != nil {
-					log.Errorf("Error unwrapping stellar errors: %v", innerErr.Error())
-				}
-
-				log.Errorf("Stellar error details - transaction error: %s", resultCodes.TransactionCode)
-
-				for _, operror := range resultCodes.OperationCodes {
-					log.Errorf("Stellar error details - operation error: %s", operror)
-				}
-			} else {
-				log.Errorf("Couldn't parse error as stellar: " + err.Error())
-			}
+			return resultsMap, errors.Errorf("Error reading sequence: %v", err)
 		}
 
-		resultsMap[t.TransactionSourceAddress] = txSuccess
+		firstTransaction, err = utility.PaymentTransactionToStellar(&transactions[0])
 
 		if err != nil {
-			log.Errorf("Error submitting transaction for %v: %v", a, err)
+			return resultsMap, errors.Errorf("Can't get first transaction from wrapper: %s", err.Error())
+		}
 
+		// Bump if needed
+		if firstTransaction.SourceAccount().Sequence > currentSequence+1 {
+			log.Warnf("Sequence bump needed: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
 
-			internalTransWrapper, err := txnbuild.TransactionFromXDR(t.XDR)
+			err := bumper(currentSequence,firstTransaction.SourceAccount().Sequence - 1)
 
 			if err != nil {
-				log.Errorf("Error deserializing transaction for %v: %w", a, err)
+				return resultsMap, errors.Errorf("Error during sequence bump: %s", err.Error(),err)
 			}
-
-			internalTrans, result := internalTransWrapper.Transaction()
-
-			if !result {
-				log.Errorf("Error deserializing transaction (GenericTransaction)")
-			}
-
-			//n.verifyTransactionSignatures(context,t)
-
-			account := internalTrans.SourceAccount()
-			accountSeqNumber, _ := account.GetSequenceNumber()
-			//transactionSeqNumber := &internalTrans.(*xdr.Transaction).SeqNum
-			_ = accountSeqNumber
-
-			_ = internalTrans
-			resultsMap[t.TransactionSourceAddress] = err
-		} else {
-			n.paymentRegistry.completePayment(t.PaymentSourceAddress, t.ServiceSessionId)
 		}
 
+		for a, t := range transactions {
+
+
+			log.Infof("Submitting transaction for session %s", t.ServiceSessionId)
+			txSuccess, transactionError := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+			resultsMap[t.PaymentSourceAddress] = txSuccess
+
+			if transactionError != nil {
+
+				log.Errorf("Error in submit transaction (%s): %s",transactionError.Error(), t.XDR)
+
+				if stellarError, ok := transactionError.(*horizonclient.Error); ok {
+
+					resultCodes, innerErr := stellarError.ResultCodes()
+
+					if innerErr != nil {
+						log.Errorf("Error unwrapping stellar errors: %v", innerErr.Error())
+					} else {
+						log.Errorf("Stellar error details - transaction error: %s", resultCodes.TransactionCode)
+
+						for _, operror := range resultCodes.OperationCodes {
+							log.Errorf("Stellar error details - operation error: %s", operror)
+						}
+					}
+				} else {
+					log.Errorf("Couldn't parse error as stellar: " + transactionError.Error())
+				}
+
+				internalTrans, err := utility.PaymentTransactionToStellar(&t)
+
+				if err != nil {
+					log.Errorf("Error deserializing transaction for %v: %w", a, err)
+				}
+
+				//n.verifyTransactionSignatures(context,t)
+
+				account := internalTrans.SourceAccount()
+				accountSeqNumber, _ := account.GetSequenceNumber()
+				//transactionSeqNumber := &internalTrans.(*xdr.Transaction).SeqNum
+				_ = accountSeqNumber
+
+				resultsMap[t.PaymentSourceAddress] = transactionError
+
+				transactions = append(transactions[:a], transactions[a+1:]...)
+				break
+			} else {
+				//TODO: Make the transaction removal more intellegent
+				n.paymentRegistry.completePayment(t.PaymentSourceAddress, t.ServiceSessionId)
+				processedTransactions = append(processedTransactions, t)
+			}
+		}
+
+		var left_transactions []common.PaymentTransaction
+
+		for _,x := range transactions {
+			_,found := Find(processedTransactions,x )
+
+			if !found {
+				left_transactions = append(left_transactions,x)
+			}
+		}
+
+		transactions = left_transactions
 	}
 
 	return resultsMap, nil

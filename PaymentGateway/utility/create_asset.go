@@ -72,15 +72,13 @@ func createAsset() {
 			Amount:        "100",
 		}
 
-		txCreateAccounts := txnbuild.Transaction{
+		txCreateAccounts,_ := txnbuild.NewTransaction(txnbuild.TransactionParams{
 			SourceAccount: &sourceAccountDetail,
 			Operations:    []txnbuild.Operation{&createIssuerAccount, &createDistributionAccount},
-			Timebounds:    txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
-			Network:       network.TestNetworkPassphrase,
-		}
+			Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+		})
 
-		txCreateAccounts.Build()
-		txCreateAccounts.Sign(sourceKp)
+		txCreateAccounts.Sign(network.TestNetworkPassphrase,sourceKp)
 
 		resp, err := client.SubmitTransaction(txCreateAccounts)
 
@@ -104,19 +102,14 @@ func createAsset() {
 		Limit:         "100000",
 	}
 
-	txCreateTrustLine := txnbuild.Transaction{
+
+	txCreateTrustLine,_ := txnbuild.NewTransaction(txnbuild.TransactionParams{
 		SourceAccount: &distributionAccountDetail,
 		Operations:    []txnbuild.Operation{&changeTrust},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	})
 
-	xdr, err := txCreateTrustLine.BuildSignEncode(distributionKp)
-
-	_ = xdr
-	if err != nil {
-		log.Print("Error signing transaction:")
-	}
+	txCreateTrustLine.Sign(network.TestNetworkPassphrase,sourceKp)
 
 	resp, err := client.SubmitTransaction(txCreateTrustLine)
 
@@ -127,15 +120,14 @@ func createAsset() {
 		SourceAccount: &issuerAccountDetail,
 	}
 
-	txCreateAssets := txnbuild.Transaction{
+
+	txCreateAssets,_ := txnbuild.NewTransaction(txnbuild.TransactionParams{
 		SourceAccount: &issuerAccountDetail,
 		Operations:    []txnbuild.Operation{&createAssets},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	})
 
-	txCreateAssets.Build()
-	txCreateAssets.Sign(issuerKp)
+	txCreateAssets.Sign(network.TestNetworkPassphrase, issuerKp)
 
 	resp, err = client.SubmitTransaction(txCreateAssets)
 
@@ -147,15 +139,13 @@ func createAsset() {
 		SourceAccount: &issuerAccountDetail,
 	}
 
-	txSetOptionsSetHomedomain := txnbuild.Transaction{
+	txSetOptionsSetHomedomain,_ := txnbuild.NewTransaction(txnbuild.TransactionParams{
 		SourceAccount: &issuerAccountDetail,
 		Operations:    []txnbuild.Operation{&setOptionsSetHomedomain},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	})
 
-	err = txSetOptionsSetHomedomain.Build()
-	err = txSetOptionsSetHomedomain.Sign(issuerKp)
+	txSetOptionsSetHomedomain.Sign(network.TestNetworkPassphrase, issuerKp)
 
 	resp, err = client.SubmitTransaction(txSetOptionsSetHomedomain)
 

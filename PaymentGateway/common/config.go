@@ -9,6 +9,9 @@ import "github.com/tkanos/gonfig"
 
 var once sync.Once
 
+const StellarImmediateOperationTimeoutSec = 60
+const StellarImmediateOperationBaseFee = 200
+
 type jsonCnfiguration struct {
 	Port              int
 	StellarSeed		  string
@@ -16,6 +19,7 @@ type jsonCnfiguration struct {
 	JaegerServiceName string
 	AutoFlushPeriod	  string
 	MaxConcurrency	  int
+	TransactionValidityPeriodSec int64
 }
 
 type configuration struct {
@@ -25,13 +29,13 @@ type configuration struct {
 	JaegerServiceName string
 	AutoFlushPeriod	  time.Duration
 	MaxConcurrency	  int
+	TransactionValidityPeriodSec int64
 }
 
 
 
 var (
 	instance configuration
-	TransactionTimeoutSeconds int64 = 21600
 )
 
 func ParseConfiguration(configFile string) (configuration,error) {
@@ -46,9 +50,16 @@ func ParseConfiguration(configFile string) (configuration,error) {
 		JaegerUrl:         rawConfig.JaegerUrl,
 		JaegerServiceName: rawConfig.JaegerServiceName,
 		MaxConcurrency:    rawConfig.MaxConcurrency,
+		TransactionValidityPeriodSec:  rawConfig.TransactionValidityPeriodSec,
 	}
 
 	instance.AutoFlushPeriod,err = time.ParseDuration(rawConfig.AutoFlushPeriod)
+
+	// Apply defaults
+	if instance.Port == 0 { instance.Port = 28080}
+	if instance.MaxConcurrency == 0 { instance.MaxConcurrency = 10}
+	if instance.TransactionValidityPeriodSec == 0 { instance.TransactionValidityPeriodSec = 21600}
+
 
 	if err != nil {
 		return configuration{}, errors.Errorf("Error parsing AutoFlushPeriod setting: " + err.Error())

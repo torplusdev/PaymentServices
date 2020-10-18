@@ -28,7 +28,7 @@ steps:
 #   displayName: 'Running all the tests'
   
 - script: |
-    go build -v
+    go build paidpiper.com/payment-gateway
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
   displayName: 'Building Payment Gateway'
 

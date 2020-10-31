@@ -1,6 +1,8 @@
 package common
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type TransactionAmount = uint32
 
@@ -52,6 +54,7 @@ type PaymentRequestValidator interface {
 func (te *TransactionError) Error() string {
 	return fmt.Sprintf("Error: " + te.error)
 }
+
 
 
 

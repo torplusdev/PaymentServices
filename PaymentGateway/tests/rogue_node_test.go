@@ -62,13 +62,10 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 	assert.NotNil(transactions)
 
 	// Verify
-	ok, err := client.VerifyTransactions(context.Background(),nodes, pr1, transactions)
+	err = client.VerifyTransactions(context.Background(),nodes, pr1, transactions)
 	assert.NoError(err)
-	assert.True(ok && err == nil)
-
 	// Commit
-	ok, err = client.FinalizePayment(context.Background(),nodes, transactions,pr1 )
-
+	err = client.FinalizePayment(context.Background(),nodes, transactions,pr1 )
 
 	/*     ******                    Transaction 2			*************				*/
 	//guid2 := xid.New()
@@ -105,7 +102,7 @@ func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
 
 	// Verify
-	ok, err = client.VerifyTransactions(context.Background(),nodes, pr2, transactions)
+	err = client.VerifyTransactions(context.Background(),nodes, pr2, transactions)
 	var e *common.TransactionValidationError
 	assert.EqualError(err,e.Err.Error())
 	//assert.True(errors.As(err,&e), e.Error())
@@ -150,11 +147,10 @@ func TestAccumulatingTransactionWithBadSignatureShouldFail(t *testing.T) {
 	assert.NotNil(transactions)
 
 	// Verify
-	ok, err := client.VerifyTransactions(context.Background(), nodes, pr1, transactions)
+	err = client.VerifyTransactions(context.Background(), nodes, pr1, transactions)
 	assert.NoError(err)
-	assert.True(ok && err == nil)
 
 	// Commit
-	ok, err = client.FinalizePayment(context.Background(), nodes, transactions,pr1 )
+	err = client.FinalizePayment(context.Background(), nodes, transactions,pr1 )
 	assert.Error(err)
 }

@@ -51,7 +51,7 @@ type CommitPaymentTransactionCommand struct {
 }
 
 type CommitPaymentTransactionResponse struct {
-	Ok bool `json:"ok"`
+
 }
 
 type CommitServiceTransactionCommand struct {
@@ -61,7 +61,7 @@ type CommitServiceTransactionCommand struct {
 }
 
 type CommitServiceTransactionResponse struct {
-	Ok bool `json:"ok"`
+
 }
 
 type GetStellarAddressResponse struct {

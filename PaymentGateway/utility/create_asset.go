@@ -76,11 +76,12 @@ func CreateAsset() {
 			txnbuild.TransactionParams{
 				SourceAccount:        &sourceAccountDetail,
 				Operations:           []txnbuild.Operation{&createIssuerAccount, &createDistributionAccount},
-				Timebounds:           txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+				Timebounds:           txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
 				IncrementSequenceNum: true,
 				BaseFee:              200,
 			})
 
+		txCreateAccounts.Sign(network.TestNetworkPassphrase,sourceKp)
 
 		signedTransaction, err := txCreateAccounts.Sign(network.TestNetworkPassphrase, sourceKp)
 
@@ -108,7 +109,7 @@ func CreateAsset() {
 	txCreateTrustLine, err := txnbuild.NewTransaction( txnbuild.TransactionParams{
 		SourceAccount: &distributionAccountDetail,
 		Operations:    []txnbuild.Operation{&changeTrust},
-		Timebounds:    txnbuild.NewTimeout(300),
+		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 		})
@@ -131,7 +132,7 @@ func CreateAsset() {
 	txCreateAssets,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
 		SourceAccount:        &issuerAccountDetail,
 		Operations:           []txnbuild.Operation{&createAssets},
-		Timebounds:           txnbuild.NewTimeout(300),
+		Timebounds:           txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 		})
@@ -152,7 +153,7 @@ func CreateAsset() {
 	txSetOptionsSetHomedomain,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
 		SourceAccount: &issuerAccountDetail,
 		Operations:    []txnbuild.Operation{&setOptionsSetHomedomain},
-		Timebounds:    txnbuild.NewTimeout(300),
+		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 	})
@@ -206,7 +207,7 @@ func SubmitBuyOffer() {
 	txBuyOffer, err := txnbuild.NewTransaction( txnbuild.TransactionParams{
 		SourceAccount: &distributionAccountDetail,
 		Operations:    []txnbuild.Operation{&manageBuyOffer},
-		Timebounds:    txnbuild.NewTimeout(300),
+		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 	})

@@ -76,7 +76,7 @@ func main() {
 	traceProvider, tracerShutdownFunc := initGlobalTracer(config.JaegerUrl, config.JaegerServiceName)
 	common.InitializeTracer(traceProvider)
 
-	//s := "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
+	//s := "SC2SCPAPTSPITDLJYR5WQRH23XK267D2KM5SFMUKBCVKSLI3TVFNEQHQ"
 	//port := 28080
 
 	runtime.GOMAXPROCS(config.MaxConcurrency)
@@ -85,7 +85,7 @@ func main() {
 	// Set up signal channel
 	stop := make(chan os.Signal, 1)
 
-	server, err := serviceNode.StartServiceNode(config.StellarSeed, config.Port, "http://localhost:5817", true, config.AutoFlushPeriod)
+	server,_, err := serviceNode.StartServiceNode(config.StellarSeed, config.Port, "http://localhost:5817", true, config.AutoFlushPeriod, config.TransactionValidityPeriodSec)
 
 	if err != nil {
 		log.Panicf("Error starting serviceNode: %v", err.Error())

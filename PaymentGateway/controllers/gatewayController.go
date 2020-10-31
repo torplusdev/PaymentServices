@@ -236,9 +236,9 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Verify
-		ok, err := c.VerifyTransactions(ctx, r, pr, transactions)
+		err = c.VerifyTransactions(ctx, r, pr, transactions)
 
-		if !ok || err != nil {
+		if err != nil {
 			if !g.asyncMode {
 				future <- MessageWithStatus(http.StatusBadRequest, "Verification failed")
 			}
@@ -254,9 +254,9 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 		}
 
 		// Commit
-		ok, err = c.FinalizePayment(ctx, r, transactions, pr)
+		err = c.FinalizePayment(ctx, r, transactions, pr)
 
-		if !ok || err != nil {
+		if err != nil {
 			if !g.asyncMode {
 				future <- MessageWithStatus(http.StatusBadRequest, "Finalize failed")
 			}
@@ -279,7 +279,7 @@ func (g *GatewayController) ProcessPayment(w http.ResponseWriter, r *http.Reques
 
 		g.DeleteNodeManager(pr.ServiceSessionId)
 
-		log.Printf("Payment completed SessionId=%s", pr.ServiceSessionId)
+		log.Printf("Payment completed SessionId=%s, ServiceRef=%s", pr.ServiceSessionId, pr.ServiceRef)
 	}(*paymentRequest, future)
 
 	Respond(w, future)

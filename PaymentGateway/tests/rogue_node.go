@@ -54,11 +54,11 @@ func signChainTransactionsNoError(r *RogueNode, context context.Context, creditT
 	return r.internalNode.SignChainTransactions(context, creditTransactionPayload, debitTransactionPayload)
 }
 
-func (r *RogueNode) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (r *RogueNode) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error {
 	return r.internalNode.CommitServiceTransaction(context, transaction, pr)
 }
 
-func (r *RogueNode) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (r *RogueNode) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 	return r.internalNode.CommitPaymentTransaction(context, transactionPayload)
 }
 
@@ -123,7 +123,7 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, t
 			Sequence:  sourceAccount.Sequence,
 		},
 		BaseFee: 200,
-		Timebounds: txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+		Timebounds: txnbuild.NewTimeout(600),
 		Operations: []txnbuild.Operation{&txnbuild.Payment{
 			Destination: payment.Destination,
 			Amount:      payment.Amount,
@@ -223,7 +223,7 @@ func CreateRogueNode_NonidenticalSequenceNumbers(address string, seed string, ac
 
 	horizon := horizon.NewHorizon()
 
-	node := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
+	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0,600)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,
@@ -238,7 +238,7 @@ func CreateRogueNode_BadSignature(address string, seed string, accumulateTransac
 
 	horizon := horizon.NewHorizon()
 
-	node := node.CreateNode(horizon, address, seed, accumulateTransactions,0)
+	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0,600)
 
 	rogueNode := RogueNode{
 		internalNode:                  node,

@@ -2,7 +2,11 @@ package node
 
 import (
 	"context"
+	"github.com/google/go-cmp/cmp"
+	hProtocol "github.com/stellar/go/protocols/horizon"
+	"paidpiper.com/payment-gateway/utility"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -39,6 +43,7 @@ type Node struct {
 	tracer         			trace.Tracer
 	lastSequenceId 			xdr.SequenceNumber
 	autoFlushPeriod 		time.Duration
+	transactionValiditySecs  int64
 	sequenceMux            	sync.Mutex
 	flushMux			   	sync.Mutex
 }
@@ -47,8 +52,8 @@ type PPNode interface {
 	CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error)
 	SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error
 	SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error
-	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (ok bool, err error)
-	CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error)
+	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error
+	CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error
 	GetAddress() (string)
 }
 
@@ -62,7 +67,7 @@ type PPPaymentRequestProvider interface {
 	CreatePaymentRequest(context context.Context, amount common.TransactionAmount, asset string, serviceType string) (common.PaymentRequest, error)
 }
 
-func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration) *Node {
+func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulateTransactions bool, autoFlushPeriodSeconds time.Duration, transactionValiditySecs int64) (*Node,error) {
 
 	log.SetLevel(log.InfoLevel)
 
@@ -77,8 +82,32 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 		accumulatingTransactionsMode: accumulateTransactions,
 		tracer:                       common.CreateTracer("node"),
 		autoFlushPeriod: autoFlushPeriodSeconds,
+		transactionValiditySecs: transactionValiditySecs,
 		flushMux: sync.Mutex{},
 		sequenceMux: sync.Mutex{},
+	}
+
+	nodeAccountDetail,err := horizon.GetAccount(address)
+
+	if err != nil {
+		return nil, errors.Errorf("Client account doesnt exist: %s ", err.Error())
+	}
+
+	// Account validation
+	strBalance := nodeAccountDetail.GetCreditBalance(common.PPTokenAssetName, common.PPTokenIssuerAddress)
+	balance, _ := strconv.ParseFloat(strBalance, 32)
+
+	if balance < common.PPTokenMinAllowedBalance {
+		return nil,errors.Errorf("Error in client account: PPToken balance is too low: %d. Should be at least %d.",
+			balance, common.PPTokenMinAllowedBalance )
+	}
+
+	signerMap := nodeAccountDetail.SignerSummary()
+	masterWeight := signerMap[address]
+
+	if masterWeight < int32(nodeAccountDetail.Thresholds.MedThreshold) {
+		return nil,errors.Errorf("Error in client account: master weight (%d) should be at least at medium threshold (%d) ",
+			masterWeight, nodeAccountDetail.Thresholds.MedThreshold )
 	}
 
 	go func() {
@@ -96,7 +125,7 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 		}
 	}()
 
-	return &node
+	return &node, nil
 }
 
 type NodeManager interface {
@@ -105,6 +134,14 @@ type NodeManager interface {
 
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 	n.accumulatingTransactionsMode = accumulateTransactions
+}
+
+func (n *Node) SetAutoFlush(autoFlush time.Duration) {
+	n.autoFlushPeriod = autoFlush
+}
+
+func (n *Node) SetTransactionValiditySecs(transactionValiditySecs int64) {
+	n.transactionValiditySecs = transactionValiditySecs
 }
 
 //func (n *Node) GetPendingPayment(address string) (common.TransactionAmount, time.Time, error) {
@@ -214,7 +251,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 		n.sequenceMux.Lock()
 		defer n.sequenceMux.Unlock()
 		log.Infof("No reference transaction, assigning id %d and promoting",n.lastSequenceId)
-		sequenceProvider = int64(n.lastSequenceId) + 7 // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
+		sequenceProvider = int64(n.lastSequenceId) // build.AutoSequence{common.CreateStaticSequence(uint64(n.lastSequenceId - 1))}
 		n.lastSequenceId = n.lastSequenceId + 1
 	} else {
 		referenceTransactionPayload := transactionPayload.GetReferenceTransaction()
@@ -256,7 +293,7 @@ func (n *Node) CreateTransaction(context context.Context, totalIn common.Transac
 			},
 		}},
 		BaseFee:    200,
-		Timebounds: txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+		Timebounds: txnbuild.NewTimeout(n.transactionValiditySecs),
 	})
 
 	//tx, err := build.Transaction(
@@ -444,7 +481,7 @@ func (n *Node) SignChainTransactions(context context.Context, creditTransactionP
 	return nil
 }
 
-func (n *Node) verifyTransactionSequence(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) verifyTransactionSequence(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 
 	_, span := n.tracer.Start(context, "node-verifyTransactionSequence"+n.Address)
 	defer span.End()
@@ -455,38 +492,38 @@ func (n *Node) verifyTransactionSequence(context context.Context, transactionPay
 	transactionWrapper, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		return false, errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
+		return errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
 	}
 
 	t,result := transactionWrapper.Transaction()
 
 	if !result {
-		return false, errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
+		return errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
 	}
 
 	nodeAccount, err := n.horizon.GetAccount(n.Address)
 	if err != nil {
-		return false, errors.Errorf("Error reading account: " + err.Error())
+		return errors.Errorf("Error reading account: " + err.Error())
 	}
 
 	currentSequence,err := nodeAccount.GetSequenceNumber()
 	if err != nil {
-		return false, errors.Errorf("Error getting sequence: " + err.Error())
+		return errors.Errorf("Error getting sequence: " + err.Error())
 	}
 
 	account := t.SourceAccount()
 	transactionSequence, err := account.GetSequenceNumber()
 
-	if (transactionSequence <= currentSequence) {
+	if transactionSequence <= currentSequence {
 		log.Warn("Incorrect sequence detected, current account is at %d, transaction is %d",currentSequence,transactionSequence)
-		return false, nil
+		return errors.Errorf("incorrect sequence detected")
 	}
 
 	log.Infof("verifyTransactionSequence finished successfully - account#:%d transaction#:%d",currentSequence,transactionSequence)
-	return true, nil
+	return nil
 }
 
-func (n *Node) verifyTransactionSignatures(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) verifyTransactionSignatures(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 
 	_, span := n.tracer.Start(context, "node-verifyTransactionSignatures "+n.Address)
 	defer span.End()
@@ -500,17 +537,17 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 	transactionWrapper, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		return false, errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
+		return errors.Errorf("Error deserializing transaction from XDR: " + e.Error())
 	}
 
 	t,result := transactionWrapper.Transaction()
 
 	if !result {
-		return false, errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
+		return errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
 	}
 
 	if t.SourceAccount().AccountID != n.Address {
-		return false, errors.Errorf("Incorrect transaction source account")
+		return errors.Errorf("Incorrect transaction source account")
 	}
 	//transaction.StellarNetworkToken
 
@@ -522,15 +559,15 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 		case xdr.OperationTypePayment:
 			payment := &txnbuild.Payment{}
 
-			err = payment.FromXDR(xdrOp)
+			err := payment.FromXDR(xdrOp)
 
 			if err != nil {
-				return false, errors.Errorf("Error converting operation")
+				return errors.Errorf("Error converting operation")
 			}
 
 			payerAccount = payment.SourceAccount.GetAccountID()
 		default:
-			return false, errors.Errorf("Unexpected operation during verification")
+			return errors.Errorf("Unexpected operation during verification")
 		}
 	}
 
@@ -541,13 +578,13 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 		from, err := keypair.ParseAddress(payerAccount)
 
 		if err != nil {
-			return false, errors.Errorf("Error in operation source address")
+			return errors.Errorf("Error in operation source address")
 		}
 
 		bytes, err := t.Hash(transaction.StellarNetworkToken)
 
 		if err != nil {
-			return false, errors.Errorf("Error during tx hashing")
+			return errors.Errorf("Error during tx hashing")
 		}
 
 		err = from.Verify(bytes[:], signature.Signature)
@@ -558,7 +595,7 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 
 		own, err := keypair.ParseFull(n.secretSeed)
 		if err != nil {
-			return false, errors.Errorf("Error creating key")
+			return errors.Errorf("Error creating key")
 		}
 
 		err = own.Verify(bytes[:], signature.Signature)
@@ -569,21 +606,21 @@ func (n *Node) verifyTransactionSignatures(context context.Context, transactionP
 	}
 
 	if !payerVerified {
-		return false, errors.Errorf("Error validating payer signature")
+		return errors.Errorf("Error validating payer signature")
 	}
 
 	if !sourceVerified {
-		return false, errors.Errorf("Error validating source signature")
+		return errors.Errorf("Error validating source signature")
 	}
 
 	log.Infof("verifyTransactionSequence finished successfully")
 
 	//TODO: Validate timebounds
 
-	return true, nil
+	return nil
 }
 
-func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) (ok bool, err error) {
+func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
 
 	_, span := n.tracer.Start(context, "node-CommitPaymentTransaction "+n.Address)
 	defer span.End()
@@ -591,34 +628,32 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 	log.Infof("CommitPaymentTransaction started %s => %s", transactionPayload.PendingTransaction.PaymentSourceAddress,
 		transactionPayload.PendingTransaction.PaymentDestinationAddress)
 
-	ok = false
 	transaction := transactionPayload.GetPaymentTransaction()
 
 	transactionWrapper, e := txnbuild.TransactionFromXDR(transaction.XDR)
 
 	if e != nil {
-		return false, errors.Errorf("Error during transaction deser: %v", e)
+		return errors.Errorf("Error during transaction deser: %v", e)
 	}
 
 	t,result := transactionWrapper.Transaction()
 
 	if !result {
-		return false, errors.Errorf("Error during transaction deser: %v", e)
+		return errors.Errorf("Error during transaction deser: %v", e)
 	}
 
-	ok, err = n.verifyTransactionSequence(context,transactionPayload)
+	e = n.verifyTransactionSequence(context,transactionPayload)
 
-	if !ok || err != nil {
+	if e != nil {
 		log.Warn("Transaction verification failed (sequence)")
-		return false, err
+		return e
 	}
 
+	e = n.verifyTransactionSignatures(context, transactionPayload)
 
-	ok, err = n.verifyTransactionSignatures(context, transactionPayload)
-
-	if !ok || err != nil {
+	if e != nil {
 		log.Warn("Transaction verification failed (signatures)")
-		return false, err
+		return e
 	}
 
 	if !n.accumulatingTransactionsMode {
@@ -626,7 +661,7 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 
 		if err != nil {
 			log.Error("Error submitting transaction: " + err.Error())
-			return false, err
+			return err
 		}
 
 		log.Debug("Transaction submitted: ")
@@ -639,10 +674,10 @@ func (n *Node) CommitPaymentTransaction(context context.Context, transactionPayl
 
 	transactionPayload.ToSpanAttributes(span, "single")
 
-	return true, nil
+	return nil
 }
 
-func (n *Node) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) (bool, error) {
+func (n *Node) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error {
 
 	_, span := n.tracer.Start(context, "node-CommitServiceTransaction "+n.Address)
 	defer span.End()
@@ -650,20 +685,18 @@ func (n *Node) CommitServiceTransaction(context context.Context, transaction *co
 	log.Infof("CommitServiceTransaction started %s => %s", transaction.PendingTransaction.PaymentSourceAddress,
 		transaction.PendingTransaction.PaymentDestinationAddress)
 
-	ok, err := n.CommitPaymentTransaction(context, transaction)
+	err := n.CommitPaymentTransaction(context, transaction)
 
-	if ok {
-		err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId, transaction.GetPaymentTransaction().AmountOut)
-		return err == nil, err
-
-	} else {
-		return false, err
+	if err != nil {
+		return err
 	}
+
+	err = n.paymentRegistry.reducePendingAmount(pr.ServiceSessionId, transaction.GetPaymentTransaction().AmountOut)
 
 	log.Infof("CommitServiceTransaction finished %s => %s", transaction.PendingTransaction.PaymentSourceAddress,
 		transaction.PendingTransaction.PaymentDestinationAddress)
 
-	return true, nil
+	return err
 }
 
 func (n *Node) GetTransactions() []common.PaymentTransaction {
@@ -674,6 +707,18 @@ func (n *Node) GetTransactions() []common.PaymentTransaction {
 func (n *Node) GetTransaction(sessionId string) common.PaymentTransaction {
 
 	return n.paymentRegistry.getTransactionBySessionId(sessionId)
+}
+
+// Find takes a slice and looks for an element in it. If found it will
+// return it's key, otherwise it will return -1 and a bool of false.
+func Find(slice []common.PaymentTransaction, val common.PaymentTransaction) (int, bool) {
+	for i, item := range slice {
+
+		if cmp.Equal(item, val) {
+			return i, true
+		}
+	}
+	return -1, false
 }
 
 func (n *Node) FlushTransactions(context context.Context) (map[string]interface{}, error) {
@@ -697,29 +742,18 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 	defer n.flushMux.Unlock()
 
 	sort.Slice(transactions, func(i, j int) bool {
-		transiWrapper, erri := txnbuild.TransactionFromXDR(transactions[i].XDR)
+
+		transi, erri := utility.PaymentTransactionToStellar(&transactions[i])
+		transj, errj := utility.PaymentTransactionToStellar(&transactions[j])
+
 
 		if erri != nil {
-			log.Errorf("Error converting transaction from xdr: %s", erri.Error())
+			log.Errorf("Error converting transaction 1: %s", erri.Error())
 		}
-
-		transi, result := transiWrapper.Transaction()
-
-		if !result {
-			log.Errorf("Error converting transaction i from xdr (GenericTransaction)")
-		}
-
-		transjWrapper, errj := txnbuild.TransactionFromXDR(transactions[j].XDR)
-
 		if errj != nil {
-			log.Errorf("Error converting transaction from xdr: %s", errj.Error())
+			log.Errorf("Error converting transaction 2: %s", errj.Error())
 		}
 
-		transj, result := transjWrapper.Transaction()
-
-		if !result {
-			log.Errorf("Error converting transaction j from xdr (GenericTransaction)")
-		}
 
 		account := transi.SourceAccount()
 		seqi, erri := account.GetSequenceNumber()
@@ -730,7 +764,6 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		if erri != nil {
 			log.Errorf("Error getting sequence number transaction from xdr: %s", erri.Error())
 		}
-
 		if errj != nil {
 			log.Errorf("Error converting transaction from xdr: %s", errj.Error())
 		}
@@ -738,40 +771,22 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		return seqi < seqj
 	})
 
-	nodeAccount, err := n.horizon.GetAccount(n.Address)
+	var (
+		nodeAccount hProtocol.Account
+		err error
+	)
 
-	if err != nil {
+
+	if nodeAccount, err = n.horizon.GetAccount(n.Address); err!=nil {
 		return resultsMap, errors.Errorf("Error gettings account details: %v", err)
 	}
 
-	if err != nil {
-		return resultsMap, errors.Errorf("Error getting horizon account: %s", err.Error())
-	}
-
-	wrapper, err := txnbuild.TransactionFromXDR(transactions[0].XDR)
+	firstTransaction, err := utility.PaymentTransactionToStellar(&transactions[0])
 
 	if err != nil {
-		return resultsMap, errors.Errorf("Error converting first transaction from xdr: %v", err)
+		return resultsMap, errors.Errorf("Can't get first transaction from wrapper: %s", err.Error())
 	}
 
-	firstTransaction,ok := wrapper.Transaction()
-
-	if !ok {
-		return resultsMap, errors.Errorf("Can't get first transaction from wrapper")
-	}
-
-	wrapper, err = txnbuild.TransactionFromXDR(transactions[len(transactions)-1].XDR)
-
-	lastTransaction,ok := wrapper.Transaction()
-	_ = lastTransaction
-
-	if !ok {
-		return resultsMap, errors.Errorf("Can't get last transaction from wrapper")
-	}
-
-	if err != nil {
-		return resultsMap, errors.Errorf("Error converting last transaction from xdr: %v", err)
-	}
 
 	// Handle unfulfilled transactions, if needed
 	currentSequence, err := nodeAccount.GetSequenceNumber()
@@ -780,107 +795,174 @@ func (n *Node) FlushTransactions(context context.Context) (map[string]interface{
 		return resultsMap, errors.Errorf("Error reading sequence: %v", err)
 	}
 
-	// Bump if needed
-	if firstTransaction.SourceAccount().Sequence > currentSequence+1 {
-		log.Warnf("Sequence bump needed, unfullfilled transactions detected: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
+	transactionToRemove := 0
+
+	// Filter out missed transactions
+
+	if firstTransaction.SourceAccount().Sequence <= currentSequence {
+		for _, t := range transactions {
+
+			innerTransaction, err := utility.PaymentTransactionToStellar(&t)
+
+			if err != nil {
+				log.Warn("Problematic transaction detected, couldn't convert from XDR - removing.")
+
+				transactionToRemove = transactionToRemove + 1
+				continue
+			}
+
+			if innerTransaction.SourceAccount().Sequence <= currentSequence {
+				log.Warnf("Problematic transaction detected  -bad sequence %d <= %d- removing.",innerTransaction.SourceAccount().Sequence,currentSequence)
+				transactionToRemove = transactionToRemove + 1
+			}
+		}
+
+		if transactionToRemove > 0 {
+			log.Warnf("Bad first transactions were detected (%d) and removed.", transactionToRemove)
+
+			transactions = transactions[transactionToRemove:]
+
+			if len(transactions) == 0 {
+				log.Warnf("No further transactions to process after removing %d transactions", transactionToRemove)
+				return resultsMap, nil
+			}
+		}
+	}
 
 
+
+
+	bumper := func(current int64, bumpTo int64)  error {
 		tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
 			SourceAccount: &txnbuild.SimpleAccount{
 				AccountID: n.Address,
-				Sequence:  currentSequence,
+				Sequence:  current,
 			},
 			IncrementSequenceNum: true,
-			BaseFee: 200,
-			Timebounds: txnbuild.NewTimeout(300),
+			BaseFee: common.StellarImmediateOperationBaseFee,
+			Timebounds: txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
 			Operations: []txnbuild.Operation{&txnbuild.BumpSequence{
-				BumpTo:        firstTransaction.SourceAccount().Sequence - 1,
+				BumpTo:        bumpTo,
 				SourceAccount: &nodeAccount,
 			}}})
 
 		if err != nil {
-			return resultsMap, errors.Errorf("Error creating seq bump tx: %v", err)
+			return errors.Errorf("Error creating seq bump tx: %v", err)
 		}
 
 		kp,err := keypair.ParseFull(n.secretSeed)
 
 		if err != nil {
-			return resultsMap, errors.Errorf("Error getting key: %v", err)
+			return errors.Errorf("Error getting key: %v", err)
 		}
 
 		tx,err = tx.Sign(network.TestNetworkPassphrase,kp)
 
 		if err != nil {
-			return resultsMap, errors.Errorf("Error signing seq bump tx: %v", err)
+			return errors.Errorf("Error signing seq bump tx: %v", err)
 		}
 
-		_, err = horizonclient.DefaultTestNetClient.SubmitTransaction(tx)
+		_, err = n.horizon.Client.SubmitTransaction(tx)
 
 		if err != nil {
 			xdr,_ := tx.Base64()
 			log.Errorf("Error in seq bump transaction: %s" + xdr)
-			return resultsMap, errors.Errorf("Error submitting seq bump tx: %v", err)
+			return  errors.Errorf("Error submitting seq bump tx: %v", err)
 		}
+
+		return nil
 	}
 
-	for a, t := range transactions {
+	var processedTransactions []common.PaymentTransaction
 
-		log.Infof("Submitting transaction for session %s",t.ServiceSessionId)
-		txSuccess, err := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+	for len(transactions) > 0 {
+
+		currentSequence, err = nodeAccount.GetSequenceNumber()
 
 		if err != nil {
-
-			log.Errorf("Error in submit transaction: %s" + t.XDR)
-
-			stellarError, ok := err.(horizonclient.Error)
-			if ok {
-				resultCodes, innerErr := stellarError.ResultCodes()
-
-				if innerErr != nil {
-					log.Errorf("Error unwrapping stellar errors: %v", innerErr.Error())
-				}
-
-				log.Errorf("Stellar error details - transaction error: %s", resultCodes.TransactionCode)
-
-				for _, operror := range resultCodes.OperationCodes {
-					log.Errorf("Stellar error details - operation error: %s", operror)
-				}
-			} else {
-				log.Errorf("Couldn't parse error as stellar: " + err.Error())
-			}
+			return resultsMap, errors.Errorf("Error reading sequence: %v", err)
 		}
 
-		resultsMap[t.TransactionSourceAddress] = txSuccess
+		firstTransaction, err = utility.PaymentTransactionToStellar(&transactions[0])
 
 		if err != nil {
-			log.Errorf("Error submitting transaction for %v: %v", a, err)
+			return resultsMap, errors.Errorf("Can't get first transaction from wrapper: %s", err.Error())
+		}
 
+		// Bump if needed
+		if firstTransaction.SourceAccount().Sequence > currentSequence+1 {
+			log.Warnf("Sequence bump needed: %d", firstTransaction.SourceAccount().Sequence-(currentSequence+1))
 
-			internalTransWrapper, err := txnbuild.TransactionFromXDR(t.XDR)
+			err := bumper(currentSequence,firstTransaction.SourceAccount().Sequence - 1)
 
 			if err != nil {
-				log.Errorf("Error deserializing transaction for %v: %w", a, err)
+				return resultsMap, errors.Errorf("Error during sequence bump: %s", err.Error(),err)
 			}
-
-			internalTrans, result := internalTransWrapper.Transaction()
-
-			if !result {
-				log.Errorf("Error deserializing transaction (GenericTransaction)")
-			}
-
-			//n.verifyTransactionSignatures(context,t)
-
-			account := internalTrans.SourceAccount()
-			accountSeqNumber, _ := account.GetSequenceNumber()
-			//transactionSeqNumber := &internalTrans.(*xdr.Transaction).SeqNum
-			_ = accountSeqNumber
-
-			_ = internalTrans
-			resultsMap[t.TransactionSourceAddress] = err
-		} else {
-			n.paymentRegistry.completePayment(t.PaymentSourceAddress, t.ServiceSessionId)
 		}
 
+		for a, t := range transactions {
+
+
+			log.Infof("Submitting transaction for session %s", t.ServiceSessionId)
+			txSuccess, transactionError := horizonclient.DefaultTestNetClient.SubmitTransactionXDR(t.XDR)
+			resultsMap[t.PaymentSourceAddress] = txSuccess
+
+			if transactionError != nil {
+
+				log.Errorf("Error in submit transaction (%s): %s",transactionError.Error(), t.XDR)
+
+				if stellarError, ok := transactionError.(*horizonclient.Error); ok {
+
+					resultCodes, innerErr := stellarError.ResultCodes()
+
+					if innerErr != nil {
+						log.Errorf("Error unwrapping stellar errors: %v", innerErr.Error())
+					} else {
+						log.Errorf("Stellar error details - transaction error: %s", resultCodes.TransactionCode)
+
+						for _, operror := range resultCodes.OperationCodes {
+							log.Errorf("Stellar error details - operation error: %s", operror)
+						}
+					}
+				} else {
+					log.Errorf("Couldn't parse error as stellar: " + transactionError.Error())
+				}
+
+				internalTrans, err := utility.PaymentTransactionToStellar(&t)
+
+				if err != nil {
+					log.Errorf("Error deserializing transaction for %v: %w", a, err)
+				}
+
+				//n.verifyTransactionSignatures(context,t)
+
+				account := internalTrans.SourceAccount()
+				accountSeqNumber, _ := account.GetSequenceNumber()
+				//transactionSeqNumber := &internalTrans.(*xdr.Transaction).SeqNum
+				_ = accountSeqNumber
+
+				resultsMap[t.PaymentSourceAddress] = transactionError
+
+				transactions = append(transactions[:a], transactions[a+1:]...)
+				break
+			} else {
+				//TODO: Make the transaction removal more intellegent
+				n.paymentRegistry.completePayment(t.PaymentSourceAddress, t.ServiceSessionId)
+				processedTransactions = append(processedTransactions, t)
+			}
+		}
+
+		var left_transactions []common.PaymentTransaction
+
+		for _,x := range transactions {
+			_,found := Find(processedTransactions,x )
+
+			if !found {
+				left_transactions = append(left_transactions,x)
+			}
+		}
+
+		transactions = left_transactions
 	}
 
 	return resultsMap, nil

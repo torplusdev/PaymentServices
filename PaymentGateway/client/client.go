@@ -109,12 +109,12 @@ func (client *Client) SignInitialTransactions(context context.Context, fundingTr
 	}
 
 	floatAmount, err := strconv.ParseFloat(op.Amount, 32)
-	amount := uint64(floatAmount)
+	amount := common.MicroPPToken2PPtoken(floatAmount)
 
 	// Add amount from previous transaction
 	expectedAmount = expectedAmount + fundingTransactionPayload.ReferenceTransaction.ReferenceAmountIn
 
-	if err != nil || amount != uint64(expectedAmount) {
+	if err != nil || amount != expectedAmount {
 		return errors.Errorf("Transaction amount is incorrect: expected %d, received %d",amount,expectedAmount)
 	}
 

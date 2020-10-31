@@ -131,14 +131,18 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 	// Check that account exists
 	if errAccount != nil {
 		//TODO: call creation logic
-		log.Fatal ("Account doesn't exist")
-		//txSuccess, errCreate := client.Fund(pair.Address())
-		//
-		//if errCreate != nil {
-		//	log.Fatal(err)
-		//}
-		//
-		//log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
+		//log.Fatal ("Account doesn't exist")
+		txSuccess, errCreate := client.Fund(pair.Address())
+
+		if errCreate != nil {
+			log.Fatal(err)
+		}
+
+		detail, _ = client.AccountDetail(
+			horizonclient.AccountRequest{
+				AccountID: pair.Address()})
+
+		log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
 	}
 
 	var weight byte
@@ -203,6 +207,7 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 		tokenAsset := txnbuild.CreditAsset{
 			Code:   common.PPTokenAssetName,
 			Issuer: common.PPTokenIssuerAddress,
+
 		}
 
 		changeTrust := txnbuild.ChangeTrust{
@@ -219,7 +224,8 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 			Timebounds:           txnbuild.NewTimeout(300),
 		})
 
-		signedTransaction, err := txCreateTrustLine.Sign(network.TestNetworkPassphrase,kpManager)
+		//kpManager
+		signedTransaction, err := txCreateTrustLine.Sign(network.TestNetworkPassphrase, pair)
 
 		_, err = client.SubmitTransaction(signedTransaction)
 

@@ -18,7 +18,7 @@ const issuerSeed = "SBMCAMFAYTXFIXBAOZJE5X2ZX4TJQI5X6P6NE5SHOEBHLHEMGKANRTOQ"
 // Distribution account
 const distributionSeed = "SAQUH66AMZ3PURY2G3ROXRXGIF2JMZC7QFVED65PYP4YJQFIWCPCWKPM"
 
-func createAsset() {
+func CreateAsset() {
 
 	client := horizonclient.DefaultTestNetClient
 
@@ -72,17 +72,19 @@ func createAsset() {
 			Amount:        "100",
 		}
 
-		txCreateAccounts := txnbuild.Transaction{
-			SourceAccount: &sourceAccountDetail,
-			Operations:    []txnbuild.Operation{&createIssuerAccount, &createDistributionAccount},
-			Timebounds:    txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
-			Network:       network.TestNetworkPassphrase,
-		}
+		txCreateAccounts,err := txnbuild.NewTransaction(
+			txnbuild.TransactionParams{
+				SourceAccount:        &sourceAccountDetail,
+				Operations:           []txnbuild.Operation{&createIssuerAccount, &createDistributionAccount},
+				Timebounds:           txnbuild.NewTimeout(common.TransactionTimeoutSeconds),
+				IncrementSequenceNum: true,
+				BaseFee:              200,
+			})
 
-		txCreateAccounts.Build()
-		txCreateAccounts.Sign(sourceKp)
 
-		resp, err := client.SubmitTransaction(txCreateAccounts)
+		signedTransaction, err := txCreateAccounts.Sign(network.TestNetworkPassphrase, sourceKp)
+
+		resp, err := client.SubmitTransaction(signedTransaction)
 
 		_ = resp
 		_ = err
@@ -101,24 +103,23 @@ func createAsset() {
 	changeTrust := txnbuild.ChangeTrust{
 		SourceAccount: &distributionAccountDetail,
 		Line:          tokenAsset,
-		Limit:         "100000",
 	}
 
-	txCreateTrustLine := txnbuild.Transaction{
+	txCreateTrustLine, err := txnbuild.NewTransaction( txnbuild.TransactionParams{
 		SourceAccount: &distributionAccountDetail,
 		Operations:    []txnbuild.Operation{&changeTrust},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+		IncrementSequenceNum: true,
+		BaseFee:              200,
+		})
 
-	xdr, err := txCreateTrustLine.BuildSignEncode(distributionKp)
+	signedTransaction, err := txCreateTrustLine.Sign(network.TestNetworkPassphrase, distributionKp)
 
-	_ = xdr
 	if err != nil {
 		log.Print("Error signing transaction:")
 	}
 
-	resp, err := client.SubmitTransaction(txCreateTrustLine)
+	resp, err := client.SubmitTransaction(signedTransaction)
 
 	createAssets := txnbuild.Payment{
 		Destination:   distributionKp.Address(),
@@ -127,17 +128,18 @@ func createAsset() {
 		SourceAccount: &issuerAccountDetail,
 	}
 
-	txCreateAssets := txnbuild.Transaction{
-		SourceAccount: &issuerAccountDetail,
-		Operations:    []txnbuild.Operation{&createAssets},
-		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+	txCreateAssets,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &issuerAccountDetail,
+		Operations:           []txnbuild.Operation{&createAssets},
+		Timebounds:           txnbuild.NewTimeout(300),
+		IncrementSequenceNum: true,
+		BaseFee:              200,
+		})
 
-	txCreateAssets.Build()
-	txCreateAssets.Sign(issuerKp)
 
-	resp, err = client.SubmitTransaction(txCreateAssets)
+	signedTransaction, err = txCreateAssets.Sign(network.TestNetworkPassphrase, issuerKp)
+
+	resp, err = client.SubmitTransaction(signedTransaction)
 
 	homedomain := "www.adwayser.com"
 
@@ -147,21 +149,75 @@ func createAsset() {
 		SourceAccount: &issuerAccountDetail,
 	}
 
-	txSetOptionsSetHomedomain := txnbuild.Transaction{
+	txSetOptionsSetHomedomain,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
 		SourceAccount: &issuerAccountDetail,
 		Operations:    []txnbuild.Operation{&setOptionsSetHomedomain},
 		Timebounds:    txnbuild.NewTimeout(300),
-		Network:       network.TestNetworkPassphrase,
-	}
+		IncrementSequenceNum: true,
+		BaseFee:              200,
+	})
 
-	err = txSetOptionsSetHomedomain.Build()
-	err = txSetOptionsSetHomedomain.Sign(issuerKp)
+	signedTransaction, err = txSetOptionsSetHomedomain.Sign(network.TestNetworkPassphrase, issuerKp)
 
-	resp, err = client.SubmitTransaction(txSetOptionsSetHomedomain)
+	resp, err = client.SubmitTransaction(signedTransaction)
 
 	_ = resp
 }
 
+func SubmitBuyOffer() {
+	client := horizonclient.DefaultTestNetClient
+
+	sourceKp, err := keypair.ParseFull(tokenCreatorSeed)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	issuerKp, err := keypair.ParseFull(issuerSeed)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	distributionKp, err := keypair.ParseFull(distributionSeed)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_ = sourceKp
+
+	distributionAccountDetail, _ := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: distributionKp.Address()})
+
+	// Create trust line
+	tokenAsset := txnbuild.CreditAsset{
+		Code:   "pptoken",
+		Issuer: issuerKp.Address(),
+	}
+
+	manageBuyOffer := txnbuild.ManageBuyOffer{
+		Selling: txnbuild.NativeAsset{},
+		Buying:  tokenAsset,
+		Amount:  "1000000",
+		Price: "0.000001",
+		OfferID: 0,
+		SourceAccount: &distributionAccountDetail,
+	}
+
+	txBuyOffer, err := txnbuild.NewTransaction( txnbuild.TransactionParams{
+		SourceAccount: &distributionAccountDetail,
+		Operations:    []txnbuild.Operation{&manageBuyOffer},
+		Timebounds:    txnbuild.NewTimeout(300),
+		IncrementSequenceNum: true,
+		BaseFee:              200,
+	})
+
+	signedTransaction, err := txBuyOffer.Sign(network.TestNetworkPassphrase, distributionKp)
+
+	resp, err := client.SubmitTransaction(signedTransaction)
+
+	_ = resp
+
+}
 func main() {
-	createAsset()
+	CreateAsset()
 }

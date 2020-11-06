@@ -111,6 +111,45 @@ func GetAccountBalances(seeds []string) []float64 {
 	return balances
 }
 
+func UpdateAccountLimits(address string, limit int) {
+
+	client := horizonclient.DefaultTestNetClient
+	kpManager,_ := keypair.ParseFull("SAT3ZXAC5IQHF753DLROYVW5HRZGGFB2BHEXDWMDHCHE2URPSSDW3NY5")
+
+	detail, _ := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID:address})
+
+
+	// Create trust line
+	tokenAsset := txnbuild.CreditAsset{
+		Code:   common.PPTokenAssetName,
+		Issuer: common.PPTokenIssuerAddress,
+	}
+
+	changeTrust := txnbuild.ChangeTrust{
+		SourceAccount: &detail,
+		Line:          tokenAsset,
+		Limit:         strconv.Itoa(limit),
+	}
+
+	txCreateTrustLine,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &detail,
+		IncrementSequenceNum: true,
+		BaseFee: 200,
+		Operations:           []txnbuild.Operation{&changeTrust},
+		Timebounds:           txnbuild.NewTimeout(300),
+	})
+
+	signedTransaction, err := txCreateTrustLine.Sign(network.TestNetworkPassphrase,kpManager)
+
+	_, err = client.SubmitTransaction(signedTransaction)
+
+	if err != nil {
+		log.Print("Error:" + err.Error())
+	}
+}
+
 func CreateAndFundAccount(seed string, role NodeRoleType) {
 
 	client := horizonclient.DefaultTestNetClient

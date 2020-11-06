@@ -152,6 +152,74 @@ func createAsset() {
 	_ = resp
 }
 
-func main() {
-	createAsset()
+func UpdateAsset() {
+
+	client := horizonclient.DefaultTestNetClient
+
+	sourceKp, err := keypair.ParseFull(tokenCreatorSeed)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	issuerKp, err := keypair.ParseFull(issuerSeed)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	distributionKp, err := keypair.ParseFull(distributionSeed)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_ = sourceKp
+	_ = issuerKp
+	_ = distributionKp
+
+	sourceAccountDetail, _ := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: sourceKp.Address()})
+
+	// Create and fund source account, if it doesn't exist
+	if sourceAccountDetail.AccountID != sourceKp.Address() {
+		client.Fund(sourceKp.Address())
+		sourceAccountDetail, _ = client.AccountDetail(
+			horizonclient.AccountRequest{
+				AccountID: sourceKp.Address()})
+	}
+
+	issuerAccountDetail, _ := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: issuerKp.Address()})
+
+	// Create trust line
+	tokenAsset := txnbuild.CreditAsset{
+		Code:   "pptoken",
+		Issuer: issuerKp.Address(),
+	}
+
+	createAssets := txnbuild.Payment{
+		Destination:   distributionKp.Address(),
+		Amount:        "90000",
+		Asset:         tokenAsset,
+	}
+
+
+	txCreateAssets,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount: &issuerAccountDetail,
+		BaseFee: 200,
+		IncrementSequenceNum: true,
+		Operations:    []txnbuild.Operation{&createAssets},
+		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	txCreateAssets,_ = txCreateAssets.Sign(network.TestNetworkPassphrase, issuerKp)
+	xdr,_ := txCreateAssets.Base64()
+	_ = xdr
+
+
+	_, err = client.SubmitTransaction(txCreateAssets)
 }

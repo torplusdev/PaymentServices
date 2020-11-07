@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/utility"
 	"runtime"
 	"strconv"
 	"time"

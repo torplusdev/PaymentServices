@@ -12,7 +12,7 @@ require (
 	github.com/gorilla/handlers v1.5.0
 	github.com/gorilla/mux v1.7.4
 	github.com/rs/xid v1.2.1
-	github.com/stellar/go v0.0.0-20200804130752-fdc4eca4f6ce
+	github.com/stellar/go v0.0.0-20201019170232-24465e0cb5fb
 	github.com/stretchr/testify v1.5.1
 	github.com/tkanos/gonfig v0.0.0-20181112185242-896f3d81fadf
 	github.com/wI2L/jettison v0.7.1

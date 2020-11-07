@@ -664,7 +664,7 @@ func TestIncorrectTransactionsAreDiscardedByFlush(t *testing.T) {
 
 func TestCheckAccountFunds(t *testing.T) {
 
-	nodes:= []string{"GBVIMI2NAJJ3TO5YSYKUAZXZCPJNX7MDTMLXI62KKU73V7AHTIKDKUOP",
+	nodes := []string{"GBVIMI2NAJJ3TO5YSYKUAZXZCPJNX7MDTMLXI62KKU73V7AHTIKDKUOP",
 		"GCND2GZ2XUCXZ6URJWWD7PYJZUGPJHLMLQ5IJ6UEJM44VGZVNYH3LCB4",
 		"GB6ESPMHPSOJICYBQI2HNWNAUZWSU757CKHOYPDKQGWAFK3R4Z3INUDC",
 		"GAYAPB5WDZJ5OF4PFKUBWRPGYZKU4647DHVKLNFHN35DORH6H7F7N7VQ",
@@ -696,11 +696,12 @@ func TestCheckAccountFunds(t *testing.T) {
 
 	//seed := "SD3GOZWPM22EV2M3TSBPTOY5R5GHNLDHQFVJBEBONPXUB7KYDLI5K63C"
 
-	for _,node_seed := range nodes {
+	for _, node_seed := range nodes {
 		UpdateAccountLimits(node_seed, 10000)
 	}
-
 }
+
+
 
 func TestIssueTokens(t *testing.T) {
 	utility.UpdateAsset()

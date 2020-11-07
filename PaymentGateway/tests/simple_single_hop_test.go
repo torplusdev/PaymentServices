@@ -2,6 +2,7 @@ package tests
 
 import (
 	"go.opentelemetry.io/otel/api/core"
+	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/utility"
 	"testing"
 )
@@ -36,7 +37,7 @@ func TestSingleHopSingleChainPayment(t *testing.T) {
 	assert.NoError(err)
 
 	balancesPost := GetAccountBalances([]string{User1Seed, Service1Seed})
-	actualAmount := float64(paymentRequest.Amount)
+	actualAmount := common.PPtoken2MicroPP(paymentRequest.Amount)
 
 	assert.InEpsilon(balancesPre[0]-actualAmount, balancesPost[0], 1E-6, "Incorrect user balance")
 	assert.InEpsilon(balancesPre[1]+actualAmount, balancesPost[1], 1E-6, "Incorrect service balance")
@@ -72,4 +73,7 @@ func TestSingleHopTwoChainPayments(t *testing.T) {
 
 func TestSimpleIssueTokens(t *testing.T) {
 	utility.UpdateAsset()
+}
+func TestCreateAsset(t *testing.T) {
+	utility.CreateAsset()
 }

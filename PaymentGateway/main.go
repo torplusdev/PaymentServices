@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/utility"
 	"runtime"
 	"strconv"
 	"time"
@@ -50,6 +51,7 @@ func initGlobalTracer(url string, serviceName string) (*sdktrace.Provider, func(
 
 func main() {
 
+	
 	config, err := common.ParseConfiguration("config.json")
 
 	if err != nil {

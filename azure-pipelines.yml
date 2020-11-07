@@ -6,26 +6,30 @@
 trigger:
 - master
 
+strategy:
+  matrix: 
+    linux:
+      poolName: 'Ubuntu_Pool'
+      osName: 'linux'
+      ext: ''
+    windows:
+      poolName: 'Windows_Pool'
+      osName: 'windows'
+      ext: ".exe"
+
 pool:
-  name: 'Ubuntu_Pool'
+  name: $(poolName)
 
-#variables:
-#  GO_INSTALL: '/usr/lib/go-1.12'
-
-steps:
-#- script: |
-#    echo '##vso[task.setvariable variable=path]$(PATH):$(GO_INSTALL)/bin'
-#  displayName: 'Setting Go installation'
-  
+steps:  
 - script: |
     go version
     go env
   displayName: 'Checking Go installation'
   
-# - script: |
-#     go test -v ./...
-#   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
-#   displayName: 'Running all the tests'
+- script: |
+    go test -v ./... | true
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
+  displayName: 'Running all the tests'
   
 - script: |
     go build -v
@@ -34,21 +38,21 @@ steps:
 
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway'
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway$(ext)'
     includeRootFolder: true
     archiveType: '7z'
     sevenZipCompression: 'ultra'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(Build.BuildId).7z'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(osName)-$(Build.BuildId).7z'
     replaceExistingArchive: true
     verbose: true
 
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway'
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway$(ext)'
     includeRootFolder: true
     archiveType: '7z'
     sevenZipCompression: 'ultra'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-latest.7z'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(osName)-latest.7z'
     replaceExistingArchive: true
     verbose: true
 

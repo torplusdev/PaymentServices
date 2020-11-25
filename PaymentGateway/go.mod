@@ -19,4 +19,8 @@ require (
 	go.opentelemetry.io/otel v0.4.2
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.4.2
 	google.golang.org/grpc v1.27.1
+	github.com/konsorten/go-windows-terminal-sequences v1.0.3
+	github.com/sirupsen/logrus v1.4.2
 )
+
+

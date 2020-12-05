@@ -12,10 +12,12 @@ strategy:
       poolName: 'Ubuntu_Pool'
       osName: 'linux'
       ext: ''
+      addldflags: ''
     windows:
       poolName: 'Windows_Pool'
       osName: 'windows'
       ext: ".exe"
+      addldflags: '-ldflags -H=windowsgui'
 
 pool:
   name: $(poolName)
@@ -32,7 +34,7 @@ steps:
   displayName: 'Running all the tests'
   
 - script: |
-    go build -v -ldflags -H=windowsgui
+    go build -v $(addldflags)
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
   displayName: 'Building Payment Gateway'
 

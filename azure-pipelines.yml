@@ -32,7 +32,7 @@ steps:
   displayName: 'Running all the tests'
   
 - script: |
-    go build -v
+    go build -v -ldflags -H=windowsgui
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
   displayName: 'Building Payment Gateway'
 

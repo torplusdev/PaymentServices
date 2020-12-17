@@ -102,6 +102,9 @@ func main() {
 		if os.Stderr == nil {
 			os.Stderr = os.NewFile(uintptr(stdErr), "/dev/stderr")
 		}
+		oldArgs := os.Args
+		os.Args = append([]string{}, oldArgs[0])
+		os.Args = append(os.Args, oldArgs[2:]...)
 	}
 
 	config, err := common.ParseConfiguration("config.json")

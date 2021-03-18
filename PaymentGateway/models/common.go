@@ -1,0 +1,92 @@
+package models
+
+import (
+	"github.com/go-errors/errors"
+	"github.com/stellar/go/txnbuild"
+)
+
+type XDR interface {
+	Validate() error
+	TransactionFromXDR() (*GenericTransaction, error)
+	Empty() bool
+	String() string
+}
+type GenericTransaction struct {
+	txnbuild.GenericTransaction
+}
+
+// func (g GenericTransaction) Transaction() (*Transaction, bool) {
+// 	tr, res := g.GenericTransaction.Transaction()
+
+// 	return &Transaction{
+// 		in: *tr,
+// 	}, res
+// }
+
+// type Transaction struct {
+// 	in txnbuild.Transaction
+// }
+
+func NewXDR(xdr string) XDR {
+	x := implXDR(xdr)
+	return x
+}
+
+type implXDR string
+
+func (xdr implXDR) Empty() bool {
+	return len(xdr.String()) == 0
+}
+func (xdr implXDR) String() string {
+	return string(xdr)
+}
+func (xdr implXDR) Validate() error {
+	_, err := txnbuild.TransactionFromXDR(string(xdr))
+	return err
+}
+func (xdr implXDR) TransactionFromXDR() (*GenericTransaction, error) {
+	tr, err := txnbuild.TransactionFromXDR(string(xdr))
+	if err != nil {
+		return nil, err
+	}
+	return &GenericTransaction{
+		GenericTransaction: *tr,
+	}, nil
+
+}
+
+type PaymentTransaction struct {
+	TransactionSourceAddress  string
+	ReferenceAmountIn         TransactionAmount
+	AmountOut                 TransactionAmount
+	XDR                       XDR
+	PaymentSourceAddress      string
+	PaymentDestinationAddress string
+	StellarNetworkToken       string
+	ServiceSessionId          string
+}
+
+func (pt *PaymentTransaction) Validate() error {
+	if pt.PaymentSourceAddress == pt.PaymentDestinationAddress {
+		return errors.Errorf("error invalid transaction chain, address targets itself %s.", pt.PaymentSourceAddress)
+	}
+	return nil
+}
+
+type PaymentTransactionPayload interface {
+	GetPaymentTransaction() PaymentTransaction
+	GetPaymentDestinationAddress() string
+	UpdateTransactionXDR(xdr string) error
+	UpdateStellarToken(token string) error
+	Validate() error
+}
+
+type PaymentNode struct {
+	Address string
+	Fee     TransactionAmount
+}
+
+type PaymentRouter interface {
+	CreatePaymentRoute(req *PaymentRequest) []PaymentNode
+	GetNodeByAddress(address string) (PaymentNode, error)
+}

@@ -7,11 +7,7 @@ type ProcessPaymentRequest struct {
 
 	StatusCallbackUrl string // Status callback command url
 
-	PaymentRequest string // json body
+	PaymentRequest *PaymentRequest // json body
 
-	NodeId string // request reference identification
-}
-
-type ProcessPaymentAccepted struct {
-	SessionId string
+	NodeId PeerID // request reference identification
 }

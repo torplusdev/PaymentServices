@@ -1,12 +1,13 @@
 package utility
 
 import (
+	"log"
+
 	"github.com/stellar/go/clients/horizonclient"
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/network"
 	"github.com/stellar/go/txnbuild"
-	"log"
-	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/config"
 )
 
 // Source
@@ -47,7 +48,11 @@ func CreateAsset() {
 
 	// Create and fund source account, if it doesn't exist
 	if sourceAccountDetail.AccountID != sourceKp.Address() {
-		client.Fund(sourceKp.Address())
+
+		_, err := client.Fund(sourceKp.Address())
+		if err != nil {
+			log.Fatal(err)
+		}
 		sourceAccountDetail, _ = client.AccountDetail(
 			horizonclient.AccountRequest{
 				AccountID: sourceKp.Address()})
@@ -61,30 +66,33 @@ func CreateAsset() {
 	if issuerAccountDetail.AccountID != issuerKp.Address() {
 
 		createIssuerAccount := txnbuild.CreateAccount{
-			SourceAccount: &sourceAccountDetail,
+			SourceAccount: sourceAccountDetail.AccountID,
 			Destination:   issuerKp.Address(),
 			Amount:        "100",
 		}
 
 		createDistributionAccount := txnbuild.CreateAccount{
-			SourceAccount: &sourceAccountDetail,
+			SourceAccount: sourceAccountDetail.AccountID,
 			Destination:   distributionKp.Address(),
 			Amount:        "100",
 		}
 
-		txCreateAccounts,err := txnbuild.NewTransaction(
+		txCreateAccounts, err := txnbuild.NewTransaction(
 			txnbuild.TransactionParams{
-			SourceAccount: &sourceAccountDetail,
-			Operations:    []txnbuild.Operation{&createIssuerAccount, &createDistributionAccount},
-			Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+				SourceAccount:        &sourceAccountDetail,
+				Operations:           []txnbuild.Operation{&createIssuerAccount, &createDistributionAccount},
+				Timebounds:           txnbuild.NewTimeout(config.StellarImmediateOperationTimeoutSec),
 				IncrementSequenceNum: true,
 				BaseFee:              200,
-		})
-
-		txCreateAccounts.Sign(network.TestNetworkPassphrase,sourceKp)
+			})
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		signedTransaction, err := txCreateAccounts.Sign(network.TestNetworkPassphrase, sourceKp)
-
+		if err != nil {
+			log.Fatal(err)
+		}
 		resp, err := client.SubmitTransaction(signedTransaction)
 
 		_ = resp
@@ -102,69 +110,83 @@ func CreateAsset() {
 	}
 
 	changeTrust := txnbuild.ChangeTrust{
-		SourceAccount: &distributionAccountDetail,
+		SourceAccount: distributionAccountDetail.AccountID,
 		Line:          tokenAsset,
 	}
 
-	txCreateTrustLine, err := txnbuild.NewTransaction( txnbuild.TransactionParams{
-		SourceAccount: &distributionAccountDetail,
-		Operations:    []txnbuild.Operation{&changeTrust},
-		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	txCreateTrustLine, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &distributionAccountDetail,
+		Operations:           []txnbuild.Operation{&changeTrust},
+		Timebounds:           txnbuild.NewTimeout(config.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 	})
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	signedTransaction, err := txCreateTrustLine.Sign(network.TestNetworkPassphrase, distributionKp)
 
 	if err != nil {
 		log.Print("Error signing transaction:")
 	}
 
-	resp, err := client.SubmitTransaction(signedTransaction)
-
+	_, err = client.SubmitTransaction(signedTransaction)
+	if err != nil {
+		log.Fatal(err)
+	}
 	createAssets := txnbuild.Payment{
 		Destination:   distributionKp.Address(),
 		Amount:        "10000",
 		Asset:         tokenAsset,
-		SourceAccount: &issuerAccountDetail,
+		SourceAccount: issuerAccountDetail.AccountID,
 	}
 
-	txCreateAssets,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
-		SourceAccount: &issuerAccountDetail,
-		Operations:    []txnbuild.Operation{&createAssets},
-		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	txCreateAssets, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &issuerAccountDetail,
+		Operations:           []txnbuild.Operation{&createAssets},
+		Timebounds:           txnbuild.NewTimeout(config.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 	})
-
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	signedTransaction, err = txCreateAssets.Sign(network.TestNetworkPassphrase, issuerKp)
-
-	resp, err = client.SubmitTransaction(signedTransaction)
-
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = client.SubmitTransaction(signedTransaction)
+	if err != nil {
+		log.Fatal(err)
+	}
 	homedomain := "www.adwayser.com"
 
 	// Asset creation: set home domain
 	setOptionsSetHomedomain := txnbuild.SetOptions{
 		HomeDomain:    &homedomain,
-		SourceAccount: &issuerAccountDetail,
+		SourceAccount: issuerAccountDetail.AccountID,
 	}
 
-	txSetOptionsSetHomedomain,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
-		SourceAccount: &issuerAccountDetail,
-		Operations:    []txnbuild.Operation{&setOptionsSetHomedomain},
-		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	txSetOptionsSetHomedomain, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &issuerAccountDetail,
+		Operations:           []txnbuild.Operation{&setOptionsSetHomedomain},
+		Timebounds:           txnbuild.NewTimeout(config.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 	})
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	signedTransaction, err = txSetOptionsSetHomedomain.Sign(network.TestNetworkPassphrase, issuerKp)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = client.SubmitTransaction(signedTransaction)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	resp, err = client.SubmitTransaction(signedTransaction)
-
-	_ = resp
 }
-
 
 func SubmitBuyOffer() {
 	client := horizonclient.DefaultTestNetClient
@@ -197,26 +219,32 @@ func SubmitBuyOffer() {
 	}
 
 	manageBuyOffer := txnbuild.ManageBuyOffer{
-		Selling: txnbuild.NativeAsset{},
-		Buying:  tokenAsset,
-		Amount:  "1000000",
-		Price: "0.000001",
-		OfferID: 0,
-		SourceAccount: &distributionAccountDetail,
+		Selling:       txnbuild.NativeAsset{},
+		Buying:        tokenAsset,
+		Amount:        "1000000",
+		Price:         "0.000001",
+		OfferID:       0,
+		SourceAccount: distributionAccountDetail.AccountID,
 	}
 
-	txBuyOffer, err := txnbuild.NewTransaction( txnbuild.TransactionParams{
-		SourceAccount: &distributionAccountDetail,
-		Operations:    []txnbuild.Operation{&manageBuyOffer},
-		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+	txBuyOffer, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &distributionAccountDetail,
+		Operations:           []txnbuild.Operation{&manageBuyOffer},
+		Timebounds:           txnbuild.NewTimeout(config.StellarImmediateOperationTimeoutSec),
 		IncrementSequenceNum: true,
 		BaseFee:              200,
 	})
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	signedTransaction, err := txBuyOffer.Sign(network.TestNetworkPassphrase, distributionKp)
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	resp, err := client.SubmitTransaction(signedTransaction)
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	_ = resp
 
 }
@@ -250,7 +278,8 @@ func UpdateAsset() {
 
 	// Create and fund source account, if it doesn't exist
 	if sourceAccountDetail.AccountID != sourceKp.Address() {
-		client.Fund(sourceKp.Address())
+		_, _ = client.Fund(sourceKp.Address())
+
 		sourceAccountDetail, _ = client.AccountDetail(
 			horizonclient.AccountRequest{
 				AccountID: sourceKp.Address()})
@@ -267,28 +296,29 @@ func UpdateAsset() {
 	}
 
 	createAssets := txnbuild.Payment{
-		Destination:   distributionKp.Address(),
-		Amount:        "90000000",
-		Asset:         tokenAsset,
+		Destination: distributionKp.Address(),
+		Amount:      "90000000",
+		Asset:       tokenAsset,
 	}
 
-
-	txCreateAssets,err := txnbuild.NewTransaction(txnbuild.TransactionParams{
-		SourceAccount: &issuerAccountDetail,
-		BaseFee: 200,
+	txCreateAssets, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &issuerAccountDetail,
+		BaseFee:              200,
 		IncrementSequenceNum: true,
-		Operations:    []txnbuild.Operation{&createAssets},
-		Timebounds:    txnbuild.NewTimeout(common.StellarImmediateOperationTimeoutSec),
+		Operations:           []txnbuild.Operation{&createAssets},
+		Timebounds:           txnbuild.NewTimeout(config.StellarImmediateOperationTimeoutSec),
 	})
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	txCreateAssets,_ = txCreateAssets.Sign(network.TestNetworkPassphrase, issuerKp)
-	xdr,_ := txCreateAssets.Base64()
+	txCreateAssets, _ = txCreateAssets.Sign(network.TestNetworkPassphrase, issuerKp)
+	xdr, _ := txCreateAssets.Base64()
 	_ = xdr
 
-
 	_, err = client.SubmitTransaction(txCreateAssets)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

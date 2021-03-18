@@ -1,38 +1,44 @@
 package common
 
 import (
+	"bytes"
 	"context"
-	"encoding/base64"
-	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/plugin/httptrace"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+
+	"go.opentelemetry.io/otel/plugin/httptrace"
+	"paidpiper.com/payment-gateway/models"
 )
 
-type TraceContext struct {
-	TraceID    string
-	SpanID     string
-	TraceFlags byte
-}
-
-func CreateTraceContext(ctx core.SpanContext) (TraceContext,error) {
-
-	spanIdBytes,_ := ctx.SpanID.MarshalJSON()
-	traceIdBytes,_ := ctx.TraceID.MarshalJSON()
-
-	spanIdEncoded := base64.StdEncoding.EncodeToString(spanIdBytes)
-	traceIdEncoded := base64.StdEncoding.EncodeToString(traceIdBytes)
-
-	tc := TraceContext{
-		TraceID:    traceIdEncoded,
-		SpanID:     spanIdEncoded,
-		TraceFlags: ctx.TraceFlags,
+func Error(status int, msg string) error {
+	return &httpErrorMessage{
+		Status: status,
+		msg:    msg,
 	}
-
-	return tc,nil
 }
 
-func HttpGetWithContext(ctx context.Context, url string)  (*http.Response, error) {
+type HttpErrorMessage interface {
+	WriteHttpError(wr http.ResponseWriter) error
+	Error() string
+}
+type httpErrorMessage struct {
+	Status int
+	msg    string
+}
+
+func (hem *httpErrorMessage) Error() string {
+	return hem.msg
+}
+func (hem *httpErrorMessage) WriteHttpError(wr http.ResponseWriter) error {
+	wr.WriteHeader(hem.Status)
+	_, err := fmt.Fprintf(wr, hem.Error())
+	return err
+
+}
+
+func HttpGetWithContext(ctx context.Context, url string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
@@ -45,14 +51,14 @@ func HttpGetWithContext(ctx context.Context, url string)  (*http.Response, error
 	return http.DefaultClient.Do(req)
 }
 
-func HttpPostWithContext(ctx context.Context, url string, body io.Reader)  (*http.Response, error) {
+func HttpPostWithContext(ctx context.Context, url string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest("POST", url, body)
 
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Content-Type","application/json")
+	req.Header.Add("Content-Type", "application/json")
 
 	ctx, req = httptrace.W3C(ctx, req)
 	httptrace.Inject(ctx, req)
@@ -60,9 +66,30 @@ func HttpPostWithContext(ctx context.Context, url string, body io.Reader)  (*htt
 	return http.DefaultClient.Do(req)
 }
 
-func HttpPostWithoutContext(url string, body io.Reader)  (*http.Response, error) {
+func HttpPostWithoutContext(url string, body io.Reader) (*http.Response, error) {
 	req, _ := http.NewRequest("POST", url, body)
-	req.Header.Add("Content-Type","application/json")
+	req.Header.Add("Content-Type", "application/json")
 
 	return http.DefaultClient.Do(req)
+}
+
+func HttpPostWithoutResponseContext(url string, body io.Reader) error {
+	req, _ := http.NewRequest("POST", url, body)
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	_ = res.Body.Close() //??
+
+	return nil
+}
+
+func HttpPaymentStatus(url string, body *models.PaymentStatusResponseModel) error {
+
+	jsonValue, _ := json.Marshal(body)
+	bytes.NewBuffer(jsonValue)
+	return HttpPostWithoutResponseContext(url, bytes.NewBuffer(jsonValue))
 }

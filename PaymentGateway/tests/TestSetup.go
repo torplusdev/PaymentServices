@@ -1,70 +1,63 @@
 package tests
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"paidpiper.com/payment-gateway/node"
-	"paidpiper.com/payment-gateway/serviceNode"
 	"time"
 
 	"github.com/stellar/go/keypair"
 	"go.opentelemetry.io/otel/api/core"
 	"google.golang.org/grpc/codes"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/config"
 	"paidpiper.com/payment-gateway/models"
+	"paidpiper.com/payment-gateway/node/local"
+	"paidpiper.com/payment-gateway/node/proxy"
 )
 
 type TestSetup struct {
-	servers          []*http.Server
-	nodes            map[string]*node.Node
+	nodes            map[string]local.LocalPPNode
 	torMock          *TorMock
 	torAddressPrefix string
 }
 
 const validityPeriod int64 = 1
-const autoFlushPeriod time.Duration = 15*time.Minute
+const autoFlushPeriod time.Duration = 15 * time.Minute
 
 func (setup *TestSetup) ConfigureTor(port int) {
 	setup.torMock = CreateTorMock(port)
 	setup.torAddressPrefix = fmt.Sprintf("http://localhost:%d", port)
 }
 
-func (setup *TestSetup) Shutdown() {
+//TODO REMOVE
+func (setup *TestSetup) startNode(seed string, lushPeriod time.Duration, transactionValidity int64) (local.LocalPPNode, error) {
+	// TODO: eliminate cycle references
 
-	if setup.torMock != nil {
-		setup.torMock.Shutdown()
-	}
+	cfg := config.DefaultCfg()
+	cfg.RootApiConfig.Seed = seed
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	for _, server := range setup.servers {
-		server.Shutdown(ctx)
+	node, err := local.FromConfigWithClientFactory(cfg, setup.ClientFactory)
+	if err != nil {
+		log.Fatal("Coudn't start node")
+		return nil, err
 	}
 }
 
 func (setup *TestSetup) startNode(seed string, nodePort int, flushPeriod time.Duration, transactionValidity int64) {
 	// TODO: eliminate cycle references
-	srv,node, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, flushPeriod, transactionValidity)
+	srv, node, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, flushPeriod, transactionValidity)
 
 	// Set default transaction validity to 1 min
-	node.SetTransactionValiditySecs(60);
+	node.SetTransactionValiditySecs(60)
 
-	 if err != nil {
-	 	log.Fatal("Coudn't start node")
-	 }
-
-	 setup.nodes[seed] = node
-	 setup.servers = append(setup.servers, srv)
+	setup.nodes[seed] = node
+	return node, err
 }
-
-func (setup *TestSetup) GetNode(seed string) *node.Node {
-
+func (setup *TestSetup) ClientFactory(url string, sessionId string, nodeId string) (proxy.CommandClient, proxy.CommandResponseHandler) {
+	return setup.torMock.GetNodeByAddress(nodeId), nil
+}
+func (setup *TestSetup) GetNode(seed string) local.LocalPPNode {
 	return setup.nodes[seed]
 }
 
@@ -73,70 +66,78 @@ func (setup *TestSetup) GetNode(seed string) *node.Node {
 // 	//srv := setup.servers[seed]
 // }
 
-func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string, nodePort int) {
+func (setup *TestSetup) StartServiceNode(ctx context.Context, seed string) error {
 
 	tr := common.CreateTracer("TestInit")
-	_, span := tr.Start(ctx, fmt.Sprintf("service-node-start:%d %s", nodePort, seed))
+	_, span := tr.Start(ctx, fmt.Sprintf("service-node-start: %s", seed))
 	defer span.End()
 
-	setup.startNode(seed, nodePort,autoFlushPeriod,validityPeriod)
+	node, err := setup.startNode(seed, autoFlushPeriod, validityPeriod)
+	if err != nil {
+		return err
+	}
+
 	span.SetAttributes(core.KeyValue{
 		Key:   "seed",
 		Value: core.String(seed),
 	})
 	span.SetStatus(codes.OK, seed+" Service Node started")
-	kp, _ := keypair.ParseFull(seed)
 
 	if setup.torMock != nil {
-		setup.torMock.RegisterNode(kp.Address(), nodePort)
+		setup.torMock.RegisterNode(node)
+		return nil
 	}
+	return fmt.Errorf("tor mock not inited")
+
 }
 
-func (setup *TestSetup) StartTorNode(ctx context.Context, seed string, nodePort int) {
+func (setup *TestSetup) StartTorNode(ctx context.Context, seed string) error {
 
 	tr := common.CreateTracer("TestInit")
-	_, span := tr.Start(ctx, fmt.Sprintf("tor-node-start:%d %s", nodePort, seed))
+	_, span := tr.Start(ctx, fmt.Sprintf("tor-node-start: %s", seed))
 	defer span.End()
 
-	setup.startNode(seed, nodePort, autoFlushPeriod,validityPeriod)
-
+	node, err := setup.startNode(seed, autoFlushPeriod, validityPeriod)
+	if err != nil {
+		return nil
+	}
 	span.SetAttributes(core.KeyValue{
 		Key:   core.Key("seed"),
 		Value: core.String(seed),
 	})
 	span.SetStatus(codes.OK, seed+" Tor Node started")
 
-	kp, _ := keypair.ParseFull(seed)
-
 	if setup.torMock != nil {
-		setup.torMock.RegisterTorNode(kp.Address(), nodePort)
+		setup.torMock.RegisterTorNode(node)
 	}
+	return nil
 }
 
-func (setup *TestSetup) StartUserNode(ctx context.Context, seed string, nodePort int) {
+func (setup *TestSetup) StartUserNode(ctx context.Context, seed string) error {
 
 	tr := common.CreateTracer("TestInit")
-	_, span := tr.Start(ctx, fmt.Sprintf("user-node-start:%d %s", nodePort, seed))
+	_, span := tr.Start(ctx, fmt.Sprintf("user-node-start: %s", seed))
 	defer span.End()
 
-	setup.startNode(seed, nodePort, autoFlushPeriod,validityPeriod)
-
+	node, err := setup.startNode(seed, autoFlushPeriod, validityPeriod)
+	if err != nil {
+		return err
+	}
 	span.SetAttributes(core.KeyValue{
 		Key:   core.Key("seed"),
 		Value: core.String(seed),
 	})
 
 	span.SetStatus(codes.OK, "User Node started")
-	kp, _ := keypair.ParseFull(seed)
 
 	if setup.torMock != nil {
-		setup.torMock.RegisterNode(kp.Address(), nodePort)
-		setup.torMock.SetCircuitOrigin(kp.Address())
+		setup.torMock.RegisterNode(node)
+		setup.torMock.SetCircuitOrigin(node.GetAddress())
 	}
-
+	return nil
 }
 
-func (setup *TestSetup) CreatePaymentInfo(context context.Context, seed string, amount int) (common.PaymentRequest, error) {
+func (setup *TestSetup) NewPaymentRequest(context context.Context, seed string, commodity uint32) (*models.PaymentRequest, error) {
 
 	tr := common.CreateTracer("test")
 	ctx, span := tr.Start(context, "CreatePaymentInfo")
@@ -145,47 +146,22 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context, seed string, 
 		Key:   "seed",
 		Value: core.String(seed)},
 		core.KeyValue{
-			Key:   "amount",
-			Value: core.Int(amount),
+			Key:   "commodity",
+			Value: core.Uint32(commodity),
 		})
 	defer span.End()
 
 	kp, _ := keypair.ParseFull(seed)
 
-	port := setup.torMock.GetNodePort(kp.Address())
+	node := setup.torMock.GetNodeByAddress(kp.Address())
 
-	cpi := models.CreatePaymentInfo{
+	cpi := &models.CreatePaymentInfo{
 		ServiceType:   "ipfs",
 		CommodityType: "data",
-		Amount:        uint32(amount),
+		Amount:        commodity,
 	}
+	return node.NewPaymentRequest(ctx, cpi)
 
-	cpiBytes, err := json.Marshal(cpi)
-
-	resp, err := common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/createPaymentInfo", port), bytes.NewReader(cpiBytes))
-
-	if err != nil || resp.StatusCode != http.StatusOK {
-		msg := err.Error()
-		if resp.StatusCode != http.StatusOK {
-			msg = fmt.Sprint(resp.StatusCode)
-		}
-		span.SetStatus(codes.Internal, msg)
-		return common.PaymentRequest{}, err
-	}
-
-	dec := json.NewDecoder(resp.Body)
-
-	var pr common.PaymentRequest
-
-	err = dec.Decode(&pr)
-
-	if err != nil {
-		span.SetStatus(codes.Internal, err.Error())
-		return common.PaymentRequest{}, err
-	}
-
-	span.SetStatus(codes.OK, "Payment Info created successfully")
-	return pr, nil
 }
 
 func (setup *TestSetup) FlushTransactions(context context.Context) error {
@@ -196,18 +172,15 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 
 	for k, v := range setup.torMock.GetNodes() {
 
-		log.Printf("Flushing node %s (%d).\n ",k,v)
+		log.Printf("Flushing node %s (%d).\n ", k, v)
 
-		resp, err := common.HttpGetWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/transactions/flush", v))
+		err := v.FlushTransactions(ctx)
+		if err != nil {
+			return err
+		}
 
-		defer resp.Body.Close()
+		if err != nil {
 
-		if err != nil || resp.StatusCode != http.StatusOK {
-			msg := err.Error()
-			if resp.StatusCode != http.StatusOK {
-				msg = fmt.Sprint(resp.StatusCode)
-			}
-			span.SetStatus(codes.Internal, msg)
 			return err
 		}
 		span.SetStatus(codes.OK, "FlushTransaction completed successfully")
@@ -222,7 +195,7 @@ type ProcessPaymentRequest struct {
 	PaymentRequest string
 }
 
-func (setup *TestSetup) ProcessPayment(context context.Context, seed string, paymentRequest common.PaymentRequest) (string, error) {
+func (setup *TestSetup) ProcessPayment(context context.Context, seed string, paymentRequest *models.PaymentRequest) (*models.ProcessPaymentAccepted, error) {
 
 	tr := common.CreateTracer("test")
 	ctx, span := tr.Start(context, "ProcessPayment")
@@ -230,24 +203,22 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string, pay
 
 	kp, _ := keypair.ParseFull(seed)
 
-	port := setup.torMock.GetNodePort(kp.Address())
-
-	prBytes, err := json.Marshal(paymentRequest)
+	node := setup.torMock.GetNodeByAddress(kp.Address())
 
 	ppr := models.ProcessPaymentRequest{
-		Route:             []models.RoutingNode{},
-		CallbackUrl:       fmt.Sprintf("%s/api/command", setup.torAddressPrefix),
-		StatusCallbackUrl: fmt.Sprintf("%s/api/paymentComplete", setup.torAddressPrefix),
-		PaymentRequest:    string(prBytes),
-		NodeId:            paymentRequest.Address,
+		Route: []models.RoutingNode{},
+		// CallbackUrl:       fmt.Sprintf("%s/api/command", setup.torAddressPrefix),
+		// StatusCallbackUrl: fmt.Sprintf("%s/api/paymentComplete", setup.torAddressPrefix),
+		PaymentRequest: paymentRequest,
+		NodeId:         models.PeerID(paymentRequest.Address),
 	}
 
-	nodes := setup.torMock.GetNodes()
-	keys := make([]string, 0, len(nodes))
+	//nodes := setup.torMock.GetNodes()
+	// keys := make([]string, 0, len(nodes))
 
-	for k := range nodes {
-		keys = append(keys, k)
-	}
+	// for k := range nodes {
+	// 	keys = append(keys, k)
+	// }
 	//append(setup.torMock.GetDefaultPaymentRoute(), paymentRequest.Address)
 	for _, k := range setup.torMock.GetDefaultPaymentRoute() {
 
@@ -258,15 +229,12 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string, pay
 
 	}
 
-	pprBytes, err := json.Marshal(ppr)
+	resp, err := node.ProcessPayment(ctx, &ppr)
+	if err != nil {
+		return nil, err
+	}
 
-	resp, err := common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port), bytes.NewReader(pprBytes))
-
-	defer resp.Body.Close()
-
-	//resp,err := http.Post(fmt.Sprintf("http://localhost:%d/api/gateway/processPayment", port),"application/json",bytes.NewReader(pprBytes))
-
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil {
 
 		var msg string
 
@@ -274,23 +242,12 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string, pay
 			msg = err.Error()
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			msg = fmt.Sprint(resp.StatusCode)
-		}
 		span.SetStatus(codes.Internal, msg)
-		return "error", err
+		return nil, err
 	}
 
-	respByte, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		span.SetStatus(codes.Internal, err.Error())
-		return "error", err
-	}
-
-	result := string(respByte)
 	span.SetStatus(codes.OK, "ProcessPayment completed successfully")
-	return result, nil
+	return resp, nil
 }
 
 func (setup *TestSetup) SetDefaultPaymentRoute(route []string) {
@@ -300,7 +257,7 @@ func (setup *TestSetup) SetDefaultPaymentRoute(route []string) {
 func CreateTestSetup() *TestSetup {
 
 	setup := TestSetup{}
-	setup.nodes = make(map[string]*node.Node )
+	setup.nodes = map[string]local.LocalPPNode{}
 
 	return &setup
 }

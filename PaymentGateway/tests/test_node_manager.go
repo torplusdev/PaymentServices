@@ -4,6 +4,7 @@ import (
 	"paidpiper.com/payment-gateway/node"
 )
 
+//TODO REMOVE
 type TestNodeManager struct {
 	nodes map[string]node.PPNode
 }

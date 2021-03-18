@@ -1,7 +1,7 @@
 package models
 
 type RouteResponse struct {
-	Route	[]RoutingNode
+	Route []RoutingNode
 
 	CallbackUrl string // Payment command url
 

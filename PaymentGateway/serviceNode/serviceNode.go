@@ -4,127 +4,72 @@ import (
 	"context"
 	"fmt"
 	"log"
-	. "net/http"
+	"net/http"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/stellar/go/keypair"
-	"paidpiper.com/payment-gateway/commodity"
-	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/config"
 	"paidpiper.com/payment-gateway/controllers"
-	"paidpiper.com/payment-gateway/horizon"
-	"paidpiper.com/payment-gateway/node"
-	"paidpiper.com/payment-gateway/root"
+	"paidpiper.com/payment-gateway/node/local"
 )
 
-func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool, autoFlushDuration time.Duration, transactionValiditySecs int64) (*Server,*node.Node, error) {
-	tracer := common.CreateTracer("paidpiper/serviceNode")
+type loggableWriter struct {
+	mux.Router
+}
 
-	_, span := tracer.Start(context.Background(), "serviceNode-initialization")
-	defer span.End()
-
-	seed, err := keypair.ParseFull(keySeed)
-
+func (r *loggableWriter) Handle(path string, handler http.Handler) *mux.Route {
+	return r.Router.Handle(path, handlers.LoggingHandler(log.Writer(), handler))
+}
+func RunHttpServer(config *config.Configuration) (func(), error) {
+	local, err := local.FromConfig(config)
 	if err != nil {
-		glog.Infof("Error parsing node key: %s", err)
-		return nil, nil,  err
+		return nil, err
+	}
+	server := HttpLocalNode(local, config.Port)
+	return func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			log.Printf("Error shutting down server: %v", err)
+		}
+	}, nil
+}
+func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
+
+	utilityController := controllers.NewHttpUtilityController(localNode)
+
+	gatewayController := controllers.NewHttpGatewayController(localNode)
+
+	router := &loggableWriter{
+		Router: *mux.NewRouter(),
 	}
 
-	horizon := horizon.NewHorizon()
+	router.Handle("/api/utility/createPaymentInfo", http.HandlerFunc(utilityController.HttpNewPaymentRequest)).Methods("POST")
+	router.Handle("/api/utility/validatePayment", http.HandlerFunc(utilityController.HttpValidatePayment)).Methods("POST")
+	router.Handle("/api/utility/transactions/flush", http.HandlerFunc(utilityController.HttpFlushTransactions)).Methods("GET")
+	router.Handle("/api/utility/transactions", http.HandlerFunc(utilityController.ListTransactions)).Methods("GET")
+	router.Handle("/api/utility/transaction/{sessionId}", http.HandlerFunc(utilityController.HttpGetTransaction)).Methods("GET")
+	router.Handle("/api/utility/stellarAddress", http.HandlerFunc(utilityController.HttpGetStellarAddress)).Methods("GET")
+	router.Handle("/api/utility/processCommand", http.HandlerFunc(utilityController.HttpProcessCommand)).Methods("POST")
+	router.Handle("/api/utility/balance", http.HandlerFunc(utilityController.HttpGetBalance)).Methods("GET")
 
-	localNode,err := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration, transactionValiditySecs)
+	router.Handle("/api/gateway/processResponse", http.HandlerFunc(gatewayController.HttpProcessResponse)).Methods("POST")
+	router.Handle("/api/gateway/processPayment", http.HandlerFunc(gatewayController.HttpProcessPayment)).Methods("POST")
 
-	if err != nil {
-		glog.Infof("Error creating Node object: %s", err)
-		return nil, nil, err
-	}
-
-	priceList := make(map[string]map[string]commodity.Descriptor)
-
-	priceList["ipfs"] = make(map[string]commodity.Descriptor)
-	priceList["tor"] = make(map[string]commodity.Descriptor)
-	priceList["http"] = make(map[string]commodity.Descriptor)
-
-	priceList["ipfs"]["data"] = commodity.Descriptor{
-		UnitPrice: 0.00000002,
-		Asset:     common.PPTokenAssetName,
-	}
-
-	priceList["tor"]["data"] = commodity.Descriptor{
-		UnitPrice: 0.1,
-		Asset:     common.PPTokenAssetName,
-	}
-
-	priceList["http"]["attention"] = commodity.Descriptor{
-		UnitPrice: 0.1,
-		Asset:     common.PPTokenAssetName,
-	}
-
-	commodityManager := commodity.New(priceList)
-
-	rootApi := root.CreateRootApi(true)
-	err = rootApi.CreateUser(seed.Address(), seed.Seed())
-
-	if err != nil {
-		glog.Infof("Error creating user: %s", err)
-		return nil,nil, err
-	}
-
-	balance, err := horizon.GetBalance(seed.Address())
-
-	if err != nil {
-		glog.Infof("Error retrieving account data: %s", err)
-		return nil,nil,  err
-	}
-
-	fmt.Printf("Current balance for %v:%v", seed.Address(), balance)
-
-	utilityController := controllers.NewUtilityController(
-		localNode,
-		localNode,
-		localNode,
-		commodityManager,
-	)
-
-	gatewayController := controllers.NewGatewayController(
-		localNode,
-		localNode,
-		localNode,
-		commodityManager,
-		seed,
-		rootApi,
-		fmt.Sprintf("%s/api/command", torAddressPrefix),
-		fmt.Sprintf("%s/api/paymentRoute/", torAddressPrefix),
-		asyncMode,
-	)
-
-	router := mux.NewRouter()
-
-	router.Handle("/api/utility/createPaymentInfo", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.CreatePaymentInfo))).Methods("POST")
-	router.Handle("/api/utility/validatePayment", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ValidatePayment))).Methods("POST")
-	router.Handle("/api/utility/transactions/flush", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.FlushTransactions))).Methods("GET")
-	router.Handle("/api/utility/transactions", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ListTransactions))).Methods("GET")
-	router.Handle("/api/utility/transaction/{sessionId}", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetTransaction))).Methods("GET")
-	router.Handle("/api/utility/stellarAddress", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetStellarAddress))).Methods("GET")
-	router.Handle("/api/utility/balance", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetBalance))).Methods("GET")
-	router.Handle("/api/utility/processCommand", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ProcessCommand))).Methods("POST")
-	router.Handle("/api/gateway/processResponse", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessResponse))).Methods("POST")
-	router.Handle("/api/gateway/processPayment", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessPayment))).Methods("POST")
-
-	server := &Server{
+	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: handlers.RecoveryHandler()(router),
 	}
 
 	server.SetKeepAlivesEnabled(false)
 
-	go func() {
+	go func() { //TODO DONE
 		if err := server.ListenAndServe(); err != nil {
 			glog.Warningf("Error starting service node: %s", err)
 		}
 	}()
-
-	return server,localNode, nil
+	return server
 }

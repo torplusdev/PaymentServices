@@ -1,156 +1,157 @@
 package tests
 
 import (
-	"context"
-	"github.com/stellar/go/keypair"
-	"github.com/stellar/go/txnbuild"
-	"github.com/stretchr/testify/assert"
-	client "paidpiper.com/payment-gateway/client"
-	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/node"
-	"paidpiper.com/payment-gateway/root"
-	"paidpiper.com/payment-gateway/routing"
-	"reflect"
 	"testing"
+
+	"paidpiper.com/payment-gateway/root"
 )
 
-func reverseAny(s interface{}) {
-	n := reflect.ValueOf(s).Len()
-	swap := reflect.Swapper(s)
-	for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
-		swap(i, j)
+func TestSeed(t *testing.T) {
+	seed := "SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC"
+	clientItem, err := root.CreateRootApiFactory(true)(seed, 600)
+	if err != nil {
+		t.Error(err)
+	}
+	address := clientItem.GetAddress()
+	if address != "GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ" {
+		t.Error("Not valid address from seed")
 	}
 }
 
+// func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
 
-func TestAccumulatingTransactionWithDifferentSequencesShouldFail(t *testing.T) {
+// 	assert := assert.New(t)
+// 	myNode, err := CreateRogueNode_NonidenticalSequenceNumbers("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
+// 		"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC", false)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	nm.ReplaceNode("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ", myNode)
 
-	assert := assert.New(t)
+// 	rootApi, err := root.CreateRootApiFactory(true)(user1Seed, 600)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	rootApi.CreateUser()
 
-	
+// 	nm.SetAccumulatingTransactionsMode(true)
+// 	//regestry.FromSeeds()
+// 	//Service
+// 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
 
-	nm.ReplaceNode("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
-		CreateRogueNode_NonidenticalSequenceNumbers("GD523N6LHPRQS3JMCXJDEF3ZENTSJLRUDUF2CU6GZTNGFWJXSF3VNDJJ",
-			"SDK7QBPKP5M7SCU7XZVWAIUJW2I2SM4PQJMWH5PSCMAI7WF3A4HRHVVC",false))
+// 	//route := prouter.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
-	keyUser, _ := keypair.ParseFull(user1Seed)
+// 	client := client.New(rootApi)
+// 	assert.NotNil(client)
 
-	rootApi := root.CreateRootApi(true)
-	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
+// 	/*     ******                    Transaction 1			***********				*/
 
-	var client,_ = client.CreateClient(rootApi, user1Seed, nm, nil)
-	assert.NotNil(client)
+// 	paymentRequestProvider := serviceNode.(local.LocalPPNode)
 
-	nm.SetAccumulatingTransactionsMode(true)
+// 	// Add pending credit
+// 	//serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
+// 	pib := &models.PaymentRequstBase{
+// 		Amount:     100e6,
+// 		Asset:      "data",
+// 		ServiceRef: "ipfs",
+// 	}
+// 	pr1, err := paymentRequestProvider.CreatePaymentRequest(context.Background(), pib)
 
-	//Service
-	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
+// 	// Initiate
+// 	transactions, err := client.InitiatePayment(context.Background(), route, pr1)
+// 	assert.NotNil(transactions)
 
-	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
+// 	// Verify
+// 	err = client.VerifyTransactions(context.Background(), transactions)
+// 	assert.NoError(err)
+// 	// Commit
+// 	err = client.FinalizePayment(context.Background(), route, pr1, transactions)
 
-	/*     ******                    Transaction 1			***********				*/
-	//guid1 := xid.New()
+// 	pr2, err := paymentRequestProvider.CreatePaymentRequest(context.Background(), pib)
 
-	paymentRequestProvider := serviceNode.(node.PPPaymentRequestProvider)
+// 	// Initiate
+// 	transactions, err = client.InitiatePayment(context.Background(), route, pr2)
 
-	// Add pending credit
-	//serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
-	pr1,err := paymentRequestProvider.CreatePaymentRequest(context.Background(),100e6,"data","ipfs")
+// 	for _, t := range transactions {
 
-	// Initiate
-	transactions,err := client.InitiatePayment(context.Background(),nodes, pr1)
-	assert.NotNil(transactions)
+// 		ptr := t
+// 		payTrans := ptr.PendingTransaction
+// 		refTrans := ptr.ReferenceTransaction
 
-	// Verify
-	err = client.VerifyTransactions(context.Background(),nodes, pr1, transactions)
-	assert.NoError(err)
-	// Commit
-	err = client.FinalizePayment(context.Background(),nodes, transactions,pr1 )
+// 		payTransStellarWrapper, _ := payTrans.XDR.TransactionFromXDR()
+// 		payTransStellar, _ := payTransStellarWrapper.Transaction()
 
-	/*     ******                    Transaction 2			*************				*/
-	//guid2 := xid.New()
+// 		refTransStellarWrapper, _ := refTrans.XDR.TransactionFromXDR()
+// 		refTransStellar, _ := refTransStellarWrapper.Transaction()
 
-	// Add pending credit
-	//serviceNode.AddPendingServicePayment(guid2.String(),servicePayment)
+// 		account := payTransStellar.SourceAccount()
+// 		paySequenceNumber, _ := account.GetSequenceNumber()
 
-	pr2,err := paymentRequestProvider.CreatePaymentRequest(context.Background(),100e6,"data","ipfs")
+// 		account = refTransStellar.SourceAccount()
+// 		refSequenceNumber, _ := account.GetSequenceNumber()
 
-	// Initiate
-	transactions,err = client.InitiatePayment(context.Background(),nodes, pr2)
+// 		_ = paySequenceNumber
+// 		_ = refSequenceNumber
+// 	}
 
-	for _,t := range transactions {
+// 	// Verify
+// 	err = client.VerifyTransactions(context.Background(), transactions)
+// 	//var e *models.TransactionValidationError
+// 	//assert.EqualError(err, e.Err.Error())
+// 	//assert.True(errors.As(err,&e), e.Error())
+// 	//TODO fix
+// }
 
-		ptr := t
-		payTrans := ptr.GetPaymentTransaction()
-		refTrans := ptr.GetReferenceTransaction()
+// func TestAccumulatingTransactionWithBadSignatureShouldFail(t *testing.T) {
 
-		payTransStellarWrapper,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
-		payTransStellar,_ := payTransStellarWrapper.Transaction()
+// 	assert := assert.New(t)
+// 	myNode, err := CreateRogueNode_BadSignature("GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
+// 		"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN", false)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	nm.ReplaceNode("GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN", myNode)
 
-		refTransStellarWrapper,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
-		refTransStellar,_ := refTransStellarWrapper.Transaction()
+// 	keyUser, _ := keypair.ParseFull(user1Seed)
 
-		account := payTransStellar.SourceAccount()
-		paySequenceNumber,_ := account.GetSequenceNumber()
+// 	rootApi, err := root.CreateRootApiFactory(true)(keyUser.Seed(), 600)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	rootApi.CreateUser()
 
-		account = refTransStellar.SourceAccount()
-		refSequenceNumber,_ := account.GetSequenceNumber()
+// 	nm.SetAccumulatingTransactionsMode(true)
+// 	//var servicePayment uint32 = 234
 
-		_ = paySequenceNumber
-		_ = refSequenceNumber
-	}
+// 	//Service
+// 	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
 
+// 	nodes := prouter.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
 
-	// Verify
-	err = client.VerifyTransactions(context.Background(),nodes, pr2, transactions)
-	var e *common.TransactionValidationError
-	assert.EqualError(err,e.Err.Error())
-	//assert.True(errors.As(err,&e), e.Error())
+// 	client := client.New(rootApi)
 
-}
+// 	paymentRequestProvider := serviceNode.(local.LocalPPNode)
 
-func TestAccumulatingTransactionWithBadSignatureShouldFail(t *testing.T) {
+// 	/*     ******                    Transaction 1			***********				*/
+// 	//guid1 := xid.New()
+// 	pib := &models.PaymentRequstBase{
+// 		Amount:     100e6,
+// 		Asset:      "data",
+// 		ServiceRef: "ipfs",
+// 	}
+// 	// Add pending credit
+// 	//serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
+// 	pr1, err := paymentRequestProvider.CreatePaymentRequest(context.Background(), pib)
 
-	assert := assert.New(t)
+// 	// Initiate
+// 	transactions, err := client.InitiatePayment(context.Background(), nodes, pr1)
+// 	assert.NotNil(transactions)
 
-	nm.ReplaceNode("GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-		CreateRogueNode_BadSignature("GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN",
-			"SCEV4AU2G4NYAW76P46EVM77N5TL2NLW2IYO5TJSLB6S4OBBJQ62ZVJN",false))
+// 	// Verify
+// 	err = client.VerifyTransactions(context.Background(), transactions)
+// 	assert.NoError(err)
 
-	keyUser, _ := keypair.ParseFull(user1Seed)
-
-	rootApi := root.CreateRootApi(true)
-	rootApi.CreateUser(keyUser.Address(), keyUser.Seed())
-
-	var client,_ = client.CreateClient(rootApi, user1Seed, nm, nil)
-	assert.NotNil(client)
-
-	nm.SetAccumulatingTransactionsMode(true)
-	//var servicePayment uint32 = 234
-
-	//Service
-	serviceNode := nm.GetNodeByAddress("GCCGR53VEHVQ2R6KISWXT4HYFS2UUM36OVRTECH2G6OVEULBX3CJCOGE")
-
-	nodes := routing.CreatePaymentRouterStubFromAddresses([]string{user1Seed, node1Seed, node2Seed, node3Seed, service1Seed})
-
-	paymentRequestProvider := serviceNode.(node.PPPaymentRequestProvider)
-
-	/*     ******                    Transaction 1			***********				*/
-	//guid1 := xid.New()
-
-	// Add pending credit
-	//serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
-	pr1,err := paymentRequestProvider.CreatePaymentRequest(context.Background(),100e6,"data","ipfs")
-
-	// Initiate
-	transactions,err := client.InitiatePayment(context.Background(), nodes, pr1)
-	assert.NotNil(transactions)
-
-	// Verify
-	err = client.VerifyTransactions(context.Background(), nodes, pr1, transactions)
-	assert.NoError(err)
-
-	// Commit
-	err = client.FinalizePayment(context.Background(), nodes, transactions,pr1 )
-	assert.Error(err)
-}
+// 	// Commit
+// 	err = client.FinalizePayment(context.Background(), nodes, pr1, transactions)
+// 	assert.Error(err)
+// }

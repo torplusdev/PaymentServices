@@ -5,23 +5,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
+	"io/ioutil"
+	"log"
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/httptrace"
-	"io/ioutil"
-	"log"
-	"net/http"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
-	"time"
+	"paidpiper.com/payment-gateway/node/local"
 )
 
 type TorMock struct {
-	server       *http.Server
-	nodes        map[string]int
-	torNodes     map[string]int
+	nodes        map[string]local.LocalPPNode
+	torNodes     map[string]local.LocalPPNode
 	defaultRoute []string
 
 	originAddress string
@@ -31,11 +30,14 @@ type torCommand struct {
 	SessionID   string
 	NodeId      string
 	CommandId   string
-	CommandType int
+	CommandType models.CommandType
 	CommandBody []byte
 	CallbackUrl string
 }
 
+func (t *torCommand) Type() models.CommandType {
+	return 1
+}
 func respond(status int, w http.ResponseWriter, data map[string]interface{}) {
 	w.WriteHeader(status)
 	w.Header().Add("Content-Type", "application/json")
@@ -55,7 +57,7 @@ func respondObject(w http.ResponseWriter, data interface{}) {
 	err := json.NewEncoder(w).Encode(data)
 
 	if err != nil {
-		// Log
+		log.Fatal(err)
 	}
 }
 
@@ -84,31 +86,26 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 	defer span.End()
 
 	command := &torCommand{}
-	err := json.NewDecoder(req.Body).Decode(command)
-
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
 
 	port := tor.nodes[command.NodeId]
 
 	commandType := command.CommandType
 
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-
 	utilityCmd := models.UtilityCommand{
-		SessionId:   command.SessionID,
-		CommandId:   command.CommandId,
-		CommandBody: command.CommandBody,
-		CommandType: commandType,
+		CommandCore: models.CommandCore{
+			SessionId:   command.SessionID,
+			NodeId:      "",
+			CommandId:   command.CommandId,
+			CommandType: models.CommandType(commandType),
+		},
+		CommandBody: command,
 		CallbackUrl: command.CallbackUrl,
 	}
 
 	cmdBytes, err := json.Marshal(utilityCmd)
+	if err != nil {
+		w.WriteHeader(500)
+	}
 
 	response, err := common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/processCommand", port), bytes.NewReader(cmdBytes))
 
@@ -117,10 +114,13 @@ func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 	respBytes, err := ioutil.ReadAll(response.Body)
 
 	utilityResponse := models.UtilityResponse{
-		CommandId:    command.CommandId,
-		SessionId:    command.SessionID,
-		ResponseBody: respBytes,
-		NodeId:       command.NodeId,
+		CommandResponseCore: models.CommandResponseCore{
+			CommandId: command.CommandId,
+			SessionId: command.SessionID,
+
+			NodeId: command.NodeId,
+		},
+		CommandResponse: respBytes,
 	}
 
 	responseBytes, err := json.Marshal(utilityResponse)
@@ -173,31 +173,22 @@ func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request
 	respondObject(w, response)
 }
 
-func (tor *TorMock) Shutdown() {
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	tor.server.Shutdown(ctx)
+func (tor *TorMock) RegisterTorNode(node local.LocalPPNode) {
+	address := node.GetAddress()
+	tor.torNodes[address] = node
+	tor.nodes[address] = node
 }
 
-func (tor *TorMock) RegisterTorNode(address string, port int) {
-	tor.torNodes[address] = port
-	tor.nodes[address] = port
+func (tor *TorMock) RegisterNode(node local.LocalPPNode) {
+	tor.nodes[node.GetAddress()] = node
 }
 
-func (tor *TorMock) RegisterNode(address string, port int) {
-	tor.nodes[address] = port
-}
-
-func (tor *TorMock) GetNodePort(address string) int {
-	return tor.nodes[address]
-}
-
-func (tor *TorMock) GetNodes() map[string]int {
+func (tor *TorMock) GetNodes() map[string]local.LocalPPNode {
 	return tor.nodes
 }
-
+func (tor *TorMock) GetNodeByAddress(address string) local.LocalPPNode {
+	return tor.nodes[address]
+}
 func (tor *TorMock) SetDefaultRoute(route []string) {
 	for _, node := range route {
 		if _, ok := tor.nodes[node]; !ok {
@@ -215,30 +206,28 @@ func (tor *TorMock) SetCircuitOrigin(address string) {
 func CreateTorMock(torPort int) *TorMock {
 
 	tor := TorMock{
-		nodes:    make(map[string]int),
-		torNodes: make(map[string]int),
+		nodes:    make(map[string]local.LocalPPNode),
+		torNodes: make(map[string]local.LocalPPNode),
 	}
 
-	router := mux.NewRouter()
+	//router := mux.NewRouter()
 
-	router.HandleFunc("/api/command", tor.processCommand).Methods("POST")
-	router.HandleFunc("/api/paymentComplete", tor.paymentComplete).Methods("POST")
-	router.HandleFunc("/api/paymentRoute/{nodeAddress}", tor.processPaymentRoute).Methods("GET")
+	// router.HandleFunc("/api/command", tor.processCommand).Methods("POST")
+	// router.HandleFunc("/api/paymentComplete", tor.paymentComplete).Methods("POST")
+	// router.HandleFunc("/api/paymentRoute/{nodeAddress}", tor.processPaymentRoute).Methods("GET")
 
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", torPort),
-		Handler: router,
-	}
+	// server := &http.Server{
+	// 	Addr:    fmt.Sprintf(":%d", torPort),
+	// 	Handler: router,
+	// }
 
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			if err.Error() != "http: Server closed" {
-				glog.Fatalf("Error starting tor mock: %v", err)
-			}
-		}
-	}()
-
-	tor.server = server
+	// go func() {
+	// 	if err := server.ListenAndServe(); err != nil {
+	// 		if err.Error() != "http: Server closed" {
+	// 			glog.Fatalf("Error starting tor mock: %v", err)
+	// 		}
+	// 	}
+	// }()
 
 	return &tor
 }

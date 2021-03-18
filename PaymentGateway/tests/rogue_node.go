@@ -8,18 +8,30 @@ import (
 	"github.com/stellar/go/keypair"
 	"github.com/stellar/go/txnbuild"
 	"github.com/stellar/go/xdr"
-	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/horizon"
+	"paidpiper.com/payment-gateway/client"
+	"paidpiper.com/payment-gateway/commodity"
+	"paidpiper.com/payment-gateway/config"
+	"paidpiper.com/payment-gateway/models"
+	"paidpiper.com/payment-gateway/regestry"
+	"paidpiper.com/payment-gateway/torclient"
+
 	"paidpiper.com/payment-gateway/node"
+	"paidpiper.com/payment-gateway/node/local"
+	"paidpiper.com/payment-gateway/node/proxy"
+	"paidpiper.com/payment-gateway/root"
 )
 
 type RogueNode struct {
-	internalNode                  node.PPNode
-	transactionCreationFunction   func(*RogueNode, context.Context, common.TransactionAmount, common.TransactionAmount, common.TransactionAmount, string) (common.PaymentTransactionReplacing, error)
-	signChainTransactionsFunction func(*RogueNode, context.Context, *common.PaymentTransactionReplacing, *common.PaymentTransactionReplacing) error
+	node.PPNode
+	transactionCreationFunction  func(*RogueNode, context.Context, *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error)
+	SignChainTransactionFunction func(r *RogueNode, context context.Context, cmd *models.SignChainTransactionCommand) (*models.SignChainTransactionResponse, error)
 }
 
-// func (r *RogueNode) AddPendingServicePayment(context context.Context, serviceSessionId string, amount common.TransactionAmount) {
+func (r *RogueNode) GetFee() uint32 {
+	return 0
+}
+
+// func (r *RogueNode) AddPendingServicePayment(context context.Context, serviceSessionId string, amount models.TransactionAmount) {
 // 	r.internalNode.AddPendingServicePayment(context, serviceSessionId, amount)
 // }
 
@@ -27,72 +39,52 @@ type RogueNode struct {
 //func (r *RogueNode) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 //	r.internalNode.SetAccumulatingTransactionsMode(accumulateTransactions)
 //}
+func (r *RogueNode) SignChainTransaction(ctx context.Context, command *models.SignChainTransactionCommand) (*models.SignChainTransactionResponse, error) {
+	if r.SignChainTransactionFunction != nil {
+		return r.SignChainTransactionFunction(r, ctx, command)
 
-func (r *RogueNode) CreatePaymentRequest(context context.Context, serviceSessionId string) (common.PaymentRequest, error) {
+	}
+	return r.PPNode.SignChainTransaction(ctx, command)
+}
+func (r *RogueNode) CreateTransaction(context context.Context, request *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
 
-	return r.CreatePaymentRequest(context, serviceSessionId)
+	return r.transactionCreationFunction(r, context, request)
 }
 
-func (r *RogueNode) CreateTransaction(context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string, serviceSessionId string) (common.PaymentTransactionReplacing, error) {
+//TODO REMOVE IF TEST IS CORRECT
+func createTransactionCorrect(r *RogueNode, context context.Context, request *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
 
-	return r.transactionCreationFunction(r, context, totalIn, fee, totalOut, sourceAddress)
+	request.ServiceSessionId = xid.New().String()
+
+	return r.CreateTransaction(context, request)
 }
 
-func createTransactionCorrect(r *RogueNode, context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
-	return r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress, xid.New().String())
-}
-
-func (r *RogueNode) SignTerminalTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing) error {
-	return r.internalNode.SignTerminalTransactions(context, creditTransactionPayload)
-}
-
-func (r *RogueNode) SignChainTransactions(context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
-	return r.signChainTransactionsFunction(r, context, creditTransactionPayload, debitTransactionPayload)
-}
-
-func signChainTransactionsNoError(r *RogueNode, context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
-	return r.internalNode.SignChainTransactions(context, creditTransactionPayload, debitTransactionPayload)
-}
-
-func (r *RogueNode) CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error {
-	return r.internalNode.CommitServiceTransaction(context, transaction, pr)
-}
-
-func (r *RogueNode) CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error {
-	return r.internalNode.CommitPaymentTransaction(context, transactionPayload)
-}
-
-func (r *RogueNode) GetAddress() string {
-	return ""
-	//return r.internalNode.GetAddress()
-}
-
-func createTransactionIncorrectSequence(r *RogueNode, context context.Context, totalIn common.TransactionAmount, fee common.TransactionAmount, totalOut common.TransactionAmount, sourceAddress string) (common.PaymentTransactionReplacing, error) {
-	transaction, err := r.internalNode.CreateTransaction(context, totalIn, fee, totalOut, sourceAddress, xid.New().String())
+func createTransactionIncorrectSequence(r *RogueNode, context context.Context, request *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
+	res, err := r.CreateTransaction(context, request)
 
 	if err != nil {
 		panic("unexpected error creating transaction")
 	}
 
-	payTrans := transaction.GetPaymentTransaction()
-	refTrans := transaction.GetReferenceTransaction()
+	payTrans := res.Transaction.PendingTransaction
+	refTrans := res.Transaction.ReferenceTransaction
 
-	if (refTrans == common.PaymentTransaction{}) {
-		return transaction, err
+	if refTrans == nil {
+		return res, err
 	}
 
-	payTransStellarWrapper,_ := txnbuild.TransactionFromXDR(payTrans.XDR)
-	payTransStellar,_ := payTransStellarWrapper.Transaction()
+	payTransStellarWrapper, _ := payTrans.XDR.TransactionFromXDR()
+	payTransStellar, _ := payTransStellarWrapper.Transaction()
 
-	refTransStellarWrapper,_ := txnbuild.TransactionFromXDR(refTrans.XDR)
-	refTransStellar,_ := refTransStellarWrapper.Transaction()
+	refTransStellarWrapper, _ := refTrans.XDR.TransactionFromXDR()
+	refTransStellar, _ := refTransStellarWrapper.Transaction()
 
 	account := payTransStellar.SourceAccount()
-	paySequenceNumber,_ := account.GetSequenceNumber()
+	paySequenceNumber, _ := account.GetSequenceNumber()
 	account = refTransStellar.SourceAccount()
-	refSequenceNumber,_ := account.GetSequenceNumber()
+	refSequenceNumber, _ := account.GetSequenceNumber()
 
-	if (paySequenceNumber != refSequenceNumber) {
+	if paySequenceNumber != refSequenceNumber {
 		panic("sequence numbers are already different, unexpected")
 	}
 
@@ -115,31 +107,26 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, t
 
 	sourceAccount := payTransStellar.SourceAccount()
 
-	seq,_ := payment.SourceAccount.GetSequenceNumber()
-
 	tx, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
 		SourceAccount: &txnbuild.SimpleAccount{
 			AccountID: sourceAccount.AccountID,
 			Sequence:  sourceAccount.Sequence,
 		},
-		BaseFee: 200,
+		BaseFee:    200,
 		Timebounds: txnbuild.NewTimeout(600),
 		Operations: []txnbuild.Operation{&txnbuild.Payment{
 			Destination: payment.Destination,
 			Amount:      payment.Amount,
 			Asset: txnbuild.CreditAsset{
-				Code:   common.PPTokenAssetName,
-				Issuer: common.PPTokenIssuerAddress,
+				Code:   models.PPTokenAssetName,
+				Issuer: models.PPTokenIssuerAddress,
 			},
-			SourceAccount: &txnbuild.SimpleAccount{
-				AccountID: payment.SourceAccount.GetAccountID(),
-				Sequence:  seq,
-			},
+			SourceAccount: payment.SourceAccount,
 		},
 		},
 	})
 	//	build.SourceAccount{payTransStellar.SourceAccount.GetAccountID()},
-	//	build.AutoSequence{common.CreateStaticSequence(uint64(refSequenceNumber + 1))},
+	//	build.AutoSequence{models.CreateStaticSequence(uint64(refSequenceNumber + 1))},
 	//	build.Payment(
 	//		build.SourceAccount{payment.SourceAccount.GetAccountID()},
 	//		build.Destination{payment.Destination},
@@ -152,7 +139,6 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, t
 
 	//tx.Mutate(build.TestNetwork)
 
-
 	//txe, err := tx.TxEnvelope()
 	//
 	//if err != nil {
@@ -161,90 +147,141 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, t
 
 	xdr, err := tx.Base64()
 
-	transaction.UpdateTransactionXDR(xdr)
+	res.Transaction.PendingTransaction.XDR = (models.NewXDR(xdr))
 
-	return transaction, nil
+	return &models.CreateTransactionResponse{
+		Transaction: res.Transaction,
+	}, nil
 }
 
-func signChainTransactionsBadSignature(r *RogueNode, context context.Context, creditTransactionPayload *common.PaymentTransactionReplacing, debitTransactionPayload *common.PaymentTransactionReplacing) error {
+func SignChainTransactionBadSignature(r *RogueNode, context context.Context, cmd *models.SignChainTransactionCommand) (*models.SignChainTransactionResponse, error) {
 
-	creditTransaction := creditTransactionPayload.GetPaymentTransaction()
-	debitTransaction := debitTransactionPayload.GetPaymentTransaction()
+	creditTransaction := cmd.Credit.PendingTransaction
+	debitTransaction := cmd.Debit.PendingTransaction
 
 	kp, err := keypair.Random()
 
-	creditWrapper, err := txnbuild.TransactionFromXDR(creditTransaction.XDR)
+	creditWrapper, err := creditTransaction.XDR.TransactionFromXDR()
 
 	credit, _ := creditWrapper.Transaction()
 
 	if err != nil {
-		return errors.New("Transaction deser error")
+		return nil, errors.New("Transaction deser error")
 	}
 
-	debitWrapper, err := txnbuild.TransactionFromXDR(debitTransaction.XDR)
-	debit,_ := debitWrapper.Transaction()
+	debitWrapper, err := debitTransaction.XDR.TransactionFromXDR()
+	debit, _ := debitWrapper.Transaction()
 
 	if err != nil {
-		return errors.New("Transaction parse error")
+		return nil, errors.New("Transaction parse error")
 	}
 
-	credit,err = credit.Sign(creditTransaction.StellarNetworkToken,kp)
+	credit, err = credit.Sign(creditTransaction.StellarNetworkToken, kp)
 
 	if err != nil {
-		return errors.New("Failed to sign transaction")
+		return nil, errors.New("Failed to sign transaction")
 	}
 
-	debit,err = debit.Sign(debitTransaction.StellarNetworkToken, kp)
+	debit, err = debit.Sign(debitTransaction.StellarNetworkToken, kp)
 
 	if err != nil {
-		return errors.New("Failed to sign transaction")
+		return nil, errors.New("Failed to sign transaction")
 	}
 
-	creditTransaction.XDR, err = credit.Base64()
+	base64, err := credit.Base64()
+	if err != nil {
+		return nil, err
+	}
+	creditTransaction.XDR = models.NewXDR(base64)
+	if err != nil {
+		return nil, errors.New("Transaction envelope error")
+	}
+
+	cmd.Credit.PendingTransaction.XDR = creditTransaction.XDR
+
+	base64, err = debit.Base64()
+	if err != nil {
+		return nil, err
+	}
+	debitTransaction.XDR = models.NewXDR(base64)
 
 	if err != nil {
-		return errors.New("Transaction envelope error")
+		return nil, errors.New("Transaction envelope error")
 	}
 
-	creditTransactionPayload.UpdateTransactionXDR(creditTransaction.XDR)
+	cmd.Debit.PendingTransaction.XDR = debitTransaction.XDR
 
-	debitTransaction.XDR, err = debit.Base64()
-
-	if err != nil {
-		return errors.New("Transaction envelope error")
-	}
-
-	debitTransactionPayload.UpdateTransactionXDR(debitTransaction.XDR)
-
-	return nil
+	return &models.SignChainTransactionResponse{
+		Credit: cmd.Credit,
+		Debit:  cmd.Debit,
+	}, nil
 }
 
-func CreateRogueNode_NonidenticalSequenceNumbers(address string, seed string, accumulateTransactions bool) node.PPNode {
+func CreateRogueNode_NonidenticalSequenceNumbers(address string, seed string, accumulateTransactions bool) (node.PPNode, error) {
 
-	horizon := horizon.NewHorizon()
-
-	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0,600)
+	rootClient, err := root.CreateRootApiFactory(true)(seed, 600)
+	if err != nil {
+		return nil, err
+	}
+	commandClientFactory := func(url string, sessionId string, nodeId string) (proxy.CommandClient, proxy.CommandResponseHandler) {
+		return nil, nil
+	}
+	commodityManager := commodity.New()
+	paymentManager := regestry.NewPaymentManagerRegestry(
+		commodityManager,
+		client.New(rootClient),
+		commandClientFactory,
+		torclient.NewTorClient(""),
+	)
+	factory := func(cmd *models.UtilityCommand) local.CallBacker {
+		return nil
+	}
+	node, _ := local.New(rootClient, paymentManager, factory, config.NodeConfig{
+		AutoFlushPeriod:        0,
+		AsyncMode:              true,
+		AccumulateTransactions: accumulateTransactions,
+	})
 
 	rogueNode := RogueNode{
-		internalNode:                  node,
-		transactionCreationFunction:   createTransactionIncorrectSequence,
-		signChainTransactionsFunction: signChainTransactionsNoError,
+		PPNode:                      node,
+		transactionCreationFunction: createTransactionIncorrectSequence,
 	}
 
-	return &rogueNode
+	return &rogueNode, nil
 }
 
-func CreateRogueNode_BadSignature(address string, seed string, accumulateTransactions bool) node.PPNode {
+func CreateRogueNode_BadSignature(address string, seed string, accumulateTransactions bool) (node.PPNode, error) {
 
-	horizon := horizon.NewHorizon()
-
-	node,_ := node.CreateNode(horizon, address, seed, accumulateTransactions,0,600)
-
-	rogueNode := RogueNode{
-		internalNode:                  node,
-		transactionCreationFunction:   createTransactionCorrect,
-		signChainTransactionsFunction: signChainTransactionsBadSignature,
+	//	horizon := horizon.NewHorizon()
+	rootClient, err := root.CreateRootApiFactory(true)(seed, 600)
+	if err != nil {
+		return nil, err
 	}
 
-	return &rogueNode
+	commodityManager := commodity.New()
+	commandClientFactory := func(url string, sessionId string, nodeId string) (proxy.CommandClient, proxy.CommandResponseHandler) {
+		return nil, nil
+	}
+	paymentManager := regestry.NewPaymentManagerRegestry(
+		commodityManager,
+		client.New(rootClient),
+		commandClientFactory,
+		torclient.NewTorClient(""),
+	)
+	factory := func(cmd *models.UtilityCommand) local.CallBacker {
+		return nil
+	}
+	node, _ := local.New(rootClient, paymentManager, factory, config.NodeConfig{
+		AutoFlushPeriod:        0,
+		AsyncMode:              true,
+		AccumulateTransactions: accumulateTransactions,
+	})
+
+	rogueNode := RogueNode{
+		PPNode:                       node,
+		transactionCreationFunction:  createTransactionCorrect,
+		SignChainTransactionFunction: SignChainTransactionBadSignature,
+	}
+
+	return &rogueNode, nil
 }

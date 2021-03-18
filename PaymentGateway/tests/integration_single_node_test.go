@@ -2,42 +2,34 @@ package tests
 
 import (
 	"context"
-	"github.com/stellar/go/keypair"
-	"go.opentelemetry.io/otel/api/core"
-	"go.opentelemetry.io/otel/api/trace"
-	"google.golang.org/grpc/codes"
 	"os"
-	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/utility"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel/api/core"
+	"google.golang.org/grpc/codes"
+	"paidpiper.com/payment-gateway/common"
+	. "paidpiper.com/payment-gateway/tests/util"
+	"paidpiper.com/payment-gateway/utility"
 )
 
 var testSetup *TestSetup
 
 var tracerShutdown func()
 
-func seed2addr(seed string) string {
-	kp,_ := keypair.ParseFull(seed)
-	return kp.Address()
-}
-
 func init() {
 
-	traceProvider, shutdownFunc := InitGlobalTracer()
-	common.InitializeTracer(traceProvider)
-
-	tracerShutdown = shutdownFunc
+	tracerShutdown = common.InitGlobalTracer(nil)
 
 	// Addresses reused from other tests
-	CreateAndFundAccount(User1Seed,Client)
-	CreateAndFundAccount(Service1Seed,Node)
+	CreateAndFundAccount(User1Seed, Client)
+	CreateAndFundAccount(Service1Seed, Node)
 
 	// Addresses specific to this test suite
-	CreateAndFundAccount(Node1Seed,Node)
-	CreateAndFundAccount(Node2Seed,Node)
-	CreateAndFundAccount(Node3Seed,Node)
-	CreateAndFundAccount(Node4Seed,Node)
+	CreateAndFundAccount(Node1Seed, Node)
+	CreateAndFundAccount(Node2Seed, Node)
+	CreateAndFundAccount(Node3Seed, Node)
+	CreateAndFundAccount(Node4Seed, Node)
 
 	testSetup = CreateTestSetup()
 	torPort := 57842
@@ -48,12 +40,12 @@ func init() {
 
 	ctx, span := tr.Start(context.Background(), "NodeInitialization")
 
-	testSetup.StartUserNode(ctx, User1Seed, 28080)
-	testSetup.StartTorNode(ctx, Node1Seed, 28081)
-	testSetup.StartTorNode(ctx, Node2Seed, 28082)
-	testSetup.StartTorNode(ctx, Node3Seed, 28083)
+	testSetup.StartUserNode(ctx, User1Seed)
+	testSetup.StartTorNode(ctx, Node1Seed)
+	testSetup.StartTorNode(ctx, Node2Seed)
+	testSetup.StartTorNode(ctx, Node3Seed)
 
-	testSetup.StartServiceNode(ctx, Service1Seed, 28084)
+	testSetup.StartServiceNode(ctx, Service1Seed)
 	span.SetStatus(codes.OK, "All Nodes Stared Up")
 
 	testSetup.SetDefaultPaymentRoute([]string{
@@ -70,57 +62,9 @@ func init() {
 }
 
 func shutdown() {
-	testSetup.Shutdown()
-
 	if tracerShutdown != nil {
 		tracerShutdown()
 	}
-}
-
-func getPreBalances(span trace.Span)  []float64 {
-	balancesPre := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
-
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPreBalance",
-		Value: core.Float64(balancesPre[0])},
-		core.KeyValue{
-			Key:   "servicePreBalance",
-			Value: core.Float64(balancesPre[1])},
-		core.KeyValue{
-			Key:   "node1PreBalance",
-			Value: core.Float64(balancesPre[2])},
-		core.KeyValue{
-			Key:   "node2PreBalance",
-			Value: core.Float64(balancesPre[3])},
-		core.KeyValue{
-			Key:   "node3PreBalance",
-			Value: core.Float64(balancesPre[4])},
-	)
-	return balancesPre;
-}
-
-func getPostBalances(span trace.Span) []float64 {
-
-	balancesPost := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
-
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPostBalance",
-		Value: core.Float64(balancesPost[0])},
-		core.KeyValue{
-			Key:   "servicePostBalance",
-			Value: core.Float64(balancesPost[1])},
-		core.KeyValue{
-			Key:   "node1PostBalance",
-			Value: core.Float64(balancesPost[2])},
-		core.KeyValue{
-			Key:   "node2PostBalance",
-			Value: core.Float64(balancesPost[3])},
-		core.KeyValue{
-			Key:   "node3PostBalance",
-			Value: core.Float64(balancesPost[4])},
-	)
-
-	return balancesPost
 }
 
 func TestMain(m *testing.M) {
@@ -142,28 +86,13 @@ func TestSingleChainPayment(t *testing.T) {
 	defer span.End()
 
 	balancesPre := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
-
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPreBalance",
-		Value: core.Float64(balancesPre[0])},
-		core.KeyValue{
-			Key:   "servicePreBalance",
-			Value: core.Float64(balancesPre[1])},
-		core.KeyValue{
-			Key:   "node1PreBalance",
-			Value: core.Float64(balancesPre[2])},
-		core.KeyValue{
-			Key:   "node2PreBalance",
-			Value: core.Float64(balancesPre[3])},
-		core.KeyValue{
-			Key:   "node3PreBalance",
-			Value: core.Float64(balancesPre[4])},
-	)
+	setPreBalances(span, balancesPre)
 	sequencer := CreateSequencer(testSetup, assert, ctx)
 	// 100 MB
-	paymentAmount := 1001e6
+	var commodityAmount uint32 = 1001e6
+	var paymentAmount float64 = 1
 
-	result, pr := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount)
+	result, pr := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount)
 	assert.Contains(result, "Payment processing completed")
 
 	paymentAmount = float64(pr.Amount)
@@ -178,40 +107,16 @@ func TestSingleChainPayment(t *testing.T) {
 	totalPaidFees := common.PPTokenToNumeric(paymentRoutingFees)
 	totalReceivedService := common.PPTokenToNumeric(paymentAmount)
 
-	assert.InEpsilon(balancesPre[0]-totalPaidFees-totalReceivedService, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1E-6, "Incorrect service balance")
+	assert.InEpsilon(balancesPre[0]-totalPaidFees-totalReceivedService, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1e-6, "Incorrect service balance")
 
 	nodePaymentFee := (balancesPre[0] - balancesPost[0] - totalReceivedService) / 3
 
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPostBalance",
-		Value: core.Float64(balancesPost[0])},
-		core.KeyValue{
-			Key:   "servicePostBalance",
-			Value: core.Float64(balancesPost[1])},
-		core.KeyValue{
-			Key:   "node1PostBalance",
-			Value: core.Float64(balancesPost[2])},
-		core.KeyValue{
-			Key:   "node2PostBalance",
-			Value: core.Float64(balancesPost[3])},
-		core.KeyValue{
-			Key:   "node3PostBalance",
-			Value: core.Float64(balancesPost[4])},
-		core.KeyValue{
-			Key:   "paymentAmount",
-			Value: core.Float64(paymentAmount)},
-		core.KeyValue{
-			Key:   "paymentRoutingFees",
-			Value: core.Float64(paymentRoutingFees)},
-		core.KeyValue{
-			Key:   "nodePaymentFee",
-			Value: core.Float64(nodePaymentFee)},
-	)
+	setPostBalances(span, balancesPost, paymentAmount, paymentRoutingFees, nodePaymentFee)
 
-	assert.InEpsilon(balancesPre[2]+ nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
-	assert.InEpsilon(balancesPre[3]+ nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4]+ nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1e-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1e-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1e-6, "Incorrect node3 balance")
 }
 
 func TestSinglePaymentAutoFlush(t *testing.T) {
@@ -228,75 +133,35 @@ func TestSinglePaymentAutoFlush(t *testing.T) {
 	//TODO: Properly expose autoflush configuration and set it to 1min
 	balancesPre := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
 
-	testSetup.GetNode(User1Seed).SetAutoFlush(1*time.Minute);
-	testSetup.GetNode(Service1Seed).SetAutoFlush(1*time.Minute);
-	testSetup.GetNode(Node1Seed).SetAutoFlush(1*time.Minute);
-	testSetup.GetNode(Node2Seed).SetAutoFlush(1*time.Minute);
-	testSetup.GetNode(Node3Seed).SetAutoFlush(1*time.Minute);
-
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPreBalance",
-		Value: core.Float64(balancesPre[0])},
-		core.KeyValue{
-			Key:   "servicePreBalance",
-			Value: core.Float64(balancesPre[1])},
-		core.KeyValue{
-			Key:   "node1PreBalance",
-			Value: core.Float64(balancesPre[2])},
-		core.KeyValue{
-			Key:   "node2PreBalance",
-			Value: core.Float64(balancesPre[3])},
-		core.KeyValue{
-			Key:   "node3PreBalance",
-			Value: core.Float64(balancesPre[4])},
-	)
+	testSetup.GetNode(User1Seed).SetAutoFlush(1 * time.Minute)
+	testSetup.GetNode(Service1Seed).SetAutoFlush(1 * time.Minute)
+	testSetup.GetNode(Node1Seed).SetAutoFlush(1 * time.Minute)
+	testSetup.GetNode(Node2Seed).SetAutoFlush(1 * time.Minute)
+	testSetup.GetNode(Node3Seed).SetAutoFlush(1 * time.Minute)
+	setPreBalances(span, balancesPre)
 	sequencer := CreateSequencer(testSetup, assert, ctx)
 	// 100 MB
-	paymentAmount := 1001e6
+	var commodityAmount uint32 = 1001e6
 
-	result, pr := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount)
+	result, pr := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount)
 	assert.Contains(result, "Payment processing completed")
 
-	paymentAmount = float64(pr.Amount)
+	commodityAmount = pr.Amount
 
-	time.Sleep(65*time.Second)
+	time.Sleep(65 * time.Second)
 
 	balancesPost := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
 
 	paymentRoutingFees := float64(3 * 10)
-
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1E-6, "Incorrect service balance")
+	paymentAmountFloat := float64(paymentAmount)
+	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1e-6, "Incorrect service balance")
 
 	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount) / 3
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPostBalance",
-		Value: core.Float64(balancesPost[0])},
-		core.KeyValue{
-			Key:   "servicePostBalance",
-			Value: core.Float64(balancesPost[1])},
-		core.KeyValue{
-			Key:   "node1PostBalance",
-			Value: core.Float64(balancesPost[2])},
-		core.KeyValue{
-			Key:   "node2PostBalance",
-			Value: core.Float64(balancesPost[3])},
-		core.KeyValue{
-			Key:   "node3PostBalance",
-			Value: core.Float64(balancesPost[4])},
-		core.KeyValue{
-			Key:   "paymentAmount",
-			Value: core.Float64(paymentAmount)},
-		core.KeyValue{
-			Key:   "paymentRoutingFees",
-			Value: core.Float64(paymentRoutingFees)},
-		core.KeyValue{
-			Key:   "nodePaymentFee",
-			Value: core.Float64(nodePaymentFee)},
-	)
-	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
-	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+	setPostBalances(span, balancesPost, paymentAmount, paymentRoutingFees, nodePaymentFee)
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1e-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1e-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1e-6, "Incorrect node3 balance")
 }
 
 func TestTwoChainPayments(t *testing.T) {
@@ -310,22 +175,7 @@ func TestTwoChainPayments(t *testing.T) {
 	defer span.End()
 
 	balancesPre := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPreBalance",
-		Value: core.Float64(balancesPre[0])},
-		core.KeyValue{
-			Key:   "servicePreBalance",
-			Value: core.Float64(balancesPre[1])},
-		core.KeyValue{
-			Key:   "node1PreBalance",
-			Value: core.Float64(balancesPre[2])},
-		core.KeyValue{
-			Key:   "node2PreBalance",
-			Value: core.Float64(balancesPre[3])},
-		core.KeyValue{
-			Key:   "node3PreBalance",
-			Value: core.Float64(balancesPre[4])},
-	)
+	setPreBalances(span, balancesPre)
 
 	sequencer := CreateSequencer(testSetup, assert, ctx)
 	paymentAmount1 := 300e6
@@ -348,39 +198,15 @@ func TestTwoChainPayments(t *testing.T) {
 
 	paymentRoutingFees := float64(3*10) * 2
 
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1E-6, "Incorrect service balance")
+	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1e-6, "Incorrect service balance")
 
 	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount) / 3
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPostBalance",
-		Value: core.Float64(balancesPost[0])},
-		core.KeyValue{
-			Key:   "servicePostBalance",
-			Value: core.Float64(balancesPost[1])},
-		core.KeyValue{
-			Key:   "node1PostBalance",
-			Value: core.Float64(balancesPost[2])},
-		core.KeyValue{
-			Key:   "node2PostBalance",
-			Value: core.Float64(balancesPost[3])},
-		core.KeyValue{
-			Key:   "node3PostBalance",
-			Value: core.Float64(balancesPost[4])},
-		core.KeyValue{
-			Key:   "paymentAmount",
-			Value: core.Float64(paymentAmount)},
-		core.KeyValue{
-			Key:   "paymentRoutingFees",
-			Value: core.Float64(paymentRoutingFees)},
-		core.KeyValue{
-			Key:   "nodePaymentFee",
-			Value: core.Float64(nodePaymentFee)},
-	)
+	setPostBalances(span, balancesPost, paymentAmount, paymentRoutingFees, nodePaymentFee)
 
-	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
-	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1e-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1e-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1e-6, "Incorrect node3 balance")
 }
 
 func TestPaymentAfterwoChainPayments(t *testing.T) {
@@ -394,31 +220,15 @@ func TestPaymentAfterwoChainPayments(t *testing.T) {
 	defer span.End()
 
 	balancesPre := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPreBalance",
-		Value: core.Float64(balancesPre[0])},
-		core.KeyValue{
-			Key:   "servicePreBalance",
-			Value: core.Float64(balancesPre[1])},
-		core.KeyValue{
-			Key:   "node1PreBalance",
-			Value: core.Float64(balancesPre[2])},
-		core.KeyValue{
-			Key:   "node2PreBalance",
-			Value: core.Float64(balancesPre[3])},
-		core.KeyValue{
-			Key:   "node3PreBalance",
-			Value: core.Float64(balancesPre[4])},
-	)
-
+	setPreBalances(span, balancesPre)
 	sequencer := CreateSequencer(testSetup, assert, ctx)
 	paymentAmount1 := 300e6
 	paymentAmount2 := 600e6
 	paymentAmount3 := 200e6
 
 	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount1)
+	assert.Contains(result, "Payment processing completed")
 	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount2)
-
 	assert.Contains(result, "Payment processing completed")
 	err := testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
@@ -443,40 +253,16 @@ func TestPaymentAfterwoChainPayments(t *testing.T) {
 	totalPaidFees := common.PPTokenToNumeric(paymentRoutingFees)
 	totalReceivedService := common.PPTokenToNumeric(paymentAmount)
 
-	assert.InEpsilon(balancesPre[0]-totalReceivedService-totalPaidFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1E-6, "Incorrect service balance")
+	assert.InEpsilon(balancesPre[0]-totalReceivedService-totalPaidFees, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1e-6, "Incorrect service balance")
 
 	nodePaymentFee := (balancesPre[0] - balancesPost[0] - totalReceivedService) / 3
 
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPostBalance",
-		Value: core.Float64(balancesPost[0])},
-		core.KeyValue{
-			Key:   "servicePostBalance",
-			Value: core.Float64(balancesPost[1])},
-		core.KeyValue{
-			Key:   "node1PostBalance",
-			Value: core.Float64(balancesPost[2])},
-		core.KeyValue{
-			Key:   "node2PostBalance",
-			Value: core.Float64(balancesPost[3])},
-		core.KeyValue{
-			Key:   "node3PostBalance",
-			Value: core.Float64(balancesPost[4])},
-		core.KeyValue{
-			Key:   "paymentAmount",
-			Value: core.Float64(paymentAmount)},
-		core.KeyValue{
-			Key:   "paymentRoutingFees",
-			Value: core.Float64(paymentRoutingFees)},
-		core.KeyValue{
-			Key:   "nodePaymentFee",
-			Value: core.Float64(nodePaymentFee)},
-	)
+	setPostBalances(span, balancesPost, paymentAmount, paymentRoutingFees, nodePaymentFee)
 
-	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
-	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1e-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1e-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1e-6, "Incorrect node3 balance")
 }
 
 func TestPaymentAfterUnfulfilledPayment(t *testing.T) {
@@ -508,66 +294,40 @@ func TestPaymentAfterUnfulfilledPayment(t *testing.T) {
 	)
 
 	sequencer := CreateSequencer(testSetup, assert, ctx)
-	paymentAmount1 := 300e6
-	paymentAmount2 := 600e6
-	paymentAmount3 := 200e6
+	var commodityAmount1 uint32 = 300e6
+	var commodityAmount2 uint32 = 600e6
+	var commodityAmount3 uint32 = 200e6
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount1)
-
+	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
 
 	assert.Contains(result, "Payment processing completed")
 	err := testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
-	result, pr3 := sequencer.PerformPayment(User1Seed, Node4Seed, paymentAmount3)
+	result, pr3 := sequencer.PerformPayment(User1Seed, Node4Seed, commodityAmount3)
 
 	assert.Contains(result, "Payment processing completed")
 	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
 	// Take the actual converted amount in XLM
-	paymentAmount1 = float64(pr1.Amount)
-	paymentAmount3 = float64(pr3.Amount)
+	paymentAmount1 := float64(pr1.Amount)
+	paymentAmount3 := float64(pr3.Amount)
 
 	balancesPost := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
-
-	paymentAmount := paymentAmount1 + paymentAmount2 + paymentAmount3
+	//WHY
+	paymentAmount := paymentAmount1 + paymentAmount3
 
 	paymentRoutingFees := float64(3*10) * 3
 
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1E-6, "Incorrect service balance")
+	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1e-6, "Incorrect service balance")
 
 	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount) / 3
-	span.SetAttributes(core.KeyValue{
-		Key:   "userPostBalance",
-		Value: core.Float64(balancesPost[0])},
-		core.KeyValue{
-			Key:   "servicePostBalance",
-			Value: core.Float64(balancesPost[1])},
-		core.KeyValue{
-			Key:   "node1PostBalance",
-			Value: core.Float64(balancesPost[2])},
-		core.KeyValue{
-			Key:   "node2PostBalance",
-			Value: core.Float64(balancesPost[3])},
-		core.KeyValue{
-			Key:   "node3PostBalance",
-			Value: core.Float64(balancesPost[4])},
-		core.KeyValue{
-			Key:   "paymentAmount",
-			Value: core.Float64(paymentAmount)},
-		core.KeyValue{
-			Key:   "paymentRoutingFees",
-			Value: core.Float64(paymentRoutingFees)},
-		core.KeyValue{
-			Key:   "nodePaymentFee",
-			Value: core.Float64(nodePaymentFee)},
-	)
-
-	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
-	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+	setPostBalances(span, balancesPost, paymentAmount, paymentRoutingFees, nodePaymentFee)
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1e-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1e-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1e-6, "Incorrect node3 balance")
 }
 
 func TestPaymentsToDifferentAddresses(t *testing.T) {
@@ -578,21 +338,21 @@ func TestPaymentsToDifferentAddresses(t *testing.T) {
 	balancesPre := getPreBalances(span)
 
 	sequencer := CreateSequencer(testSetup, assert, ctx)
-	paymentAmount1 := 300e6
-	paymentAmount2 := 200e6
+	var commodityAmount1 uint32 = 300e6
+	var commodityAmount2 uint32 = 200e6
 
-	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(600);
-	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(600);
+	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(600)
+	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(600)
 
-	testSetup.SetDefaultPaymentRoute([]string{ seed2addr(Node2Seed)})
+	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node2Seed)})
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount1)
+	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
 
 	assert.Contains(result, "Payment processing completed")
 
-	testSetup.SetDefaultPaymentRoute([]string{ seed2addr(Node1Seed)})
+	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node1Seed)})
 
-	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount2)
+	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
 
 	assert.Contains(result, "Payment processing completed")
 
@@ -600,8 +360,8 @@ func TestPaymentsToDifferentAddresses(t *testing.T) {
 	assert.NoError(err)
 
 	// Take the actual converted amount in XLM
-	paymentAmount1 = float64(pr1.Amount)
-	paymentAmount2 = float64(pr2.Amount)
+	paymentAmount1 := float64(pr1.Amount)
+	paymentAmount2 := float64(pr2.Amount)
 
 	balancesPost := getPostBalances(span)
 
@@ -609,14 +369,14 @@ func TestPaymentsToDifferentAddresses(t *testing.T) {
 
 	paymentRoutingFees := float64(3*10) * 3
 
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1E-6, "Incorrect service balance")
+	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1e-6, "Incorrect service balance")
 
 	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount) / 3
 
-	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
-	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1e-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1e-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1e-6, "Incorrect node3 balance")
 }
 
 func TestIncorrectTransactionsAreDiscardedByFlush(t *testing.T) {
@@ -627,25 +387,25 @@ func TestIncorrectTransactionsAreDiscardedByFlush(t *testing.T) {
 	balancesPre := getPreBalances(span)
 
 	sequencer := CreateSequencer(testSetup, assert, ctx)
-	paymentAmount1 := 300e6
-	paymentAmount2 := 200e6
+	var commodityAmount1 uint32 = 300e6
+	var commodityAmount2 uint32 = 200e6
 
-	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(1);
-	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(1);
+	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(1)
+	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(1)
 
-	testSetup.SetDefaultPaymentRoute([]string{ seed2addr(Node2Seed)})
+	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node2Seed)})
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount1)
+	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
 
 	assert.Contains(result, "Payment processing completed")
 
-	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(600);
-	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(600);
-	testSetup.GetNode(Node1Seed).SetTransactionValiditySecs(600);
+	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(600)
+	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(600)
+	testSetup.GetNode(Node1Seed).SetTransactionValiditySecs(600)
 
-	testSetup.SetDefaultPaymentRoute([]string{ seed2addr(Node1Seed)})
+	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node1Seed)})
 
-	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount2)
+	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
 
 	assert.Contains(result, "Payment processing completed")
 
@@ -653,8 +413,8 @@ func TestIncorrectTransactionsAreDiscardedByFlush(t *testing.T) {
 	assert.NoError(err)
 
 	// Take the actual converted amount in XLM
-	paymentAmount1 = float64(pr1.Amount)
-	paymentAmount2 = float64(pr2.Amount)
+	_ = float64(pr1.Amount) //TODO WHY
+	paymentAmount2 := float64(pr2.Amount)
 
 	balancesPost := getPostBalances(span)
 
@@ -662,14 +422,13 @@ func TestIncorrectTransactionsAreDiscardedByFlush(t *testing.T) {
 
 	paymentRoutingFees := float64(10) * 1
 
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1E-6, "Incorrect service balance")
-	assert.InEpsilon(balancesPre[2]+paymentRoutingFees, balancesPost[2], 1E-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1e-6, "Incorrect service balance")
+	assert.InEpsilon(balancesPre[2]+paymentRoutingFees, balancesPost[2], 1e-6, "Incorrect node1 balance")
 	// Node 2 and 3 shouldn't change
-	assert.InEpsilon(balancesPre[3], balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4], balancesPost[4], 1E-6, "Incorrect node3 balance")
+	assert.InEpsilon(balancesPre[3], balancesPost[3], 1e-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4], balancesPost[4], 1e-6, "Incorrect node3 balance")
 }
-
 
 func TestCheckAccountFunds(t *testing.T) {
 
@@ -709,8 +468,6 @@ func TestCheckAccountFunds(t *testing.T) {
 		UpdateAccountLimits(node_seed, 10000)
 	}
 }
-
-
 
 func TestIssueTokens(t *testing.T) {
 	utility.UpdateAsset()

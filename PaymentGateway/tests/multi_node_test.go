@@ -2,6 +2,7 @@ package tests
 
 const user1Seed = "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 const service1Seed = "SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"
+
 const service1Port = 28084
 
 // public GDRQ2GFDIXSPOBOICRJUEVQ3JIZJOWW7BXV2VSIN4AR6H6SD32YER4LN
@@ -81,7 +82,7 @@ func TestMain(m *testing.M) {
 
 // 	paymentAmount := common.TransactionAmount(currentBalance + 100/common.PPTokenUnitPrice)
 
-// 	pr := common.PaymentRequest{
+// 	pr := models.PaymentRequest{
 // 		Address:    keyService.Address(),
 // 		Amount:     paymentAmount,
 // 		Asset:      "XLM",
@@ -121,7 +122,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 
 	// Add pending credit
 	serviceNode.AddPendingServicePayment(guid1.String(),servicePayment)
-	pr1,err := serviceNode.CreatePaymentRequest(guid1.String())
+	pr1,err := serviceNode.NewPaymentRequest(guid1.String())
 
 	// Initiate
 	transactions,err := client.InitiatePayment(nodes, pr1)
@@ -140,7 +141,7 @@ func TestPaymentsChainWithAccumulation(t *testing.T) {
 	// Add pending credit
 	serviceNode.AddPendingServicePayment(guid2.String(),servicePayment)
 
-	pr2,err := serviceNode.CreatePaymentRequest(guid2.String())
+	pr2,err := serviceNode.NewPaymentRequest(guid2.String())
 
 	// Initiate
 	transactions,err = client.InitiatePayment(nodes, pr2)

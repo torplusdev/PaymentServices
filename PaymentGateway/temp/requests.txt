@@ -1,0 +1,99 @@
+TOR 
+Handlers 
+/api/paymentRoute -- возврат списка нод
+/api/command - отправка команды
+/api/paymentComplete
+/api/response
+
+---------------------
+/PaymentGateweay
+
+Hadnlers
+/api/utility/createPaymentInfo 
+/api/utility/validatePayment  
+/api/utility/transactions/flush 
+/api/utility/transactions --  просто список
+/api/utility/transaction/{sessionId}  
+/api/utility/stellarAddress  
+/api/utility/processCommand 
+/api/gateway/processResponse
+/api/gateway/processPayment
+
+//Request  TO TOR
+%s/api/command 
+%s/api/paymentRoute 
+
+-----------------------------
+// go-bitswap 
+Handlers:
+
+/api/command
+/api/commandResponse
+/api/paymentResponse -- ?? --- 
+
+Calls to PG
+/api/utility/createPaymentInfo  -- создается payment reqeust ServiceSessionId
+/api/utility/processCommand - отправляет в tor /api/command  и вешает ожидателя   callback url /api/commandResponse
+
+/api/utility/validatePayment  -  что это  paymentRequest  ??
+/api/gateway/processPayment  - получить из ServiceSessionId -- callback url   /api/command
+
+/api/gateway/processResponse  -- отпрвка ответа ожидающего -- commandId 
+/api/utility/transaction/%s   --  просто по id
+
+
+-- от клиента (выполняется на машинах по nodeID)
+#mark_1
+// CreateTransaction - (caller client) - в ответе Transaction
+// SignTerminalTransactions - (caller client) на пследнюю - каждая машина подписывает - подпись на получение
+// SignChainTransaction - (caller client) на не последние - каждая машина подписывает - подпись на получение
+// CommitServiceTransaction * - (для конечной машины)  
+// CommitPaymentTransaction * - (для промежуточных)
+
+
+// Messages in ipfs 
+SendBlocks
+    RequirePayment ->
+         /api/utility/createPaymentInfo
+        PeerHandler InitiatePayment(target peerID, paymentRequest string)    m1 
+        <- ipfs   
+ValidatePayment -> http   m2
+ProcessPaymentRequest -> http (/api/gateway/processPayment )
+    #mark_1
+      (  callback: /api/command ->    m2
+            ProcessCommand
+                PaymentCommand    
+                <- ipfs 
+        ProcessPaymentCommand(ipfs handler)   m1
+            ProcessCommand http api/utility/processCommand
+      )
+#mark_2  ///
+    (
+    callback: api/commandResponse   m1
+        ProcessCommandResponse
+            PaymentResponse
+            <- ipfs
+    ProcessPaymentResponse      m2
+        ProcessResponse -> http api/gateway/processResponse   m2
+    )
+???
+/api/paymentResponse
+    PeerHandler PaymentStatusResponse(target peerID, sessionId string, success bool)
+    <-  ipfs
+
+
+IPFSS
+
+
+
+
+
+
+
+
+
+err: exit status 1: stderr: go: paidpiper.com/payment-gateway/controllers: package github.com/pkg/errors imported from implicitly required module; to add missing requirements, run:
+	go get github.com/pkg/errors@v0.8.1
+go: paidpiper.com/payment-gateway/models: package github.com/pkg/errors imported from implicitly required module; to add missing requirements, run:
+	go get github.com/pkg/errors@v0.8.1
+: packages.Load error

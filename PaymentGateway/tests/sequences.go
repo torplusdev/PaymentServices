@@ -2,9 +2,11 @@ package tests
 
 import (
 	"context"
+
 	"github.com/stellar/go/support/log"
+
 	"github.com/stretchr/testify/assert"
-	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/models"
 )
 
 type Sequencer struct {
@@ -24,21 +26,20 @@ func CreateSequencer(testSetup *TestSetup, assert *assert.Assertions, ctx contex
 
 }
 
-func (sq Sequencer) PerformPayment(sourceSeed string, destinationSeed string, paymentAmount float64) (string, common.PaymentRequest) {
+func (sq Sequencer) PerformPayment(sourceSeed string, destinationSeed string, commodityAmount uint32) (*models.ProcessPaymentAccepted, *models.PaymentRequest) {
 
-	pr, err := sq.testSetup.CreatePaymentInfo(sq.ctx, destinationSeed, int(paymentAmount))
+	pr, err := sq.testSetup.NewPaymentRequest(sq.ctx, destinationSeed, commodityAmount)
 	sq.assert.NoError(err)
 
 	if err != nil {
-		log.Error("Error: " + err.Error())
+		log.Fatal("Error: " + err.Error())
 	}
-
 
 	result, err := sq.testSetup.ProcessPayment(sq.ctx, sourceSeed, pr)
 	sq.assert.NoError(err)
 
 	if err != nil {
-		log.Error("Error: " + err.Error())
+		log.Fatal("Error: " + err.Error())
 	}
 
 	return result, pr

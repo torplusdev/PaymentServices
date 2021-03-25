@@ -108,6 +108,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	router.Handle("/api/utility/transactions", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ListTransactions))).Methods("GET")
 	router.Handle("/api/utility/transaction/{sessionId}", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetTransaction))).Methods("GET")
 	router.Handle("/api/utility/stellarAddress", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetStellarAddress))).Methods("GET")
+	router.Handle("/api/utility/balance", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetBalance))).Methods("GET")
 	router.Handle("/api/utility/processCommand", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ProcessCommand))).Methods("POST")
 	router.Handle("/api/gateway/processResponse", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessResponse))).Methods("POST")
 	router.Handle("/api/gateway/processPayment", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessPayment))).Methods("POST")

@@ -43,6 +43,7 @@ type Node struct {
 	tracer         			trace.Tracer
 	lastSequenceId 			xdr.SequenceNumber
 	autoFlushPeriod 		time.Duration
+	currentBalance			float64
 	transactionValiditySecs  int64
 	sequenceMux            	sync.Mutex
 	flushMux			   	sync.Mutex
@@ -55,6 +56,7 @@ type PPNode interface {
 	CommitServiceTransaction(context context.Context, transaction *common.PaymentTransactionReplacing, pr common.PaymentRequest) error
 	CommitPaymentTransaction(context context.Context, transactionPayload *common.PaymentTransactionReplacing) error
 	GetAddress() (string)
+	GetBalance() (float64)
 }
 
 type PPTransactionManager interface {
@@ -102,6 +104,8 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 			balance, common.PPTokenMinAllowedBalance )
 	}
 
+	node.currentBalance = balance
+
 	signerMap := nodeAccountDetail.SignerSummary()
 	masterWeight := signerMap[address]
 
@@ -130,6 +134,10 @@ func CreateNode(horizon *horizon.Horizon, address string, seed string, accumulat
 
 type NodeManager interface {
 	GetNodeByAddress(address string) PPNode
+}
+
+func (n *Node) GetBalance() float64 {
+	return n.currentBalance;
 }
 
 func (n *Node) SetAccumulatingTransactionsMode(accumulateTransactions bool) {

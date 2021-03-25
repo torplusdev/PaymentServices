@@ -50,7 +50,10 @@ func (setup *TestSetup) Shutdown() {
 
 func (setup *TestSetup) startNode(seed string, nodePort int, flushPeriod time.Duration, transactionValidity int64) {
 	// TODO: eliminate cycle references
-	 srv,node, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, flushPeriod, transactionValidity)
+	srv,node, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, flushPeriod, transactionValidity)
+
+	// Set default transaction validity to 1 min
+	node.SetTransactionValiditySecs(60);
 
 	 if err != nil {
 	 	log.Fatal("Coudn't start node")
@@ -164,7 +167,7 @@ func (setup *TestSetup) CreatePaymentInfo(context context.Context, seed string, 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		msg := err.Error()
 		if resp.StatusCode != http.StatusOK {
-			msg = string(resp.StatusCode)
+			msg = fmt.Sprint(resp.StatusCode)
 		}
 		span.SetStatus(codes.Internal, msg)
 		return common.PaymentRequest{}, err
@@ -202,7 +205,7 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 		if err != nil || resp.StatusCode != http.StatusOK {
 			msg := err.Error()
 			if resp.StatusCode != http.StatusOK {
-				msg = string(resp.StatusCode)
+				msg = fmt.Sprint(resp.StatusCode)
 			}
 			span.SetStatus(codes.Internal, msg)
 			return err
@@ -272,7 +275,7 @@ func (setup *TestSetup) ProcessPayment(context context.Context, seed string, pay
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			msg = string(resp.StatusCode)
+			msg = fmt.Sprint(resp.StatusCode)
 		}
 		span.SetStatus(codes.Internal, msg)
 		return "error", err

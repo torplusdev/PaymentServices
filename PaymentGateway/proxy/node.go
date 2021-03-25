@@ -42,6 +42,14 @@ func (n NodeProxy) GetAddress() string {
 	return n.address
 }
 
+
+/// We don't know (and don't need to) remote node balance,
+func (n *NodeProxy) GetBalance() float64 {
+	//TODO: Redesign the interface
+	panic("GetBalance shouldn't be called on a remote node.")
+	return 0;
+}
+
 func (n NodeProxy) ProcessCommand(context context.Context, commandType int, commandBody []byte) ([]byte, error) {
 	id := uuid.New().String()
 

@@ -16,6 +16,7 @@ import (
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
+	"time"
 )
 
 type UtilityController struct {
@@ -314,6 +315,16 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Request) {
 	response := &models.GetStellarAddressResponse{
 		Address: u.node.GetAddress(),
+	}
+
+	Respond(w, response)
+}
+
+func (u *UtilityController) GetBalance(w http.ResponseWriter, r *http.Request) {
+
+	response := &models.GetBalanceResponse{
+		Balance:100,
+		Timestamp: time.Now(),
 	}
 
 	Respond(w, response)

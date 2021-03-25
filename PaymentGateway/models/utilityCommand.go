@@ -68,6 +68,10 @@ type GetStellarAddressResponse struct {
 	Address string
 }
 
+type GetBalanceResponse struct {
+	Balance float64
+	Timestamp time.Time
+}
 type GetPendingPaymentResponse struct {
 	Address        string
 	PendingBalance common.TransactionAmount

@@ -268,7 +268,7 @@ func UpdateAsset() {
 
 	createAssets := txnbuild.Payment{
 		Destination:   distributionKp.Address(),
-		Amount:        "90000",
+		Amount:        "90000000",
 		Asset:         tokenAsset,
 	}
 

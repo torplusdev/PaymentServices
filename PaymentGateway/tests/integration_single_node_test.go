@@ -175,10 +175,14 @@ func TestSingleChainPayment(t *testing.T) {
 
 	paymentRoutingFees := float64(3 * 10)
 
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1E-6, "Incorrect service balance")
+	totalPaidFees := common.PPTokenToNumeric(paymentRoutingFees)
+	totalReceivedService := common.PPTokenToNumeric(paymentAmount)
 
-	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount) / 3
+	assert.InEpsilon(balancesPre[0]-totalPaidFees-totalReceivedService, balancesPost[0], 1E-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1E-6, "Incorrect service balance")
+
+	nodePaymentFee := (balancesPre[0] - balancesPost[0] - totalReceivedService) / 3
+
 	span.SetAttributes(core.KeyValue{
 		Key:   "userPostBalance",
 		Value: core.Float64(balancesPost[0])},
@@ -204,9 +208,10 @@ func TestSingleChainPayment(t *testing.T) {
 			Key:   "nodePaymentFee",
 			Value: core.Float64(nodePaymentFee)},
 	)
-	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
-	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
-	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
+
+	assert.InEpsilon(balancesPre[2]+ nodePaymentFee, balancesPost[2], 1E-6, "Incorrect node1 balance")
+	assert.InEpsilon(balancesPre[3]+ nodePaymentFee, balancesPost[3], 1E-6, "Incorrect node2 balance")
+	assert.InEpsilon(balancesPre[4]+ nodePaymentFee, balancesPost[4], 1E-6, "Incorrect node3 balance")
 }
 
 func TestSinglePaymentAutoFlush(t *testing.T) {
@@ -435,10 +440,14 @@ func TestPaymentAfterwoChainPayments(t *testing.T) {
 
 	paymentRoutingFees := float64(3*10) * 3
 
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1E-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1E-6, "Incorrect service balance")
+	totalPaidFees := common.PPTokenToNumeric(paymentRoutingFees)
+	totalReceivedService := common.PPTokenToNumeric(paymentAmount)
 
-	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount) / 3
+	assert.InEpsilon(balancesPre[0]-totalReceivedService-totalPaidFees, balancesPost[0], 1E-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1E-6, "Incorrect service balance")
+
+	nodePaymentFee := (balancesPre[0] - balancesPost[0] - totalReceivedService) / 3
+
 	span.SetAttributes(core.KeyValue{
 		Key:   "userPostBalance",
 		Value: core.Float64(balancesPost[0])},

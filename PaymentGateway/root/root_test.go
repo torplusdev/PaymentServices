@@ -27,6 +27,8 @@ func shutdown() {
 
 }
 
+const seed = "SAVD5NOJUVUJJIRFMPWSVIP4S6PXSEWAYWAG4WOALSSLKLVONW4YL3VT"
+
 func TestMain(m *testing.M) {
 	setup()
 	code := m.Run()
@@ -38,16 +40,14 @@ func TestUserAccountCreation(t *testing.T) {
 	assert := assert.New(t)
 	k, _ := keypair.Random()
 
-	rootApiFactory := CreateRootApiFactory(true)
-
 	/**** *User Creation ***/
 
-	client, err := rootApiFactory(k.Seed(), 0)
+	client, err := createTestRootApi(k.Seed(), 0)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	client.CreateUser()
+	assert.NoError(client.CreateUser())
 	rootAccountDetail, errAccount := testutils.GetAccount(k.Address())
 
 	if errAccount != nil {
@@ -116,7 +116,7 @@ func TestUserAccountCreation(t *testing.T) {
 	assert.Nil(err)
 
 	//TODO: Remove explicit root seed
-	mc, err := rootApiFactory("SAVD5NOJUVUJJIRFMPWSVIP4S6PXSEWAYWAG4WOALSSLKLVONW4YL3VT", 600)
+	mc, err := createTestRootApi("SAVD5NOJUVUJJIRFMPWSVIP4S6PXSEWAYWAG4WOALSSLKLVONW4YL3VT", 600)
 	if err != nil {
 		assert.Nil(err)
 	}

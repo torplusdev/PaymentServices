@@ -54,6 +54,7 @@ func (cl *commandClient) CreateTransaction(context context.Context, request *mod
 	return response, err
 
 }
+
 func (cl *commandClient) SignServiceTransaction(context context.Context, request *models.SignServiceTransactionCommand) (*models.SignServiceTransactionResponse, error) {
 	response := &models.SignServiceTransactionResponse{}
 	err := processCommandWrapper(cl, context, request, response)
@@ -105,6 +106,7 @@ func processCommandWrapperNoRes(cl *commandClient, context context.Context, requ
 
 	return nil
 }
+
 func processCommandWrapper(cl *commandClient, context context.Context, request models.InCommandType, out models.OutCommandType) error {
 	body, err := cl.WrapToCommand(request)
 
@@ -185,6 +187,7 @@ func (cl *commandClient) processCommand(context context.Context, cmd *models.Pro
 
 	return responseBody, nil
 }
+
 func (cl *commandClient) ProcessResponse(context context.Context, commandId string, responseBody []byte) error {
 	ok := cl.chainStore.processResponse(commandId, responseBody)
 	if !ok {

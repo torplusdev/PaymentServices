@@ -45,14 +45,15 @@ func NewPaymentManagerRegestry(
 	}
 }
 
-//TODO Extern
 func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode,
 	request *models.ProcessPaymentRequest) (PaymentManager, error) {
 
 	sessionId := request.PaymentRequest.ServiceSessionId
 	routingNotes := request.Route
-	statusCallbacker := NewStatusCallbacker()
-	paymentManager := NewPaymentManager(g.serviceClient, request, statusCallbacker)
+
+	paymentManager := NewPaymentManager(g.serviceClient, request)
+	statusCallbacker := NewStatusCallbacker(request.StatusCallbackUrl)
+	paymentManager.AddStatusCallbacker(statusCallbacker)
 	localAdderss := source.GetAddress()
 	err := paymentManager.AddSourceNode(localAdderss, source)
 	if err != nil {
@@ -68,7 +69,11 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 		}
 		routingNotes = routeResponse.Route
 		commandCallbackUrl = routeResponse.CallbackUrl
-		paymentManager.AddStatusCallbackUrl(routeResponse.StatusCallbackUrl)
+
+		if routeResponse.StatusCallbackUrl != "" {
+			statusCallbacker := NewStatusCallbacker(routeResponse.StatusCallbackUrl)
+			paymentManager.AddStatusCallbacker(statusCallbacker)
+		}
 	}
 
 	for _, rn := range routingNotes {
@@ -102,6 +107,7 @@ func (g *paymentManagerRegestryImpl) Has(sessionId string) bool {
 	_, ok := g.requestNodeManager[sessionId]
 	return ok
 }
+
 func (g *paymentManagerRegestryImpl) Get(sessionId string) PaymentManager {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()

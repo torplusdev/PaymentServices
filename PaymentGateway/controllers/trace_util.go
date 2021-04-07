@@ -42,6 +42,7 @@ func spanFromContext(rootContext context.Context, traceContext *models.TraceCont
 
 	return ctx, span
 }
+
 func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.Span) {
 
 	tracer := common.CreateTracer("paidpiper/controller")

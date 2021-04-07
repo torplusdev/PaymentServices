@@ -11,7 +11,7 @@ import (
 
 type CallbackerFactory func(cmd *models.UtilityCommand) CallBacker
 type CallBacker interface {
-	call(reply models.OutCommandType) error
+	call(reply models.OutCommandType, err error) error
 }
 type callBackerImpl struct {
 	url string
@@ -24,8 +24,9 @@ func newCallbacker(cmd *models.UtilityCommand) CallBacker {
 		cmd,
 	}
 }
-func (cb *callBackerImpl) call(reply models.OutCommandType) error {
-	if cb.url == "" {
+
+func (cb *callBackerImpl) call(reply models.OutCommandType, err error) error {
+	if cb.url == "" || err != nil {
 		return nil
 	}
 	data, err := json.Marshal(reply)

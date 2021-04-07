@@ -10,22 +10,22 @@ import (
 )
 
 type PaymentRegistry interface {
-	AddServiceUsage(sourceAddress string, amount models.TransactionAmount)
-	GetEntryByAddress(sourceAddress string) *paymentRegistryEntry
-	GetTransactionBySessionId(sessionId string) *models.PaymentTransaction
+	AddServiceUsage(sessionId string, amount models.TransactionAmount)
+	ReducePendingAmount(sessionId string, amount models.TransactionAmount) error
 	GetPendingAmount(sourceAddress string) (amount models.TransactionAmount, ok bool)
-	SaveTransaction(paymentSourceAddress string, transaction *models.PaymentTransaction)
-	ReducePendingAmount(sourceAddress string, amount models.TransactionAmount) error
-	GetActiveTransactions() []*models.PaymentTransaction
+	SaveTransaction(sequence int64, transaction *models.PaymentTransaction)
+
+	GetActiveTransactions() []*models.PaymentTransactionWithSequence
 	CompletePayment(paymentSourceAddress string, serviceSessionId string)
 	GetActiveTransaction(paymentSourceAddress string) *models.PaymentTransaction
+	GetTransactionBySessionId(sessionId string) *models.PaymentTransaction
 }
 
 //-------
 type paymentRegistry struct {
 	mutex                       sync.Mutex
-	paidTransactionsBySessionId map[string]*models.PaymentTransaction
-	paidTransactionsByAddress   map[string]*models.PaymentTransaction
+	paidTransactionsBySessionId map[string]*models.PaymentTransactionWithSequence
+	paidTransactionsByAddress   map[string]*models.PaymentTransactionWithSequence
 	entriesBySourceAddress      map[string]*paymentRegistryEntry
 	isActive                    bool
 	useHousekeeping             bool
@@ -35,8 +35,8 @@ func New() PaymentRegistry {
 
 	registry := &paymentRegistry{
 		mutex:                       sync.Mutex{},
-		paidTransactionsBySessionId: make(map[string]*models.PaymentTransaction),
-		paidTransactionsByAddress:   make(map[string]*models.PaymentTransaction),
+		paidTransactionsBySessionId: make(map[string]*models.PaymentTransactionWithSequence),
+		paidTransactionsByAddress:   make(map[string]*models.PaymentTransactionWithSequence),
 		entriesBySourceAddress:      make(map[string]*paymentRegistryEntry),
 		isActive:                    true,
 	}
@@ -51,6 +51,7 @@ func New() PaymentRegistry {
 
 	return registry
 }
+
 func (r *paymentRegistry) cleanEvent() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -76,7 +77,11 @@ func (r *paymentRegistry) GetTransactionBySessionId(sessionId string) *models.Pa
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	return r.paidTransactionsBySessionId[sessionId]
+	pts, ok := r.paidTransactionsBySessionId[sessionId]
+	if ok {
+		return &pts.PaymentTransaction
+	}
+	return nil
 }
 
 func (r *paymentRegistry) AddServiceUsage(sourceAddress string, amount models.TransactionAmount) {
@@ -87,23 +92,6 @@ func (r *paymentRegistry) AddServiceUsage(sourceAddress string, amount models.Tr
 		entry = newEntry(sourceAddress, amount)
 		r.entriesBySourceAddress[sourceAddress] = entry
 	}
-}
-
-func (r *paymentRegistry) GetPendingAmount(sourceAddress string) (amount models.TransactionAmount, ok bool) {
-	entry, ok := r.entriesBySourceAddress[sourceAddress]
-	if ok {
-		return entry.amount, true
-	} else {
-		return 0, false
-	}
-}
-
-func (r *paymentRegistry) SaveTransaction(paymentSourceAddress string, transaction *models.PaymentTransaction) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	r.paidTransactionsByAddress[paymentSourceAddress] = transaction
-	r.paidTransactionsBySessionId[transaction.ServiceSessionId] = transaction
 }
 
 func (r *paymentRegistry) ReducePendingAmount(sourceAddress string, amount models.TransactionAmount) error {
@@ -119,16 +107,35 @@ func (r *paymentRegistry) ReducePendingAmount(sourceAddress string, amount model
 		}
 		return nil
 	}
-	msg := fmt.Sprintf("Specified address (%s) wasn't found", sourceAddress)
-	return fmt.Errorf(msg)
-
+	return fmt.Errorf("specified address (%s) wasn't found", sourceAddress)
 }
 
-func (r *paymentRegistry) GetActiveTransactions() []*models.PaymentTransaction {
+func (r *paymentRegistry) GetPendingAmount(sourceAddress string) (amount models.TransactionAmount, ok bool) {
+	entry, ok := r.entriesBySourceAddress[sourceAddress]
+	if ok {
+		return entry.amount, true
+	} else {
+		return 0, false
+	}
+}
+
+func (r *paymentRegistry) SaveTransaction(sequence int64, transaction *models.PaymentTransaction) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	tr := []*models.PaymentTransaction{}
+	tr := &models.PaymentTransactionWithSequence{
+		PaymentTransaction: *transaction,
+		Sequence:           sequence,
+	}
+	r.paidTransactionsByAddress[transaction.PaymentSourceAddress] = tr
+	r.paidTransactionsBySessionId[transaction.ServiceSessionId] = tr
+}
+
+func (r *paymentRegistry) GetActiveTransactions() []*models.PaymentTransactionWithSequence {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	tr := []*models.PaymentTransactionWithSequence{}
 	for _, t := range r.paidTransactionsByAddress {
 		tr = append(tr, t)
 	}
@@ -143,5 +150,9 @@ func (r *paymentRegistry) CompletePayment(paymentSourceAddress string, serviceSe
 }
 
 func (r *paymentRegistry) GetActiveTransaction(paymentSourceAddress string) *models.PaymentTransaction {
-	return r.paidTransactionsByAddress[paymentSourceAddress]
+	item, ok := r.paidTransactionsByAddress[paymentSourceAddress]
+	if ok {
+		return &item.PaymentTransaction
+	}
+	return nil
 }

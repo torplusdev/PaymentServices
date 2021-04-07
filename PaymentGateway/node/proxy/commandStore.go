@@ -15,6 +15,7 @@ func NewCommandChainStore() *commandChannelStore {
 		commandChannel: make(map[string]chan []byte),
 	}
 }
+
 func (n *commandChannelStore) open(id string) <-chan []byte {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()

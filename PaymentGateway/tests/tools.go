@@ -54,6 +54,7 @@ func setPreBalances(span trace.Span, balancesPre []float64) {
 			Value: core.Float64(balancesPre[4])},
 	)
 }
+
 func getPostBalances(span trace.Span) []float64 {
 
 	balancesPost := GetAccountBalances([]string{User1Seed,

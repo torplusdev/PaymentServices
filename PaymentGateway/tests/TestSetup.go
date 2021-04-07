@@ -30,7 +30,6 @@ func (setup *TestSetup) ConfigureTor(port int) {
 	setup.torAddressPrefix = fmt.Sprintf("http://localhost:%d", port)
 }
 
-//TODO REMOVE
 func (setup *TestSetup) startNode(seed string, lushPeriod time.Duration, transactionValidity int64) (local.LocalPPNode, error) {
 	// TODO: eliminate cycle references
 
@@ -42,21 +41,13 @@ func (setup *TestSetup) startNode(seed string, lushPeriod time.Duration, transac
 		log.Fatal("Coudn't start node")
 		return nil, err
 	}
+	return node, nil
 }
 
-func (setup *TestSetup) startNode(seed string, nodePort int, flushPeriod time.Duration, transactionValidity int64) {
-	// TODO: eliminate cycle references
-	srv, node, err := serviceNode.StartServiceNode(seed, nodePort, setup.torAddressPrefix, false, flushPeriod, transactionValidity)
-
-	// Set default transaction validity to 1 min
-	node.SetTransactionValiditySecs(60)
-
-	setup.nodes[seed] = node
-	return node, err
-}
 func (setup *TestSetup) ClientFactory(url string, sessionId string, nodeId string) (proxy.CommandClient, proxy.CommandResponseHandler) {
 	return setup.torMock.GetNodeByAddress(nodeId), nil
 }
+
 func (setup *TestSetup) GetNode(seed string) local.LocalPPNode {
 	return setup.nodes[seed]
 }
@@ -171,16 +162,9 @@ func (setup *TestSetup) FlushTransactions(context context.Context) error {
 	defer span.End()
 
 	for k, v := range setup.torMock.GetNodes() {
-
-		log.Printf("Flushing node %s (%d).\n ", k, v)
-
+		log.Printf("Flushing node %s.\n ", k)
 		err := v.FlushTransactions(ctx)
 		if err != nil {
-			return err
-		}
-
-		if err != nil {
-
 			return err
 		}
 		span.SetStatus(codes.OK, "FlushTransaction completed successfully")

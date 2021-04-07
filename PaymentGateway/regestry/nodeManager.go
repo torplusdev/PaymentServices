@@ -32,12 +32,14 @@ func NewNodeManager() NodeManager {
 		nodesByAddress: make(map[string]node.PPNode),
 	}
 }
+
 func (m *nodeManager) Has(address string) bool {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 	_, ok := m.nodesByAddress[address]
 	return ok
 }
+
 func (m *nodeManager) AddSourceNode(address string, node node.PPNode) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -55,6 +57,7 @@ func (m *nodeManager) AddChainNode(address string, node node.PPNode) error {
 	}
 	return m.addNode(address, node)
 }
+
 func (m *nodeManager) AddDestinationNode(address string, node node.PPNode) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -69,6 +72,7 @@ func (m *nodeManager) AddDestinationNode(address string, node node.PPNode) error
 	return nil
 
 }
+
 func (m *nodeManager) Validate(from string, to string) error {
 
 	//validate route extremities
@@ -82,15 +86,19 @@ func (m *nodeManager) Validate(from string, to string) error {
 	}
 	return nil
 }
+
 func (m *nodeManager) GetSourceNode() node.PPNode {
 	return m.nodesBySequence[0]
 }
+
 func (m *nodeManager) GetDestinationNode() node.PPNode {
 	return m.nodesBySequence[len(m.nodesBySequence)-1]
 }
+
 func (m *nodeManager) GetAllNodes() []node.PPNode {
 	return []node.PPNode(m.nodesBySequence)
 }
+
 func (m *nodeManager) addNode(address string, node node.PPNode) error {
 	_, ok := m.nodesByAddress[address]
 	if ok {

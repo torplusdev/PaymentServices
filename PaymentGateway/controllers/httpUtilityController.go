@@ -120,16 +120,21 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 		return
 	}
 
-	status, err := u.ProcessCommand(ctx, command)
+	data, err := u.ProcessCommand(ctx, command)
 	if err != nil {
-		Respond(w, MessageWithStatus(status, err.Error()))
-	} else {
-		Respond(w, MessageWithStatus(status, "success"))
+		Respond(w, MessageWithStatus(http.StatusConflict, err.Error()))
+		return
 	}
+	if data != nil {
+		MessageWithData(http.StatusOK, data)
+		return
+	}
+	Respond(w, MessageWithStatus(http.StatusCreated, "success"))
+
 }
 
 func (u *HttpUtilityController) HttpGetBalance(w http.ResponseWriter, r *http.Request) {
-
+	//u.LocalPPNode.GetBalance()
 	response := &models.GetBalanceResponse{
 		Balance:   100,
 		Timestamp: time.Now(),

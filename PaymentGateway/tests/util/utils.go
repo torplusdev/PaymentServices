@@ -477,6 +477,7 @@ func SetSigners(seed string, signerSeed string) {
 
 	_ = resp
 }
+
 func GetAccount(address string) (account horizon.Account, err error) {
 
 	client := horizonclient.DefaultTestNetClient

@@ -41,6 +41,7 @@ func New(clientSeed string, chainSeeds []string, serviceSeed string) (TestNetwor
 	}
 	return net, nil
 }
+
 func (net *testNetwork) createNodeWith(seed string) (local.LocalPPNode, error) {
 	transactionValiditySecs := config.DefaultCfg().RootApiConfig.TransactionValiditySecs
 
@@ -54,6 +55,7 @@ func (net *testNetwork) createNodeWith(seed string) (local.LocalPPNode, error) {
 	}
 	return localNode, nil
 }
+
 func (net *testNetwork) GetRoute(ctx context.Context, sessionId string) (*models.RouteResponse, error) {
 	route := []models.RoutingNode{}
 	for _, seed := range net.chainSeeds {
@@ -69,6 +71,7 @@ func (net *testNetwork) GetRoute(ctx context.Context, sessionId string) (*models
 		Route:             route,
 	}, nil
 }
+
 func (net *testNetwork) CommandClientFactory(url string, sessionId string, nodeId string) (proxy.CommandClient, proxy.CommandResponseHandler) {
 	return net.nodesByNodeID[nodeId], nil //ResponseHandler is nil because withou http layer
 }

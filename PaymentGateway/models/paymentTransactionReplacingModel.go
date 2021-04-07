@@ -132,9 +132,11 @@ func (payload *PaymentTransactionReplacing) Validate() error {
 
 	return nil
 }
+
 func Wrap(source string, err error) error {
 	return errors.Errorf("%v:%v", source, err)
 }
+
 func (payload *PaymentTransaction) validateSingleTransaction() error {
 
 	activeTransaction := payload

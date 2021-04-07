@@ -1,20 +1,8 @@
 package tests
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 
-	"github.com/gorilla/mux"
-	"go.opentelemetry.io/otel/api/correlation"
-	"go.opentelemetry.io/otel/api/trace"
-	"go.opentelemetry.io/otel/plugin/httptrace"
-	"paidpiper.com/payment-gateway/common"
-	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node/local"
 )
 
@@ -26,152 +14,152 @@ type TorMock struct {
 	originAddress string
 }
 
-type torCommand struct {
-	SessionID   string
-	NodeId      string
-	CommandId   string
-	CommandType models.CommandType
-	CommandBody []byte
-	CallbackUrl string
-}
+// type torCommand struct {
+// 	SessionID   string
+// 	NodeId      string
+// 	CommandId   string
+// 	CommandType models.CommandType
+// 	CommandBody []byte
+// 	CallbackUrl string
+// }
 
-func (t *torCommand) Type() models.CommandType {
-	return 1
-}
-func respond(status int, w http.ResponseWriter, data map[string]interface{}) {
-	w.WriteHeader(status)
-	w.Header().Add("Content-Type", "application/json")
+// func (t *torCommand) Type() models.CommandType {
+// 	return 1
+// }
+// func respond(status int, w http.ResponseWriter, data map[string]interface{}) {
+// 	w.WriteHeader(status)
+// 	w.Header().Add("Content-Type", "application/json")
 
-	if data != nil {
-		err := json.NewEncoder(w).Encode(data)
+// 	if data != nil {
+// 		err := json.NewEncoder(w).Encode(data)
 
-		if err != nil {
-			// Log
-		}
-	}
-}
+// 		if err != nil {
+// 			// Log
+// 		}
+// 	}
+// }
 
-func respondObject(w http.ResponseWriter, data interface{}) {
-	w.WriteHeader(200)
-	w.Header().Add("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(data)
+// func respondObject(w http.ResponseWriter, data interface{}) {
+// 	w.WriteHeader(200)
+// 	w.Header().Add("Content-Type", "application/json")
+// 	err := json.NewEncoder(w).Encode(data)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-}
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
 
-func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.Span) {
+// func spanFromRequest(r *http.Request, spanName string) (context.Context, trace.Span) {
 
-	tracer := common.CreateTracer("paidpiper/tor-mock")
-	attrs, entries, spanCtx := httptrace.Extract(r.Context(), r)
+// 	tracer := common.CreateTracer("paidpiper/tor-mock")
+// 	attrs, entries, spanCtx := httptrace.Extract(r.Context(), r)
 
-	r = r.WithContext(correlation.ContextWithMap(r.Context(), correlation.NewMap(correlation.MapUpdate{
-		MultiKV: entries,
-	})))
+// 	r = r.WithContext(correlation.ContextWithMap(r.Context(), correlation.NewMap(correlation.MapUpdate{
+// 		MultiKV: entries,
+// 	})))
 
-	ctx, span := tracer.Start(
-		trace.ContextWithRemoteSpanContext(r.Context(), spanCtx),
-		spanName,
-		trace.WithAttributes(attrs...),
-	)
+// 	ctx, span := tracer.Start(
+// 		trace.ContextWithRemoteSpanContext(r.Context(), spanCtx),
+// 		spanName,
+// 		trace.WithAttributes(attrs...),
+// 	)
 
-	return ctx, span
-}
+// 	return ctx, span
+// }
 
-func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
+// func (tor *TorMock) processCommand(w http.ResponseWriter, req *http.Request) {
 
-	ctx, span := spanFromRequest(req, "tor-processCommand")
+// 	ctx, span := spanFromRequest(req, "tor-processCommand")
 
-	defer span.End()
+// 	defer span.End()
 
-	command := &torCommand{}
+// 	command := &torCommand{}
 
-	port := tor.nodes[command.NodeId]
+// 	port := tor.nodes[command.NodeId]
 
-	commandType := command.CommandType
+// 	commandType := command.CommandType
 
-	utilityCmd := models.UtilityCommand{
-		CommandCore: models.CommandCore{
-			SessionId:   command.SessionID,
-			NodeId:      "",
-			CommandId:   command.CommandId,
-			CommandType: models.CommandType(commandType),
-		},
-		CommandBody: command,
-		CallbackUrl: command.CallbackUrl,
-	}
+// 	utilityCmd := models.UtilityCommand{
+// 		CommandCore: models.CommandCore{
+// 			SessionId:   command.SessionID,
+// 			NodeId:      "",
+// 			CommandId:   command.CommandId,
+// 			CommandType: models.CommandType(commandType),
+// 		},
+// 		CommandBody: command,
+// 		CallbackUrl: command.CallbackUrl,
+// 	}
 
-	cmdBytes, err := json.Marshal(utilityCmd)
-	if err != nil {
-		w.WriteHeader(500)
-	}
+// 	cmdBytes, err := json.Marshal(utilityCmd)
+// 	if err != nil {
+// 		w.WriteHeader(500)
+// 	}
 
-	response, err := common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/processCommand", port), bytes.NewReader(cmdBytes))
+// 	response, err := common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/utility/processCommand", port), bytes.NewReader(cmdBytes))
 
-	//response,err := http.Post(fmt.Sprintf("http://localhost:%d/api/utility/processCommand",port),"application/json",bytes.NewReader(cmdBytes))
+// 	//response,err := http.Post(fmt.Sprintf("http://localhost:%d/api/utility/processCommand",port),"application/json",bytes.NewReader(cmdBytes))
 
-	respBytes, err := ioutil.ReadAll(response.Body)
+// 	respBytes, err := ioutil.ReadAll(response.Body)
 
-	utilityResponse := models.UtilityResponse{
-		CommandResponseCore: models.CommandResponseCore{
-			CommandId: command.CommandId,
-			SessionId: command.SessionID,
+// 	utilityResponse := models.UtilityResponse{
+// 		CommandResponseCore: models.CommandResponseCore{
+// 			CommandId: command.CommandId,
+// 			SessionId: command.SessionID,
 
-			NodeId: command.NodeId,
-		},
-		CommandResponse: respBytes,
-	}
+// 			NodeId: command.NodeId,
+// 		},
+// 		CommandResponse: respBytes,
+// 	}
 
-	responseBytes, err := json.Marshal(utilityResponse)
+// 	responseBytes, err := json.Marshal(utilityResponse)
 
-	originPort := tor.nodes[tor.originAddress]
+// 	originPort := tor.nodes[tor.originAddress]
 
-	response, err = common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/gateway/processResponse", originPort), bytes.NewReader(responseBytes))
-	//response,err = http.Post("http://localhost:28080/api/gateway/processResponse","application/json",bytes.NewReader(responseBytes))
-	respBytes, err = ioutil.ReadAll(response.Body)
+// 	response, err = common.HttpPostWithContext(ctx, fmt.Sprintf("http://localhost:%d/api/gateway/processResponse", originPort), bytes.NewReader(responseBytes))
+// 	//response,err = http.Post("http://localhost:28080/api/gateway/processResponse","application/json",bytes.NewReader(responseBytes))
+// 	respBytes, err = ioutil.ReadAll(response.Body)
 
-	w.WriteHeader(200)
-}
+// 	w.WriteHeader(200)
+// }
 
 func (tor *TorMock) GetDefaultPaymentRoute() []string {
 	return tor.defaultRoute
 }
 
-func (tor *TorMock) paymentComplete(w http.ResponseWriter, req *http.Request) {
+// func (tor *TorMock) paymentComplete(w http.ResponseWriter, req *http.Request) {
 
-	_, span := spanFromRequest(req, "tor-paymentComplete")
+// 	_, span := spanFromRequest(req, "tor-paymentComplete")
 
-	defer span.End()
+// 	defer span.End()
 
-	respond(200, w, nil)
-}
+// 	respond(200, w, nil)
+// }
 
-func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request) {
+// func (tor *TorMock) processPaymentRoute(w http.ResponseWriter, req *http.Request) {
 
-	_, span := spanFromRequest(req, "tor-processPaymentRoute")
+// 	_, span := spanFromRequest(req, "tor-processPaymentRoute")
 
-	defer span.End()
+// 	defer span.End()
 
-	params := mux.Vars(req)
+// 	params := mux.Vars(req)
 
-	node := params["nodeAddress"]
+// 	node := params["nodeAddress"]
 
-	response := models.RouteResponse{
-		Route: []models.RoutingNode{},
-	}
-	_ = node
+// 	response := models.RouteResponse{
+// 		Route: []models.RoutingNode{},
+// 	}
+// 	_ = node
 
-	for _, id := range tor.defaultRoute {
+// 	for _, id := range tor.defaultRoute {
 
-		response.Route = append(response.Route, models.RoutingNode{
-			NodeId:  id,
-			Address: id,
-		})
-	}
+// 		response.Route = append(response.Route, models.RoutingNode{
+// 			NodeId:  id,
+// 			Address: id,
+// 		})
+// 	}
 
-	respondObject(w, response)
-}
+// 	respondObject(w, response)
+// }
 
 func (tor *TorMock) RegisterTorNode(node local.LocalPPNode) {
 	address := node.GetAddress()
@@ -186,9 +174,11 @@ func (tor *TorMock) RegisterNode(node local.LocalPPNode) {
 func (tor *TorMock) GetNodes() map[string]local.LocalPPNode {
 	return tor.nodes
 }
+
 func (tor *TorMock) GetNodeByAddress(address string) local.LocalPPNode {
 	return tor.nodes[address]
 }
+
 func (tor *TorMock) SetDefaultRoute(route []string) {
 	for _, node := range route {
 		if _, ok := tor.nodes[node]; !ok {

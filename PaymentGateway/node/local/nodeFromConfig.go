@@ -37,6 +37,7 @@ func FromConfig(config *config.Configuration) (LocalPPNode, error) {
 	clientFactory := TorClientFactory(config.TorAddressPrefix)
 	return FromConfigWithClientFactory(config, clientFactory)
 }
+
 func FromConfigWithClientFactory(config *config.Configuration, clientFactory regestry.CommandClientFactory) (LocalPPNode, error) {
 	tracer := common.CreateTracer("paidpiper/serviceNode")
 
@@ -73,6 +74,7 @@ func LocalHost(config *config.Configuration, rootClient root.RootApi,
 
 	return localNode, nil
 }
+
 func CreateRootApi(cfg config.RootApiConfig) (root.RootApi, error) {
 	clientFactory := root.CreateRootApiFactory(cfg.UseTestApi)
 	rootClient, err := clientFactory(cfg.Seed, cfg.TransactionValiditySecs)
@@ -108,6 +110,7 @@ func TorClientFactory(host string) regestry.CommandClientFactory {
 		return proxy.NewCommandClient(url, sessionId, nodeId)
 	}
 }
+
 func TorRouteBuilder(host string) torclient.TorClient {
 	torRouteUrl := fmt.Sprintf("%s/api/paymentRoute/", host)
 	torClient := torclient.NewTorClient(torRouteUrl)

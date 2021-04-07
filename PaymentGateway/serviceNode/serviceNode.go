@@ -22,6 +22,7 @@ type loggableWriter struct {
 func (r *loggableWriter) Handle(path string, handler http.Handler) *mux.Route {
 	return r.Router.Handle(path, handlers.LoggingHandler(log.Writer(), handler))
 }
+
 func RunHttpServer(config *config.Configuration) (func(), error) {
 	local, err := local.FromConfig(config)
 	if err != nil {
@@ -37,6 +38,7 @@ func RunHttpServer(config *config.Configuration) (func(), error) {
 		}
 	}, nil
 }
+
 func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 
 	utilityController := controllers.NewHttpUtilityController(localNode)

@@ -59,9 +59,12 @@ type SetUpPeerRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SetUpPeerRequest) Reset()         { *m = SetUpPeerRequest{} }
+func (m *SetUpPeerRequest) Reset() { *m = SetUpPeerRequest{} }
+
 func (m *SetUpPeerRequest) String() string { return proto.CompactTextString(m) }
-func (*SetUpPeerRequest) ProtoMessage()    {}
+
+func (*SetUpPeerRequest) ProtoMessage() {}
+
 func (*SetUpPeerRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{0}
 }
@@ -69,15 +72,19 @@ func (*SetUpPeerRequest) Descriptor() ([]byte, []int) {
 func (m *SetUpPeerRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SetUpPeerRequest.Unmarshal(m, b)
 }
+
 func (m *SetUpPeerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SetUpPeerRequest.Marshal(b, m, deterministic)
 }
+
 func (m *SetUpPeerRequest) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_SetUpPeerRequest.Merge(m, src)
 }
+
 func (m *SetUpPeerRequest) XXX_Size() int {
 	return xxx_messageInfo_SetUpPeerRequest.Size(m)
 }
+
 func (m *SetUpPeerRequest) XXX_DiscardUnknown() {
 	xxx_messageInfo_SetUpPeerRequest.DiscardUnknown(m)
 }
@@ -99,9 +106,12 @@ type SetUpPeerResponse struct {
 	XXX_sizecache        int32                         `json:"-"`
 }
 
-func (m *SetUpPeerResponse) Reset()         { *m = SetUpPeerResponse{} }
+func (m *SetUpPeerResponse) Reset() { *m = SetUpPeerResponse{} }
+
 func (m *SetUpPeerResponse) String() string { return proto.CompactTextString(m) }
-func (*SetUpPeerResponse) ProtoMessage()    {}
+
+func (*SetUpPeerResponse) ProtoMessage() {}
+
 func (*SetUpPeerResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{1}
 }
@@ -109,15 +119,19 @@ func (*SetUpPeerResponse) Descriptor() ([]byte, []int) {
 func (m *SetUpPeerResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SetUpPeerResponse.Unmarshal(m, b)
 }
+
 func (m *SetUpPeerResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_SetUpPeerResponse.Marshal(b, m, deterministic)
 }
+
 func (m *SetUpPeerResponse) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_SetUpPeerResponse.Merge(m, src)
 }
+
 func (m *SetUpPeerResponse) XXX_Size() int {
 	return xxx_messageInfo_SetUpPeerResponse.Size(m)
 }
+
 func (m *SetUpPeerResponse) XXX_DiscardUnknown() {
 	xxx_messageInfo_SetUpPeerResponse.DiscardUnknown(m)
 }
@@ -145,9 +159,12 @@ type CreateOrFundRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CreateOrFundRequest) Reset()         { *m = CreateOrFundRequest{} }
+func (m *CreateOrFundRequest) Reset() { *m = CreateOrFundRequest{} }
+
 func (m *CreateOrFundRequest) String() string { return proto.CompactTextString(m) }
-func (*CreateOrFundRequest) ProtoMessage()    {}
+
+func (*CreateOrFundRequest) ProtoMessage() {}
+
 func (*CreateOrFundRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{2}
 }
@@ -155,15 +172,19 @@ func (*CreateOrFundRequest) Descriptor() ([]byte, []int) {
 func (m *CreateOrFundRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateOrFundRequest.Unmarshal(m, b)
 }
+
 func (m *CreateOrFundRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CreateOrFundRequest.Marshal(b, m, deterministic)
 }
+
 func (m *CreateOrFundRequest) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_CreateOrFundRequest.Merge(m, src)
 }
+
 func (m *CreateOrFundRequest) XXX_Size() int {
 	return xxx_messageInfo_CreateOrFundRequest.Size(m)
 }
+
 func (m *CreateOrFundRequest) XXX_DiscardUnknown() {
 	xxx_messageInfo_CreateOrFundRequest.DiscardUnknown(m)
 }
@@ -184,9 +205,12 @@ type CreateOrFundResponse struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CreateOrFundResponse) Reset()         { *m = CreateOrFundResponse{} }
+func (m *CreateOrFundResponse) Reset() { *m = CreateOrFundResponse{} }
+
 func (m *CreateOrFundResponse) String() string { return proto.CompactTextString(m) }
-func (*CreateOrFundResponse) ProtoMessage()    {}
+
+func (*CreateOrFundResponse) ProtoMessage() {}
+
 func (*CreateOrFundResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{3}
 }
@@ -194,15 +218,19 @@ func (*CreateOrFundResponse) Descriptor() ([]byte, []int) {
 func (m *CreateOrFundResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CreateOrFundResponse.Unmarshal(m, b)
 }
+
 func (m *CreateOrFundResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CreateOrFundResponse.Marshal(b, m, deterministic)
 }
+
 func (m *CreateOrFundResponse) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_CreateOrFundResponse.Merge(m, src)
 }
+
 func (m *CreateOrFundResponse) XXX_Size() int {
 	return xxx_messageInfo_CreateOrFundResponse.Size(m)
 }
+
 func (m *CreateOrFundResponse) XXX_DiscardUnknown() {
 	xxx_messageInfo_CreateOrFundResponse.DiscardUnknown(m)
 }
@@ -230,9 +258,12 @@ type InitiatePaymentRequest struct {
 	XXX_sizecache        int32                                `json:"-"`
 }
 
-func (m *InitiatePaymentRequest) Reset()         { *m = InitiatePaymentRequest{} }
+func (m *InitiatePaymentRequest) Reset() { *m = InitiatePaymentRequest{} }
+
 func (m *InitiatePaymentRequest) String() string { return proto.CompactTextString(m) }
-func (*InitiatePaymentRequest) ProtoMessage()    {}
+
+func (*InitiatePaymentRequest) ProtoMessage() {}
+
 func (*InitiatePaymentRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{4}
 }
@@ -240,15 +271,19 @@ func (*InitiatePaymentRequest) Descriptor() ([]byte, []int) {
 func (m *InitiatePaymentRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InitiatePaymentRequest.Unmarshal(m, b)
 }
+
 func (m *InitiatePaymentRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_InitiatePaymentRequest.Marshal(b, m, deterministic)
 }
+
 func (m *InitiatePaymentRequest) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_InitiatePaymentRequest.Merge(m, src)
 }
+
 func (m *InitiatePaymentRequest) XXX_Size() int {
 	return xxx_messageInfo_InitiatePaymentRequest.Size(m)
 }
+
 func (m *InitiatePaymentRequest) XXX_DiscardUnknown() {
 	xxx_messageInfo_InitiatePaymentRequest.DiscardUnknown(m)
 }
@@ -336,9 +371,12 @@ type InitiatePaymentResponse struct {
 	XXX_sizecache                 int32    `json:"-"`
 }
 
-func (m *InitiatePaymentResponse) Reset()         { *m = InitiatePaymentResponse{} }
+func (m *InitiatePaymentResponse) Reset() { *m = InitiatePaymentResponse{} }
+
 func (m *InitiatePaymentResponse) String() string { return proto.CompactTextString(m) }
-func (*InitiatePaymentResponse) ProtoMessage()    {}
+
+func (*InitiatePaymentResponse) ProtoMessage() {}
+
 func (*InitiatePaymentResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{5}
 }
@@ -346,15 +384,19 @@ func (*InitiatePaymentResponse) Descriptor() ([]byte, []int) {
 func (m *InitiatePaymentResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_InitiatePaymentResponse.Unmarshal(m, b)
 }
+
 func (m *InitiatePaymentResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_InitiatePaymentResponse.Marshal(b, m, deterministic)
 }
+
 func (m *InitiatePaymentResponse) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_InitiatePaymentResponse.Merge(m, src)
 }
+
 func (m *InitiatePaymentResponse) XXX_Size() int {
 	return xxx_messageInfo_InitiatePaymentResponse.Size(m)
 }
+
 func (m *InitiatePaymentResponse) XXX_DiscardUnknown() {
 	xxx_messageInfo_InitiatePaymentResponse.DiscardUnknown(m)
 }
@@ -382,9 +424,12 @@ type PaymentCommitRequest struct {
 	XXX_sizecache                     int32    `json:"-"`
 }
 
-func (m *PaymentCommitRequest) Reset()         { *m = PaymentCommitRequest{} }
+func (m *PaymentCommitRequest) Reset() { *m = PaymentCommitRequest{} }
+
 func (m *PaymentCommitRequest) String() string { return proto.CompactTextString(m) }
-func (*PaymentCommitRequest) ProtoMessage()    {}
+
+func (*PaymentCommitRequest) ProtoMessage() {}
+
 func (*PaymentCommitRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{6}
 }
@@ -392,15 +437,19 @@ func (*PaymentCommitRequest) Descriptor() ([]byte, []int) {
 func (m *PaymentCommitRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PaymentCommitRequest.Unmarshal(m, b)
 }
+
 func (m *PaymentCommitRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PaymentCommitRequest.Marshal(b, m, deterministic)
 }
+
 func (m *PaymentCommitRequest) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_PaymentCommitRequest.Merge(m, src)
 }
+
 func (m *PaymentCommitRequest) XXX_Size() int {
 	return xxx_messageInfo_PaymentCommitRequest.Size(m)
 }
+
 func (m *PaymentCommitRequest) XXX_DiscardUnknown() {
 	xxx_messageInfo_PaymentCommitRequest.DiscardUnknown(m)
 }
@@ -421,9 +470,12 @@ type PaymentCommitResponse struct {
 	XXX_sizecache                   int32    `json:"-"`
 }
 
-func (m *PaymentCommitResponse) Reset()         { *m = PaymentCommitResponse{} }
+func (m *PaymentCommitResponse) Reset() { *m = PaymentCommitResponse{} }
+
 func (m *PaymentCommitResponse) String() string { return proto.CompactTextString(m) }
-func (*PaymentCommitResponse) ProtoMessage()    {}
+
+func (*PaymentCommitResponse) ProtoMessage() {}
+
 func (*PaymentCommitResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{7}
 }
@@ -431,15 +483,19 @@ func (*PaymentCommitResponse) Descriptor() ([]byte, []int) {
 func (m *PaymentCommitResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PaymentCommitResponse.Unmarshal(m, b)
 }
+
 func (m *PaymentCommitResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PaymentCommitResponse.Marshal(b, m, deterministic)
 }
+
 func (m *PaymentCommitResponse) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_PaymentCommitResponse.Merge(m, src)
 }
+
 func (m *PaymentCommitResponse) XXX_Size() int {
 	return xxx_messageInfo_PaymentCommitResponse.Size(m)
 }
+
 func (m *PaymentCommitResponse) XXX_DiscardUnknown() {
 	xxx_messageInfo_PaymentCommitResponse.DiscardUnknown(m)
 }
@@ -461,9 +517,12 @@ type CommandRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommandRequest) Reset()         { *m = CommandRequest{} }
+func (m *CommandRequest) Reset() { *m = CommandRequest{} }
+
 func (m *CommandRequest) String() string { return proto.CompactTextString(m) }
-func (*CommandRequest) ProtoMessage()    {}
+
+func (*CommandRequest) ProtoMessage() {}
+
 func (*CommandRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{8}
 }
@@ -471,15 +530,19 @@ func (*CommandRequest) Descriptor() ([]byte, []int) {
 func (m *CommandRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommandRequest.Unmarshal(m, b)
 }
+
 func (m *CommandRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CommandRequest.Marshal(b, m, deterministic)
 }
+
 func (m *CommandRequest) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_CommandRequest.Merge(m, src)
 }
+
 func (m *CommandRequest) XXX_Size() int {
 	return xxx_messageInfo_CommandRequest.Size(m)
 }
+
 func (m *CommandRequest) XXX_DiscardUnknown() {
 	xxx_messageInfo_CommandRequest.DiscardUnknown(m)
 }
@@ -507,9 +570,12 @@ type CommandReply struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *CommandReply) Reset()         { *m = CommandReply{} }
+func (m *CommandReply) Reset() { *m = CommandReply{} }
+
 func (m *CommandReply) String() string { return proto.CompactTextString(m) }
-func (*CommandReply) ProtoMessage()    {}
+
+func (*CommandReply) ProtoMessage() {}
+
 func (*CommandReply) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{9}
 }
@@ -517,15 +583,19 @@ func (*CommandReply) Descriptor() ([]byte, []int) {
 func (m *CommandReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CommandReply.Unmarshal(m, b)
 }
+
 func (m *CommandReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_CommandReply.Marshal(b, m, deterministic)
 }
+
 func (m *CommandReply) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_CommandReply.Merge(m, src)
 }
+
 func (m *CommandReply) XXX_Size() int {
 	return xxx_messageInfo_CommandReply.Size(m)
 }
+
 func (m *CommandReply) XXX_DiscardUnknown() {
 	xxx_messageInfo_CommandReply.DiscardUnknown(m)
 }
@@ -551,9 +621,12 @@ type PaymentRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PaymentRequest) Reset()         { *m = PaymentRequest{} }
+func (m *PaymentRequest) Reset() { *m = PaymentRequest{} }
+
 func (m *PaymentRequest) String() string { return proto.CompactTextString(m) }
-func (*PaymentRequest) ProtoMessage()    {}
+
+func (*PaymentRequest) ProtoMessage() {}
+
 func (*PaymentRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{10}
 }
@@ -561,15 +634,19 @@ func (*PaymentRequest) Descriptor() ([]byte, []int) {
 func (m *PaymentRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PaymentRequest.Unmarshal(m, b)
 }
+
 func (m *PaymentRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PaymentRequest.Marshal(b, m, deterministic)
 }
+
 func (m *PaymentRequest) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_PaymentRequest.Merge(m, src)
 }
+
 func (m *PaymentRequest) XXX_Size() int {
 	return xxx_messageInfo_PaymentRequest.Size(m)
 }
+
 func (m *PaymentRequest) XXX_DiscardUnknown() {
 	xxx_messageInfo_PaymentRequest.DiscardUnknown(m)
 }
@@ -624,9 +701,12 @@ type PaymentReply struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *PaymentReply) Reset()         { *m = PaymentReply{} }
+func (m *PaymentReply) Reset() { *m = PaymentReply{} }
+
 func (m *PaymentReply) String() string { return proto.CompactTextString(m) }
-func (*PaymentReply) ProtoMessage()    {}
+
+func (*PaymentReply) ProtoMessage() {}
+
 func (*PaymentReply) Descriptor() ([]byte, []int) {
 	return fileDescriptor_8f2b54376d4c2332, []int{11}
 }
@@ -634,15 +714,19 @@ func (*PaymentReply) Descriptor() ([]byte, []int) {
 func (m *PaymentReply) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PaymentReply.Unmarshal(m, b)
 }
+
 func (m *PaymentReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PaymentReply.Marshal(b, m, deterministic)
 }
+
 func (m *PaymentReply) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_PaymentReply.Merge(m, src)
 }
+
 func (m *PaymentReply) XXX_Size() int {
 	return xxx_messageInfo_PaymentReply.Size(m)
 }
+
 func (m *PaymentReply) XXX_DiscardUnknown() {
 	xxx_messageInfo_PaymentReply.DiscardUnknown(m)
 }
@@ -794,12 +878,15 @@ type UnimplementedPPSideChannelServer struct {
 func (*UnimplementedPPSideChannelServer) SetUpPeer(ctx context.Context, req *SetUpPeerRequest) (*SetUpPeerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetUpPeer not implemented")
 }
+
 func (*UnimplementedPPSideChannelServer) CreateOrFund(ctx context.Context, req *CreateOrFundRequest) (*CreateOrFundResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateOrFund not implemented")
 }
+
 func (*UnimplementedPPSideChannelServer) InitiatePayment(ctx context.Context, req *InitiatePaymentRequest) (*InitiatePaymentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitiatePayment not implemented")
 }
+
 func (*UnimplementedPPSideChannelServer) PaymentCommit(ctx context.Context, req *PaymentCommitRequest) (*PaymentCommitResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PaymentCommit not implemented")
 }

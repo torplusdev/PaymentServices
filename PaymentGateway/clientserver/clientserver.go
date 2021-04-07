@@ -35,6 +35,7 @@ func BoomElements() ([]*boom.Element, error) {
 	}
 	return globSource.Elements(), nil
 }
+
 func RouteElements() ([]*FrequencyContentMetadata, error) {
 
 	items, err := BoomElements()
@@ -54,6 +55,7 @@ func RouteElements() ([]*FrequencyContentMetadata, error) {
 	return listings, nil
 
 }
+
 func HttpProcessResponse(w http.ResponseWriter, r *http.Request) {
 	res, err := BoomElements()
 	if err != nil {
@@ -63,6 +65,7 @@ func HttpProcessResponse(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJson(w, res)
 }
+
 func writeJson(w http.ResponseWriter, items interface{}) {
 	err := json.NewEncoder(w).Encode(items)
 	if err != nil {

@@ -106,6 +106,7 @@ func DefaultCfg() *Configuration {
 		},
 	}
 }
+
 func ParseConfiguration(configFile string) (*Configuration, error) {
 
 	rawConfig := jsonCnfiguration{}
@@ -148,6 +149,7 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 	instance.NodeConfig.AccumulateTransactions = accumulateTransactions
 	return instance, nil
 }
+
 func ParseConfig() (*Configuration, error) {
 	config, err := ParseConfiguration("config.json")
 

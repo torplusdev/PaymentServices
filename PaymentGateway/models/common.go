@@ -9,6 +9,7 @@ type XDR interface {
 	Validate() error
 	TransactionFromXDR() (*GenericTransaction, error)
 	Empty() bool
+	Equals(o XDR) bool
 	String() string
 }
 type GenericTransaction struct {
@@ -29,23 +30,30 @@ type GenericTransaction struct {
 
 func NewXDR(xdr string) XDR {
 	x := implXDR(xdr)
-	return x
+	return &x
 }
 
 type implXDR string
 
-func (xdr implXDR) Empty() bool {
+func (xdr *implXDR) Equals(o XDR) bool {
+	return xdr.String() == o.String()
+}
+
+func (xdr *implXDR) Empty() bool {
 	return len(xdr.String()) == 0
 }
-func (xdr implXDR) String() string {
-	return string(xdr)
+
+func (xdr *implXDR) String() string {
+	return string(*xdr)
 }
-func (xdr implXDR) Validate() error {
-	_, err := txnbuild.TransactionFromXDR(string(xdr))
+
+func (xdr *implXDR) Validate() error {
+	_, err := txnbuild.TransactionFromXDR(string(*xdr))
 	return err
 }
-func (xdr implXDR) TransactionFromXDR() (*GenericTransaction, error) {
-	tr, err := txnbuild.TransactionFromXDR(string(xdr))
+
+func (xdr *implXDR) TransactionFromXDR() (*GenericTransaction, error) {
+	tr, err := txnbuild.TransactionFromXDR(string(*xdr))
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +63,10 @@ func (xdr implXDR) TransactionFromXDR() (*GenericTransaction, error) {
 
 }
 
+type PaymentTransactionWithSequence struct {
+	PaymentTransaction
+	Sequence int64
+}
 type PaymentTransaction struct {
 	TransactionSourceAddress  string
 	ReferenceAmountIn         TransactionAmount

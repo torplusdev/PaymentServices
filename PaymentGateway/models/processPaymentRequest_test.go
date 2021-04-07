@@ -17,6 +17,7 @@ func TestErrorFormat(t *testing.T) {
 		t.Error("Invalid formatting")
 	}
 }
+
 func TestMarshalTest(t *testing.T) {
 	m := &ProcessPaymentRequest{}
 	bs, err := json.Marshal(m)
@@ -37,6 +38,7 @@ func TestMarshalTest(t *testing.T) {
 	}
 
 }
+
 func TestUnmarsalEmptyStruct(t *testing.T) {
 
 	err := json.Unmarshal([]byte("{   }"), &struct{}{})

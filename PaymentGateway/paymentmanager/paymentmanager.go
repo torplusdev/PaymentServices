@@ -50,6 +50,7 @@ func (pm *paymentManager) SetHttpConnection(commandListenPort int, channelUrl st
 	conn := NewHttpConnection(commandListenPort, channelUrl, pm.peerHandler)
 	pm.SetConnection(conn)
 }
+
 func (pm *paymentManager) SetConnection(ppConnection PPConnection) {
 	pm.ppConnection = ppConnection
 }

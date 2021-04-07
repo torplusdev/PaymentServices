@@ -51,6 +51,7 @@ func NewServer(commandListenPort int, ppcallback *PPCallback) CallbackHandler {
 
 	return callbackServer
 }
+
 func (p *PPCallbackServer) HandleProcessCommand(w http.ResponseWriter, r *http.Request) {
 	// Extract command request from the request and forward it to peer
 	request := &models.ProcessCommand{}

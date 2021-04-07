@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/go-errors/errors"
 
@@ -42,11 +43,10 @@ func New(rootApi root.RootApi) ServiceClient {
 
 func (client *serviceClient) signInitialTransactions(context context.Context,
 	tr *models.PaymentTransactionReplacing,
-	expectedDestination string, expectedAmount models.TransactionAmount) error {
+	expectedDestination string, expectedAmount models.TransactionAmount) (*models.PaymentTransactionReplacing, error) {
 
 	_, span := client.tracer.Start(context, "client-SignInitialTransactions")
 	defer span.End()
-
 	transaction := &tr.PendingTransaction
 	log.Printf("SignInitialTransactions: Starting %s %d => %s ",
 		transaction.PaymentSourceAddress,
@@ -56,55 +56,61 @@ func (client *serviceClient) signInitialTransactions(context context.Context,
 	transactionWrapper, err := transaction.XDR.TransactionFromXDR()
 
 	if err != nil {
-		return errors.Errorf("transaction parse error: %v", err)
+		return nil, fmt.Errorf("transaction parse error: %v", err)
 	}
 
 	innerTransaction, ok := transactionWrapper.Transaction()
 
 	if !ok {
-		return errors.Errorf("transaction parse error (GenericTransaction) ")
+		return nil, fmt.Errorf("transaction parse error (GenericTransaction) ")
 	}
 
 	if len(innerTransaction.Operations()) != 1 {
-		return errors.Errorf("Transaction shall have only a single payment operation")
+		return nil, fmt.Errorf("transaction shall have only a single payment operation")
 	}
 
 	op, ok := innerTransaction.Operations()[0].(*txnbuild.Payment)
 
 	if !ok {
-		return errors.Errorf("Error in payment operation format")
+		return nil, fmt.Errorf("error in payment operation format")
 	}
 
-	//TODO to up
 	localAddress := client.GetAddress()
-	if op.SourceAccount != localAddress || op.Destination != expectedDestination {
-		return errors.Errorf("Transaction op addresses are incorrect")
+	if op.SourceAccount != localAddress {
+		return nil, fmt.Errorf("source account is invalid")
+	}
+	if op.Destination != expectedDestination {
+		return nil, fmt.Errorf("destination account is invalid")
+	}
+	floatAmount, err := strconv.ParseFloat(op.Amount, 32)
+	if err != nil {
+		return nil, fmt.Errorf("call ParseFloat error: %v", err)
+	}
+	amount := models.MicroPPToken2PPtoken(floatAmount)
+	if tr.ReferenceTransaction != nil {
+		expectedAmount = expectedAmount + tr.ReferenceTransaction.ReferenceAmountIn
 	}
 
-	amount, err := client.GetMicroPPTokenBalance()
-
-	expectedAmount = expectedAmount + tr.ReferenceTransaction.ReferenceAmountIn
-
-	if err != nil || amount != expectedAmount {
-		return errors.Errorf("Transaction amount is incorrect: expected %d, received %d", amount, expectedAmount)
+	if amount != expectedAmount {
+		return nil, fmt.Errorf("transaction amount is incorrect: expected %d, received %d", amount, expectedAmount)
 	}
 
 	resultTransaction, err := client.Sign(innerTransaction)
 
 	if err != nil {
-		return errors.Errorf("Failed to sign transaction")
+		return nil, fmt.Errorf("failed to sign transaction")
 	}
 
 	xdr, err := resultTransaction.Base64()
 
 	if err != nil {
-		return errors.Errorf("Error converting transaction to binary xdr: %v", err)
+		return nil, fmt.Errorf("error converting transaction to binary xdr: %v", err)
 	}
 
 	tr.PendingTransaction.XDR = models.NewXDR(xdr)
 
 	if err != nil {
-		return errors.Errorf("Error writing transaction envelope: %v", err)
+		return nil, fmt.Errorf("error writing transaction envelope: %v", err)
 	}
 
 	log.Printf("SignInitialTransactions: Finished %s %d => %s ",
@@ -112,7 +118,7 @@ func (client *serviceClient) signInitialTransactions(context context.Context,
 		transaction.AmountOut,
 		transaction.PaymentDestinationAddress)
 
-	return nil
+	return tr, nil
 }
 
 func (client *serviceClient) VerifyTransactions(context context.Context, trs []*models.PaymentTransactionReplacing) error {
@@ -133,9 +139,125 @@ func (client *serviceClient) VerifyTransactions(context context.Context, trs []*
 			t.PendingTransaction.PaymentSourceAddress,
 			t.PendingTransaction.PaymentDestinationAddress)
 	}
-
-	// stub
 	return nil
+}
+
+type TransactionsCollection struct {
+	transactions []*models.PaymentTransactionReplacing
+	totalFee     uint32
+}
+
+func (client *serviceClient) signTransactions(ctx context.Context, paymentRequest *models.PaymentRequest, nodeCollection NodeChain, trs *TransactionsCollection) ([]*models.PaymentTransactionReplacing, error) {
+	transactions := trs.transactions
+
+	signedTransactions := []*models.PaymentTransactionReplacing{}
+	serviceNode := nodeCollection.GetDestinationNode()
+	// Signing terminal transaction
+	serviceNodeAddress := serviceNode.GetAddress()
+
+	log.Printf("InitiatePayment: SignServiceTransaction (%s) ", serviceNodeAddress)
+
+	// initialize debit with service transaction
+	debitTransaction := transactions[0]
+	command := &models.SignServiceTransactionCommand{Transaction: debitTransaction}
+
+	signedDebitTransactionResponse, err := serviceNode.SignServiceTransaction(ctx, command)
+
+	if err != nil {
+		log.Printf("Error signing terminal transaction ( node %s) : %v ", serviceNodeAddress, err)
+		return nil, errors.Errorf("Error signing terminal transaction (%v): %v", debitTransaction, err)
+	}
+
+	signedDebitTransaction := signedDebitTransactionResponse.Transaction
+
+	// Consecutive signing process
+	for idx := 1; idx < len(transactions); idx++ {
+		creditTransaction := transactions[idx]
+		destAddress := creditTransaction.PendingTransaction.PaymentDestinationAddress
+		log.Printf("InitiatePayment: Sign chain  (%s) ", destAddress)
+		stepNode := nodeCollection.GetNodeByAddress(destAddress)
+		if stepNode == nil {
+			return nil, errors.Errorf("Error: couldn't find a chain step node with address %s", destAddress)
+		}
+
+		cmd := &models.SignChainTransactionCommand{
+			Credit: creditTransaction,
+			Debit:  signedDebitTransaction,
+		}
+		signedTransaction, err := stepNode.SignChainTransaction(ctx, cmd)
+
+		if err != nil {
+			log.Print("Error signing transaction ( node " + destAddress + ") : " + err.Error())
+			return nil, errors.Errorf("Error signing transaction (%v): %w", debitTransaction, err)
+		}
+		signedTransactions = append(signedTransactions, signedTransaction.Debit)
+
+		signedDebitTransaction = signedTransaction.Credit
+	}
+	totalFee := trs.totalFee
+	log.Printf("InitiatePayment: SignInitial   %d => %s ", paymentRequest.Amount+totalFee, transactions[len(transactions)-1].PendingTransaction.PaymentDestinationAddress)
+	nodes := nodeCollection.GetAllNodes()
+
+	//firstTransaction := signedDebitTransaction[len(transactions)-1]
+	selfTr, err := client.signInitialTransactions(ctx,
+		signedDebitTransaction,
+		nodes[1].GetAddress(),
+		paymentRequest.Amount+totalFee)
+	if err != nil {
+		log.Printf("error in transaction: %v", err)
+		return nil, fmt.Errorf("sign initial transactions error: %v", err)
+	}
+	signedTransactions = append(signedTransactions, selfTr)
+
+	return signedTransactions, nil
+}
+
+func (client *serviceClient) createTransactions(ctx context.Context, paymentRequest *models.PaymentRequest, nodeCollection NodeChain) (*TransactionsCollection, error) {
+	var totalFee models.TransactionAmount = 0
+	nodes := nodeCollection.GetAllNodes()
+	payChainLen := len(nodes)
+	transactions := make([]*models.PaymentTransactionReplacing, 0, payChainLen-1)
+	lastNodeIndex := payChainLen - 1
+	// Generate initial transaction
+	for i := lastNodeIndex; i > 0; i-- {
+		sourceNode := nodes[i-1]
+		destNode := nodes[i]
+		sourceAddress := sourceNode.GetAddress()
+		destAddress := destNode.GetAddress()
+		transactionFee := destNode.GetFee()
+		log.Printf("InitiatePayment: Creating transaction %s => %s", sourceAddress, destAddress)
+		request := &models.CreateTransactionCommand{
+			TotalIn:          paymentRequest.Amount + totalFee + transactionFee,
+			TotalOut:         paymentRequest.Amount + totalFee,
+			SourceAddress:    sourceAddress,
+			ServiceSessionId: paymentRequest.ServiceSessionId,
+		}
+
+		// Create and store transaction
+		nodeTransaction, err := destNode.CreateTransaction(ctx, request)
+
+		if err != nil {
+			return nil, errors.Errorf("error creating transaction for node %v: %v", sourceAddress, err)
+		}
+		tr := nodeTransaction.Transaction
+		err = tr.PendingTransaction.Validate()
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("InitiatePayment: Transaction created  %s %d => %s", nodeTransaction.Transaction.PendingTransaction.PaymentSourceAddress,
+			nodeTransaction.Transaction.PendingTransaction.AmountOut,
+			nodeTransaction.Transaction.PendingTransaction.PaymentDestinationAddress)
+
+		transactions = append(transactions, nodeTransaction.Transaction)
+		// Accumulate fees
+		totalFee = totalFee + transactionFee
+	}
+
+	return &TransactionsCollection{
+		transactions,
+		totalFee,
+	}, nil
 }
 
 func (client *serviceClient) InitiatePayment(context context.Context,
@@ -160,121 +282,24 @@ func (client *serviceClient) InitiatePayment(context context.Context,
 		return nil, errors.Errorf("client has insufficient account balance =%v", balance)
 	}
 
-	var totalFee models.TransactionAmount = 0
-
 	//Iterating in reverse order
 
-	nodes := nodeCollection.GetAllNodes()
-	payChainLen := len(nodes)
-	transactions := make([]*models.PaymentTransactionReplacing, 0, payChainLen-1)
-	lastNodeIndex := payChainLen - 1
-	// Generate initial transaction
-	for i := lastNodeIndex; i > 1; i-- {
-		//	for i, pr := range route[0 : len(route)-1] {
-
-		sourceNode := nodes[i-1]
-		destinationNode := nodes[i]
-		sourceAddress := sourceNode.GetAddress()
-		destinationAddress := destinationNode.GetAddress()
-		transactionFee := sourceNode.GetFee()
-		log.Printf("InitiatePayment: Creating transaction %s => %s", sourceAddress, destinationAddress)
-		// We don't let service node to have transaction fees
-		if i == lastNodeIndex {
-			transactionFee = 0
-		}
-		request := &models.CreateTransactionCommand{
-			TotalIn:          paymentRequest.Amount + totalFee + transactionFee,
-			TotalOut:         paymentRequest.Amount + totalFee,
-			SourceAddress:    sourceAddress,
-			ServiceSessionId: paymentRequest.ServiceSessionId,
-		}
-
-		// Create and store transaction
-		nodeTransaction, err := destinationNode.CreateTransaction(ctx, request)
-
-		if err != nil {
-			return nil, errors.Errorf("error creating transaction for node %v: %v", sourceAddress, err)
-		}
-		tr := nodeTransaction.Transaction
-		err = tr.PendingTransaction.Validate()
-		if err != nil {
-			return nil, err
-		}
-
-		log.Printf("InitiatePayment: Transaction created  %s %d => %s", nodeTransaction.Transaction.PendingTransaction.PaymentSourceAddress,
-			nodeTransaction.Transaction.PendingTransaction.AmountOut,
-			nodeTransaction.Transaction.PendingTransaction.PaymentDestinationAddress)
-
-		transactions = append(transactions, nodeTransaction.Transaction)
-		// Accumulate fees
-		totalFee = totalFee + transactionFee
-
-	}
-
-	// initialize debit with service transaction
-	debitTransaction := transactions[0]
-	serviceNode := nodeCollection.GetDestinationNode()
-	// Signing terminal transaction
-	serviceNodeAddress := serviceNode.GetAddress()
-
-	log.Printf("InitiatePayment: SignServiceTransaction (%s) ", serviceNodeAddress)
-
-	command := &models.SignServiceTransactionCommand{Transaction: debitTransaction}
-
-	_, err = serviceNode.SignServiceTransaction(ctx, command)
+	trs, err := client.createTransactions(ctx, paymentRequest, nodeCollection)
 	if err != nil {
-		log.Print("Error signing terminal transaction ( node " + serviceNodeAddress + ") : " + err.Error())
-		return nil, errors.Errorf("Error signing terminal transaction (%v): %v", debitTransaction, err)
+		return nil, fmt.Errorf("create transactions error:%v", err)
 	}
 
-	// Consecutive signing process
-	for idx := 1; idx < len(transactions); idx++ {
-		creditTransaction := transactions[idx]
-		destAddress := creditTransaction.PendingTransaction.PaymentDestinationAddress
-		log.Printf("InitiatePayment: Sign chain  (%s) ", destAddress)
-		stepNode := nodeCollection.GetNodeByAddress(destAddress)
-		if stepNode == nil {
-			return nil, errors.Errorf("Error: couldn't find a chain step node with address %s", destAddress)
-		}
-
-		cmd := &models.SignChainTransactionCommand{
-			Credit: creditTransaction,
-			Debit:  debitTransaction,
-		}
-		_, err = stepNode.SignChainTransaction(ctx, cmd)
-
-		if err != nil {
-			log.Print("Error signing transaction ( node " + destAddress + ") : " + err.Error())
-			return nil, errors.Errorf("Error signing transaction (%v): %w", debitTransaction, err)
-		}
-
-		debitTransaction = creditTransaction
-	}
-
-	// for _, t := range transactions { I THINK IT IS NOT NEED //TUMARSAL
-	// 	if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
-	// 		return nil, errors.Errorf("Error invalid transaction chain, address targets itself %s.", t.PendingTransaction.PaymentSourceAddress)
-	// 	}
-	// }
-
-	log.Printf("InitiatePayment: SignInitial   %d => %s ", paymentRequest.Amount+totalFee, transactions[len(transactions)-1].PendingTransaction.PaymentDestinationAddress)
-
-	//правлиьно ли не понял что написано
-	// err = client.signInitialTransactions(ctx,
-	// 	transactions[len(transactions)-1],
-	// 	route[len(transactions)-1].Address,
-	// 	paymentRequest.Amount+totalFee)
-	firstTransaction := transactions[len(transactions)-1]
-	err = client.signInitialTransactions(ctx,
-		firstTransaction,
-		serviceNodeAddress,
-		paymentRequest.Amount+totalFee)
+	singedTransaction, err := client.signTransactions(ctx, paymentRequest, nodeCollection, trs)
 	if err != nil {
-		log.Print("Error in transaction: " + err.Error())
-		return nil, errors.New("Error signing initial transaction has insufficient account balance")
+		return nil, fmt.Errorf("signTransactions error: %v", err)
 	}
 
-	return transactions, nil
+	for _, t := range singedTransaction { // Move to http layer
+		if t.PendingTransaction.PaymentSourceAddress == t.PendingTransaction.PaymentDestinationAddress {
+			return nil, errors.Errorf("Error invalid transaction chain, address targets itself %s.", t.PendingTransaction.PaymentSourceAddress)
+		}
+	}
+	return singedTransaction, nil
 }
 
 func (client *serviceClient) FinalizePayment(context context.Context,
@@ -304,7 +329,7 @@ func (client *serviceClient) FinalizePayment(context context.Context,
 				PaymentRequest: pr,
 			})
 			if err != nil {
-				return fmt.Errorf("error committing transaction %s", err)
+				return fmt.Errorf("error committing transaction: %v", err)
 			}
 			continue
 		}
@@ -313,7 +338,7 @@ func (client *serviceClient) FinalizePayment(context context.Context,
 			Transaction: tr,
 		})
 		if err != nil {
-			return fmt.Errorf("error committing transaction %s", err)
+			return fmt.Errorf("error committing transaction: %v", err)
 		}
 
 	}

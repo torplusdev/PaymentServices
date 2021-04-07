@@ -39,6 +39,7 @@ func (r *RogueNode) GetFee() uint32 {
 //func (r *RogueNode) SetAccumulatingTransactionsMode(accumulateTransactions bool) {
 //	r.internalNode.SetAccumulatingTransactionsMode(accumulateTransactions)
 //}
+
 func (r *RogueNode) SignChainTransaction(ctx context.Context, command *models.SignChainTransactionCommand) (*models.SignChainTransactionResponse, error) {
 	if r.SignChainTransactionFunction != nil {
 		return r.SignChainTransactionFunction(r, ctx, command)
@@ -46,6 +47,7 @@ func (r *RogueNode) SignChainTransaction(ctx context.Context, command *models.Si
 	}
 	return r.PPNode.SignChainTransaction(ctx, command)
 }
+
 func (r *RogueNode) CreateTransaction(context context.Context, request *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
 
 	return r.transactionCreationFunction(r, context, request)
@@ -145,7 +147,7 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, r
 	//	panic("unexpected error - envelope")
 	//}
 
-	xdr, err := tx.Base64()
+	xdr, _ := tx.Base64()
 
 	res.Transaction.PendingTransaction.XDR = (models.NewXDR(xdr))
 
@@ -159,7 +161,7 @@ func SignChainTransactionBadSignature(r *RogueNode, context context.Context, cmd
 	creditTransaction := cmd.Credit.PendingTransaction
 	debitTransaction := cmd.Debit.PendingTransaction
 
-	kp, err := keypair.Random()
+	kp, _ := keypair.Random()
 
 	creditWrapper, err := creditTransaction.XDR.TransactionFromXDR()
 

@@ -21,12 +21,15 @@ func (p *paymentHandlerMock) CreatePaymentInfo(amount uint32) (string, error) {
 
 	return p.paymentRequest, nil
 }
+
 func (p *paymentHandlerMock) ProcessCommand(nodeId models.PeerID, msg *PaymentCommand) error {
 	panic("not implemented")
 }
+
 func (p *paymentHandlerMock) ProcessPayment(nodeId models.PeerID, msg *InitiatePayment) {
 	panic("not implemented")
 }
+
 func (p *paymentHandlerMock) ProcessResponse(nodeId models.PeerID, msg *PaymentResponse) {
 	panic("not implemented")
 }
@@ -34,6 +37,7 @@ func (p *paymentHandlerMock) ProcessResponse(nodeId models.PeerID, msg *PaymentR
 func (p *paymentHandlerMock) ValidatePayment(req *models.ShapelessValidatePaymentRequest) (uint32, error) {
 	panic("not implemented")
 }
+
 func (p *paymentHandlerMock) GetTransaction(sessionId string) (*models.PaymentTransaction, error) {
 	panic("not implemented")
 }

@@ -31,6 +31,7 @@ type httpErrorMessage struct {
 func (hem *httpErrorMessage) Error() string {
 	return hem.msg
 }
+
 func (hem *httpErrorMessage) WriteHttpError(wr http.ResponseWriter) error {
 	wr.WriteHeader(hem.Status)
 	_, err := fmt.Fprintf(wr, hem.Error())

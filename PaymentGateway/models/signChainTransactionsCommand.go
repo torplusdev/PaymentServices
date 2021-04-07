@@ -1,5 +1,6 @@
 package models
 
+//TODO
 type SignChainTransactionCommand struct {
 	Debit   *PaymentTransactionReplacing `json:"debit"`
 	Credit  *PaymentTransactionReplacing `json:"credit"`

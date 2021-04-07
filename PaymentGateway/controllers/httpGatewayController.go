@@ -19,6 +19,7 @@ func NewHttpGatewayController(n local.LocalPPNode) *HttpGatewayController {
 		n,
 	}
 }
+
 func (g *HttpGatewayController) HttpProcessResponse(w http.ResponseWriter, r *http.Request) {
 	response := &models.UtilityResponse{}
 
@@ -36,6 +37,7 @@ func (g *HttpGatewayController) HttpProcessResponse(w http.ResponseWriter, r *ht
 	}
 
 }
+
 func (g *HttpGatewayController) HttpProcessPayment(w http.ResponseWriter, r *http.Request) {
 	ctx, span := spanFromRequest(r, "ProcessPayment")
 	defer span.End()
@@ -51,12 +53,12 @@ func (g *HttpGatewayController) HttpProcessPayment(w http.ResponseWriter, r *htt
 	res, err := g.ProcessPayment(ctx, request)
 	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, err.Error()))
-	} else {
-		if res != nil {
-			Respond(w, MessageWithData(http.StatusCreated, res))
-		} else {
-			Respond(w, MessageWithStatus(http.StatusOK, "Payment processing completed"))
-		}
-
+		return
 	}
+	if res != nil {
+		Respond(w, MessageWithData(http.StatusCreated, res))
+		return
+	}
+	Respond(w, MessageWithStatus(http.StatusOK, "Payment processing completed"))
+
 }

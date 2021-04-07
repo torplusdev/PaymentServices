@@ -40,7 +40,8 @@ func TestMultinodePayments(t *testing.T) {
 	for i := 0; i < N; i++ {
 		testSetup.torMock.SetCircuitOrigin(nodes[i])
 
-		result, pr := sequencer.PerformPayment(seeds[i], Service1Seed, commodityAmount)
+		result, pr, err := sequencer.PerformPayment(seeds[i], Service1Seed, commodityAmount)
+		assert.NoError(err)
 		amount = pr.Amount
 		assert.Contains(result, "Payment processing completed")
 	}

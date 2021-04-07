@@ -19,6 +19,7 @@ func (pre *paymentRegistryEntry) since() time.Duration {
 	defer pre.mutex.Unlock()
 	return time.Since(pre.updated)
 }
+
 func newEntry(sourceAddress string, amount models.TransactionAmount) *paymentRegistryEntry {
 	return &paymentRegistryEntry{
 		mutex:              sync.Mutex{},
@@ -27,12 +28,14 @@ func newEntry(sourceAddress string, amount models.TransactionAmount) *paymentReg
 		updated:            time.Now(),
 	}
 }
+
 func (pre *paymentRegistryEntry) add(amount models.TransactionAmount) {
 	pre.mutex.Lock()
 	defer pre.mutex.Unlock()
 	pre.updated = time.Now()
 	pre.amount += amount
 }
+
 func (pre *paymentRegistryEntry) reduce(amount models.TransactionAmount) {
 	pre.mutex.Lock()
 	defer pre.mutex.Unlock()

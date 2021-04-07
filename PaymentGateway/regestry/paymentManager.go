@@ -20,37 +20,41 @@ type PaymentManager interface {
 	Run(ctx context.Context, async bool) error
 	Complete(msg *models.PaymentStatusResponseModel)
 	ProcessResponse(context context.Context, nodeId string, commandId string, response []byte) error
-	AddStatusCallbackUrl(url string)
+	AddStatusCallbacker(scb StatusCallbacker)
 }
 
 func NewPaymentManager(serviceClient client.ServiceClient,
-	request *models.ProcessPaymentRequest,
-	statusCallbacker StatusCallbacker) PaymentManager {
+	request *models.ProcessPaymentRequest) PaymentManager {
 	return &paymentManager{
-		client:           serviceClient,
-		nodes:            NewNodeManager(),
-		ch:               make(chan *models.PaymentStatusResponseModel),
-		request:          request,
-		nodesByNodeId:    map[string]proxy.ProxyNode{},
-		statusCallbacker: statusCallbacker,
+		client:        serviceClient,
+		nodes:         NewNodeManager(),
+		ch:            make(chan *models.PaymentStatusResponseModel),
+		request:       request,
+		nodesByNodeId: map[string]proxy.ProxyNode{},
 	}
 }
 
 type paymentManager struct {
-	request          *models.ProcessPaymentRequest
-	client           client.ServiceClient
-	nodes            NodeManager
-	ch               chan *models.PaymentStatusResponseModel
-	nodesByNodeId    map[string]proxy.ProxyNode
-	statusCallbacker StatusCallbacker
+	request           *models.ProcessPaymentRequest
+	client            client.ServiceClient
+	nodes             NodeManager
+	ch                chan *models.PaymentStatusResponseModel
+	nodesByNodeId     map[string]proxy.ProxyNode
+	statusCallbackers []StatusCallbacker
+}
+
+func (pm *paymentManager) AddStatusCallbacker(scb StatusCallbacker) {
+	pm.statusCallbackers = append(pm.statusCallbackers, scb)
 }
 
 func (pm *paymentManager) AddSourceNode(address string, node node.PPNode) error {
 	return pm.nodes.AddSourceNode(address, node)
 }
+
 func (pm *paymentManager) AddChainNode(address, nodeId string, node node.PPNode) error {
 	return pm.nodes.AddChainNode(address, node)
 }
+
 func (pm *paymentManager) AddDestinationNode(address, nodeId string, node node.PPNode) error {
 	err := pm.nodes.AddDestinationNode(address, node)
 	return err
@@ -66,8 +70,7 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 	if err != nil {
 		log.Printf("Payment failed SessionId=%s", sessionId)
 		log.Print(err)
-
-		return fmt.Errorf("initiate payment failed")
+		return fmt.Errorf("initiate payment failed: %v", err)
 	}
 
 	// Verify
@@ -87,22 +90,41 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 		log.Printf("payment failed SessionId=%s", sessionId)
 		log.Print(err)
 
-		return fmt.Errorf("finalize failed")
+		return fmt.Errorf("finalize failed: %v", err)
 	}
 
 	log.Printf("Payment completed SessionId=%s, ServiceRef=%s", sessionId, request.PaymentRequest.ServiceRef)
+
 	return nil
+}
+
+func (pm *paymentManager) callCallbackers(res *models.PaymentStatusResponseModel) error {
+	var outError error = nil
+	for _, cb := range pm.statusCallbackers {
+		err := cb.Complete(res)
+		if err != nil {
+			outError = err
+		}
+	}
+	return outError
 }
 
 func (pm *paymentManager) runSync(ctx context.Context) error {
 	err := pm.paymentProcess(ctx)
 	if err != nil {
-		return err
+		status := &models.PaymentStatusResponseModel{
+			SessionId: pm.request.PaymentRequest.ServiceSessionId,
+			Status:    0,
+		}
+		return pm.callCallbackers(status)
 	}
-	msg := pm.Wait()
-	pm.statusCallbacker.Complete(msg)
-	return nil
+	status := &models.PaymentStatusResponseModel{
+		SessionId: pm.request.PaymentRequest.ServiceSessionId,
+		Status:    1,
+	}
+	return pm.callCallbackers(status)
 }
+
 func (pm *paymentManager) Run(ctx context.Context, async bool) error {
 	if async {
 		go func(pm *paymentManager) {
@@ -115,14 +137,17 @@ func (pm *paymentManager) Run(ctx context.Context, async bool) error {
 	}
 	return pm.runSync(ctx)
 }
+
 func (pm *paymentManager) Wait() *models.PaymentStatusResponseModel {
 	return <-pm.ch
 }
+
 func (pm *paymentManager) Complete(msg *models.PaymentStatusResponseModel) {
 	if pm.ch != nil {
 		pm.ch <- msg
 	}
 }
+
 func (pm *paymentManager) ProcessResponse(context context.Context, nodeId string, commandId string, response []byte) error {
 	proxyNode, ok := pm.nodesByNodeId[nodeId]
 	if !ok {
@@ -130,43 +155,29 @@ func (pm *paymentManager) ProcessResponse(context context.Context, nodeId string
 	}
 	return proxyNode.ProcessResponse(context, commandId, response)
 }
-func (pm *paymentManager) AddStatusCallbackUrl(url string) {
-	pm.statusCallbacker.AddUrl(url)
-}
 
 type StatusCallbacker interface {
-	AddUrl(url string)
-	Complete(msg *models.PaymentStatusResponseModel)
+	Complete(msg *models.PaymentStatusResponseModel) error
 }
 
-func NewStatusCallbacker() StatusCallbacker {
-	return &statusCallbacker{}
+func NewStatusCallbacker(url string) StatusCallbacker {
+	return &statusCallbacker{
+		url: url,
+	}
 }
 
 type statusCallbacker struct {
-	urls []string
+	url string
 }
 
-func (scb *statusCallbacker) AddUrl(url string) {
-	if url == "" {
-		return
-	}
-	scb.urls = append(scb.urls, url)
+func (scb *statusCallbacker) Complete(msg *models.PaymentStatusResponseModel) error {
+	return scb.sendPaymentCallback(scb.url, msg)
 }
-func (scb *statusCallbacker) Complete(msg *models.PaymentStatusResponseModel) {
-	go func() {
-		for _, url := range scb.urls {
-			scb.sendPaymentCallback(url, msg)
-		}
-	}()
-}
-func (scb *statusCallbacker) sendPaymentCallback(callbackUrl string, msg *models.PaymentStatusResponseModel) {
+
+func (scb *statusCallbacker) sendPaymentCallback(callbackUrl string, msg *models.PaymentStatusResponseModel) error {
 	if callbackUrl == "" {
-		return
+		return nil
 	}
-	err := common.HttpPaymentStatus(callbackUrl, msg)
-	if err != nil {
-		log.Print("Payment callback failed")
+	return common.HttpPaymentStatus(callbackUrl, msg)
 
-	}
 }

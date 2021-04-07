@@ -40,13 +40,13 @@ type IncomingCommandResponseModel struct { //TODO REMOVE
 }
 
 func (ppc *PPCallback) ProcessCommandResponse(msg *models.UtilityResponse) (err error) {
-
-	ppc.peerHandler.SendPaymentDataMessage(models.PeerID(msg.CommandResponseCore.NodeId),
-		&PaymentResponse{ //TODO replace UtilityResponse
-			CommandId:    msg.CommandId,
-			CommandReply: msg.CommandResponse,
-			SessionId:    msg.SessionId,
-		})
+	peerID := models.PeerID(msg.CommandResponseCore.NodeId)
+	paymentResponse := &PaymentResponse{ //TODO replace UtilityResponse
+		CommandId:    msg.CommandId,
+		CommandReply: msg.CommandResponse,
+		SessionId:    msg.SessionId,
+	}
+	ppc.peerHandler.SendPaymentDataMessage(peerID, paymentResponse)
 	return
 }
 
@@ -57,9 +57,10 @@ func (ppc *PPCallback) ProcessPaymentResponse(msg *models.PaymentStatusResponseM
 	}
 
 	targetId := session.OriginNodeId
-	ppc.peerHandler.SendPaymentDataMessage(targetId, &PaymentStatusResponse{
+	paymentStatusResponse := &PaymentStatusResponse{
 		SessionId: msg.SessionId,
 		Status:    msg.Status == 1,
-	})
+	}
+	ppc.peerHandler.SendPaymentDataMessage(targetId, paymentStatusResponse)
 	return
 }

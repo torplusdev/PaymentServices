@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/otel/api/core"
 	"google.golang.org/grpc/codes"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/models"
 	. "paidpiper.com/payment-gateway/tests/util"
 	"paidpiper.com/payment-gateway/utility"
 )
@@ -70,8 +71,15 @@ func shutdown() {
 func TestMain(m *testing.M) {
 	code := m.Run()
 	shutdown()
-	_ = code
 	os.Exit(code)
+}
+
+func diff(pre, post []float64) []float64 {
+	var diff []float64
+	for i, pre := range pre {
+		diff = append(diff, post[i]-pre)
+	}
+	return diff
 }
 
 func TestSingleChainPayment(t *testing.T) {
@@ -90,22 +98,23 @@ func TestSingleChainPayment(t *testing.T) {
 	sequencer := CreateSequencer(testSetup, assert, ctx)
 	// 100 MB
 	var commodityAmount uint32 = 1001e6
-	var paymentAmount float64 = 1
 
-	result, pr := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount)
-	assert.Contains(result, "Payment processing completed")
+	result, pr, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount)
+	assert.NoError(err)
+	assert.Nil(result)
 
-	paymentAmount = float64(pr.Amount)
+	paymentAmount := float64(pr.Amount)
 
-	err := testSetup.FlushTransactions(ctx)
+	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
 	balancesPost := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
-
+	diff := diff(balancesPre, balancesPost)
+	_ = diff
 	paymentRoutingFees := float64(3 * 10)
 
-	totalPaidFees := common.PPTokenToNumeric(paymentRoutingFees)
-	totalReceivedService := common.PPTokenToNumeric(paymentAmount)
+	totalPaidFees := models.PPTokenToNumeric(paymentRoutingFees)
+	totalReceivedService := models.PPTokenToNumeric(paymentAmount)
 
 	assert.InEpsilon(balancesPre[0]-totalPaidFees-totalReceivedService, balancesPost[0], 1e-6, "Incorrect user balance")
 	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1e-6, "Incorrect service balance")
@@ -143,10 +152,10 @@ func TestSinglePaymentAutoFlush(t *testing.T) {
 	// 100 MB
 	var commodityAmount uint32 = 1001e6
 
-	result, pr := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount)
-	assert.Contains(result, "Payment processing completed")
-
-	commodityAmount = pr.Amount
+	result, pr, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount)
+	assert.Nil(result)
+	assert.NoError(err)
+	paymentAmount := pr.Amount
 
 	time.Sleep(65 * time.Second)
 
@@ -154,11 +163,11 @@ func TestSinglePaymentAutoFlush(t *testing.T) {
 
 	paymentRoutingFees := float64(3 * 10)
 	paymentAmountFloat := float64(paymentAmount)
-	assert.InEpsilon(balancesPre[0]-paymentAmount-paymentRoutingFees, balancesPost[0], 1e-6, "Incorrect user balance")
-	assert.InEpsilon(balancesPre[1]+paymentAmount, balancesPost[1], 1e-6, "Incorrect service balance")
+	assert.InEpsilon(balancesPre[0]-paymentAmountFloat-paymentRoutingFees, balancesPost[0], 1e-6, "Incorrect user balance")
+	assert.InEpsilon(balancesPre[1]+paymentAmountFloat, balancesPost[1], 1e-6, "Incorrect service balance")
 
-	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmount) / 3
-	setPostBalances(span, balancesPost, paymentAmount, paymentRoutingFees, nodePaymentFee)
+	nodePaymentFee := (balancesPre[0] - balancesPost[0] - paymentAmountFloat) / 3.0
+	setPostBalances(span, balancesPost, paymentAmountFloat, paymentRoutingFees, nodePaymentFee)
 	assert.InEpsilon(balancesPre[2]+nodePaymentFee, balancesPost[2], 1e-6, "Incorrect node1 balance")
 	assert.InEpsilon(balancesPre[3]+nodePaymentFee, balancesPost[3], 1e-6, "Incorrect node2 balance")
 	assert.InEpsilon(balancesPre[4]+nodePaymentFee, balancesPost[4], 1e-6, "Incorrect node3 balance")
@@ -178,19 +187,21 @@ func TestTwoChainPayments(t *testing.T) {
 	setPreBalances(span, balancesPre)
 
 	sequencer := CreateSequencer(testSetup, assert, ctx)
-	paymentAmount1 := 300e6
-	paymentAmount2 := 600e6
+	var commodityAmount1 uint32 = 300e6
+	var commodityAmount2 uint32 = 600e6
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount1)
-	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount2)
-
-	assert.Contains(result, "Payment processing completed")
-	err := testSetup.FlushTransactions(ctx)
+	result, pr1, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
+	assert.NoError(err)
+	assert.Nil(result)
+	result, pr2, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
+	assert.NoError(err)
+	assert.Nil(result)
+	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
 	// Take the actual converted amount in XLM
-	paymentAmount1 = float64(pr1.Amount)
-	paymentAmount2 = float64(pr2.Amount)
+	paymentAmount1 := float64(pr1.Amount)
+	paymentAmount2 := float64(pr2.Amount)
 
 	balancesPost := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
 
@@ -222,27 +233,30 @@ func TestPaymentAfterwoChainPayments(t *testing.T) {
 	balancesPre := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
 	setPreBalances(span, balancesPre)
 	sequencer := CreateSequencer(testSetup, assert, ctx)
-	paymentAmount1 := 300e6
-	paymentAmount2 := 600e6
-	paymentAmount3 := 200e6
+	var commodityAmount1 uint32 = 300e6
+	var commodityAmount2 uint32 = 600e6
+	var commodityAmount3 uint32 = 200e6
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount1)
-	assert.Contains(result, "Payment processing completed")
-	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount2)
-	assert.Contains(result, "Payment processing completed")
-	err := testSetup.FlushTransactions(ctx)
+	result, pr1, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
+	assert.NoError(err)
+	assert.Nil(result)
+
+	result, pr2, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
+	assert.NoError(err)
+	assert.Nil(result)
+	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
-	result, pr3 := sequencer.PerformPayment(User1Seed, Service1Seed, paymentAmount3)
-
-	assert.Contains(result, "Payment processing completed")
+	result, pr3, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount3)
+	assert.NoError(err)
+	assert.Nil(result)
 	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
 	// Take the actual converted amount in XLM
-	paymentAmount1 = float64(pr1.Amount)
-	paymentAmount2 = float64(pr2.Amount)
-	paymentAmount3 = float64(pr3.Amount)
+	paymentAmount1 := float64(pr1.Amount)
+	paymentAmount2 := float64(pr2.Amount)
+	paymentAmount3 := float64(pr3.Amount)
 
 	balancesPost := GetAccountBalances([]string{User1Seed, Service1Seed, Node1Seed, Node2Seed, Node3Seed})
 
@@ -250,8 +264,8 @@ func TestPaymentAfterwoChainPayments(t *testing.T) {
 
 	paymentRoutingFees := float64(3*10) * 3
 
-	totalPaidFees := common.PPTokenToNumeric(paymentRoutingFees)
-	totalReceivedService := common.PPTokenToNumeric(paymentAmount)
+	totalPaidFees := models.PPTokenToNumeric(paymentRoutingFees)
+	totalReceivedService := models.PPTokenToNumeric(paymentAmount)
 
 	assert.InEpsilon(balancesPre[0]-totalReceivedService-totalPaidFees, balancesPost[0], 1e-6, "Incorrect user balance")
 	assert.InEpsilon(balancesPre[1]+totalReceivedService, balancesPost[1], 1e-6, "Incorrect service balance")
@@ -295,18 +309,18 @@ func TestPaymentAfterUnfulfilledPayment(t *testing.T) {
 
 	sequencer := CreateSequencer(testSetup, assert, ctx)
 	var commodityAmount1 uint32 = 300e6
-	var commodityAmount2 uint32 = 600e6
+	//var commodityAmount2 uint32 = 600e6
 	var commodityAmount3 uint32 = 200e6
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
-
-	assert.Contains(result, "Payment processing completed")
-	err := testSetup.FlushTransactions(ctx)
+	result, pr1, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
+	assert.NoError(err)
+	assert.Nil(result)
+	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
-	result, pr3 := sequencer.PerformPayment(User1Seed, Node4Seed, commodityAmount3)
-
-	assert.Contains(result, "Payment processing completed")
+	result, pr3, err := sequencer.PerformPayment(User1Seed, Node4Seed, commodityAmount3)
+	assert.NoError(err)
+	assert.Nil(result)
 	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
@@ -346,17 +360,17 @@ func TestPaymentsToDifferentAddresses(t *testing.T) {
 
 	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node2Seed)})
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
-
-	assert.Contains(result, "Payment processing completed")
+	result, pr1, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
+	assert.NoError(err)
+	assert.Nil(result)
 
 	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node1Seed)})
 
-	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
+	result, pr2, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
+	assert.NoError(err)
+	assert.Nil(result)
 
-	assert.Contains(result, "Payment processing completed")
-
-	err := testSetup.FlushTransactions(ctx)
+	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
 	// Take the actual converted amount in XLM
@@ -395,21 +409,20 @@ func TestIncorrectTransactionsAreDiscardedByFlush(t *testing.T) {
 
 	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node2Seed)})
 
-	result, pr1 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
-
-	assert.Contains(result, "Payment processing completed")
-
+	result, pr1, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount1)
+	assert.NoError(err)
+	assert.Nil(result)
 	testSetup.GetNode(Service1Seed).SetTransactionValiditySecs(600)
 	testSetup.GetNode(User1Seed).SetTransactionValiditySecs(600)
 	testSetup.GetNode(Node1Seed).SetTransactionValiditySecs(600)
 
 	testSetup.SetDefaultPaymentRoute([]string{seed2addr(Node1Seed)})
 
-	result, pr2 := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
+	result, pr2, err := sequencer.PerformPayment(User1Seed, Service1Seed, commodityAmount2)
+	assert.NoError(err)
+	assert.Nil(result)
 
-	assert.Contains(result, "Payment processing completed")
-
-	err := testSetup.FlushTransactions(ctx)
+	err = testSetup.FlushTransactions(ctx)
 	assert.NoError(err)
 
 	// Take the actual converted amount in XLM

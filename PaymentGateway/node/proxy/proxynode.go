@@ -37,6 +37,7 @@ type nodeProxy struct {
 func (n *nodeProxy) GetFee() uint32 {
 	return n.fee
 }
+
 func (n *nodeProxy) GetAddress() string {
 	return n.address
 }
@@ -44,6 +45,7 @@ func (n *nodeProxy) GetAddress() string {
 func (n *nodeProxy) ProcessResponse(context context.Context, commandId string, responseBody []byte) error {
 	return n.responseHandler.ProcessResponse(context, commandId, responseBody)
 }
+
 func (n *nodeProxy) CreateTransaction(context context.Context, command *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
 
 	ctx, span := n.tracer.Start(context, "proxy-CreateTransaction-"+n.address)

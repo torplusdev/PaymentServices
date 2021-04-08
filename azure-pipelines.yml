@@ -18,6 +18,11 @@ strategy:
       osName: 'windows'
       ext: ".exe"
       addldflags: '-ldflags -H=windowsgui'
+    mac:
+      poolName: 'macOS-10.14'
+      osName: 'mac'
+      ext: ''
+      addldflags: ''
 
 pool:
   name: $(poolName)

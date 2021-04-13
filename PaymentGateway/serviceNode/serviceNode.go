@@ -19,7 +19,7 @@ import (
 	"paidpiper.com/payment-gateway/root"
 )
 
-func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool, autoFlushDuration time.Duration, transactionValiditySecs int64) (*Server,*node.Node, error) {
+func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMode bool, autoFlushDuration time.Duration, transactionValiditySecs int64) (*Server, *node.Node, error) {
 	tracer := common.CreateTracer("paidpiper/serviceNode")
 
 	_, span := tracer.Start(context.Background(), "serviceNode-initialization")
@@ -29,12 +29,12 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	if err != nil {
 		glog.Infof("Error parsing node key: %s", err)
-		return nil, nil,  err
+		return nil, nil, err
 	}
 
 	horizon := horizon.NewHorizon()
 
-	localNode,err := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration, transactionValiditySecs)
+	localNode, err := node.CreateNode(horizon, seed.Address(), seed.Seed(), true, autoFlushDuration, transactionValiditySecs)
 
 	if err != nil {
 		glog.Infof("Error creating Node object: %s", err)
@@ -69,14 +69,14 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 
 	if err != nil {
 		glog.Infof("Error creating user: %s", err)
-		return nil,nil, err
+		return nil, nil, err
 	}
 
 	balance, err := horizon.GetBalance(seed.Address())
 
 	if err != nil {
 		glog.Infof("Error retrieving account data: %s", err)
-		return nil,nil,  err
+		return nil, nil, err
 	}
 
 	fmt.Printf("Current balance for %v:%v", seed.Address(), balance)
@@ -105,6 +105,7 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	router.Handle("/api/utility/createPaymentInfo", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.CreatePaymentInfo))).Methods("POST")
 	router.Handle("/api/utility/validatePayment", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ValidatePayment))).Methods("POST")
 	router.Handle("/api/utility/transactions/flush", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.FlushTransactions))).Methods("GET")
+	router.Handle("/api/utility/usageStatistics", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetUsageStatistics))).Methods("GET")
 	router.Handle("/api/utility/transactions", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ListTransactions))).Methods("GET")
 	router.Handle("/api/utility/transaction/{sessionId}", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetTransaction))).Methods("GET")
 	router.Handle("/api/utility/stellarAddress", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.GetStellarAddress))).Methods("GET")
@@ -126,5 +127,5 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		}
 	}()
 
-	return server,localNode, nil
+	return server, localNode, nil
 }

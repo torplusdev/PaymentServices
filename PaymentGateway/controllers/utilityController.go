@@ -5,18 +5,19 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/gorilla/mux"
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/httptrace"
-	"log"
-	"net/http"
 	"paidpiper.com/payment-gateway/commodity"
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
-	"time"
 )
 
 type UtilityController struct {
@@ -157,8 +158,7 @@ func (u *UtilityController) CommitServiceTransaction(context context.Context, co
 		return nil, err
 	}
 
-	response := &models.CommitServiceTransactionResponse {
-	}
+	response := &models.CommitServiceTransactionResponse{}
 
 	return response, nil
 }
@@ -178,8 +178,7 @@ func (u *UtilityController) CommitPaymentTransaction(context context.Context, co
 		return nil, err
 	}
 
-	response := &models.CommitPaymentTransactionResponse{
-	}
+	response := &models.CommitPaymentTransactionResponse{}
 
 	return response, nil
 }
@@ -298,7 +297,7 @@ func (u *UtilityController) FlushTransactions(w http.ResponseWriter, r *http.Req
 	results, err := u.transactionManager.FlushTransactions(ctx)
 
 	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusBadRequest, "Error in FlushTransactions: " + err.Error()))
+		Respond(w, MessageWithStatus(http.StatusBadRequest, "Error in FlushTransactions: "+err.Error()))
 	}
 
 	for k, v := range results {
@@ -323,10 +322,45 @@ func (u *UtilityController) GetStellarAddress(w http.ResponseWriter, r *http.Req
 func (u *UtilityController) GetBalance(w http.ResponseWriter, r *http.Request) {
 
 	response := &models.GetBalanceResponse{
-		Balance:100,
+		Balance:   100,
 		Timestamp: time.Now(),
 	}
 
+	Respond(w, response)
+}
+
+func (u *UtilityController) GetUsageStatistics(w http.ResponseWriter, r *http.Request) {
+
+	response := []struct {
+		Date  time.Time
+		Value int
+	}{
+		{time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC), 12},
+		{time.Date(2021, 3, 2, 0, 0, 0, 0, time.UTC), 32},
+		{time.Date(2021, 3, 3, 0, 0, 0, 0, time.UTC), 52},
+		{time.Date(2021, 3, 4, 0, 0, 0, 0, time.UTC), 55},
+		{time.Date(2021, 3, 5, 0, 0, 0, 0, time.UTC), 57},
+		{time.Date(2021, 3, 6, 0, 0, 0, 0, time.UTC), 66},
+		{time.Date(2021, 3, 7, 0, 0, 0, 0, time.UTC), 50},
+		{time.Date(2021, 3, 8, 0, 0, 0, 0, time.UTC), 80},
+		{time.Date(2021, 3, 9, 0, 0, 0, 0, time.UTC), 78},
+		{time.Date(2021, 3, 10, 0, 0, 0, 0, time.UTC), 11},
+		{time.Date(2021, 3, 11, 0, 0, 0, 0, time.UTC), 38},
+		{time.Date(2021, 3, 12, 0, 0, 0, 0, time.UTC), 47},
+		{time.Date(2021, 3, 13, 0, 0, 0, 0, time.UTC), 40},
+		{time.Date(2021, 3, 14, 0, 0, 0, 0, time.UTC), 86},
+		{time.Date(2021, 3, 15, 0, 0, 0, 0, time.UTC), 32},
+		{time.Date(2021, 3, 16, 0, 0, 0, 0, time.UTC), 22},
+		{time.Date(2021, 3, 17, 0, 0, 0, 0, time.UTC), 48},
+		{time.Date(2021, 3, 18, 0, 0, 0, 0, time.UTC), 30},
+		{time.Date(2021, 3, 19, 0, 0, 0, 0, time.UTC), 79},
+		{time.Date(2021, 3, 20, 0, 0, 0, 0, time.UTC), 59},
+		{time.Date(2021, 3, 21, 0, 0, 0, 0, time.UTC), 29},
+		{time.Date(2021, 3, 22, 0, 0, 0, 0, time.UTC), 32},
+		{time.Date(2021, 3, 23, 0, 0, 0, 0, time.UTC), 68},
+		{time.Date(2021, 3, 24, 0, 0, 0, 0, time.UTC), 61},
+		{time.Date(2021, 3, 25, 0, 0, 0, 0, time.UTC), 89},
+	}
 	Respond(w, response)
 }
 

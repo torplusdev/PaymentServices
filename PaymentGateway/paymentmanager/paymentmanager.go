@@ -42,7 +42,7 @@ func New(ctx context.Context, peerHandler PeerHandler) PaymentManager {
 		cancel:          cancel,
 		peerHandler:     peerHandler,
 
-		debtRegistry: &debtRegestryImpl{},
+		debtRegistry: &debtRegestryImpl{store: make(map[models.PeerID]*Debt)},
 	}
 }
 

@@ -37,10 +37,9 @@ func (r *RequirePaymentHandler) Handle(paymentHandler DebtRegestry, peerHandler 
 
 		if err != nil {
 			log.Fatalf("create payment info failed: %s", err.Error())
-
 			return
 		}
-		initiatePayment := &InitiatePayment{
+		initiatePayment := &InitiatePayment{ //TODO SERIALIZE PROPERTY LIKE BYTES
 			paymentRequest,
 		}
 		peerHandler.SendPaymentDataMessage(r.target, initiatePayment)

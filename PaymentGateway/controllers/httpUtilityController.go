@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/gorilla/mux"
+	"paidpiper.com/payment-gateway/common"
+
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node/local"
 )
@@ -134,11 +136,46 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 }
 
 func (u *HttpUtilityController) HttpGetBalance(w http.ResponseWriter, r *http.Request) {
-	//u.LocalPPNode.GetBalance()
+	res, err := u.GetBookBalance()
+	if err != nil {
+		Respond(w, MessageWithStatus(http.StatusConflict, err.Error()))
+		return
+	}
 	response := &models.GetBalanceResponse{
-		Balance:   100,
-		Timestamp: time.Now(),
+		Balance:   res.Balance,
+		Timestamp: res.Timestamp,
 	}
 
 	Respond(w, response)
+}
+
+func (u *HttpUtilityController) HttpBookHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	commodity := vars["commodity"]
+	hours := vars["hours"]
+	bins := vars["bins"]
+	binsValue, err := strconv.Atoi(bins)
+	if err != nil {
+		Respond(w, common.Error(500, "HISTORY_BINS should be int"))
+	}
+
+	hoursValue, err := strconv.Atoi(hours)
+	if err != nil {
+		Respond(w, common.Error(500, "hours should be int"))
+	}
+	res, err := u.GetBookHistory(commodity, binsValue, hoursValue)
+
+	if err != nil {
+		Respond(w, common.Error(500, err.Error()))
+	}
+	Respond(w, res)
+
+}
+
+func (u *HttpUtilityController) HttpBookBalance(w http.ResponseWriter, r *http.Request) {
+	res, err := u.GetBookBalance()
+	if err != nil {
+		Respond(w, common.Error(500, err.Error()))
+	}
+	Respond(w, res)
 }

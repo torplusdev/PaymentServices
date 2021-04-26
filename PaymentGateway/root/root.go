@@ -29,6 +29,7 @@ type RootApi interface {
 	GetMicroPPTokenBalance() (models.TransactionAmount, error)
 	GetPPTokenBalance() (float64, error)
 	VerifyTransaction(context.Context, *models.PaymentTransaction) error
+	ValidateTimebounds(*models.PaymentTransaction) error
 	SignPaymentTransaction(tr *models.PaymentTransaction) (*models.PaymentTransaction, error)
 	SignXDR(tr models.XDR) (models.XDR, error)
 	Sign(tr *txnbuild.Transaction) (*txnbuild.Transaction, error)
@@ -210,7 +211,7 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 		BaseFee:    200,
 		Timebounds: txnbuild.NewTimeout(api.transactionValiditySecs),
 	})
-
+	//tx.Timebounds().
 	if err != nil {
 		return nil, fmt.Errorf("error creating transaction: %v", err)
 	}
@@ -319,7 +320,6 @@ func (api *rootApi) SignXDR(xdr models.XDR) (models.XDR, error) {
 
 func (api *rootApi) Sign(tr *txnbuild.Transaction) (*txnbuild.Transaction, error) {
 	return tr.Sign(api.networkToken, &api.fullKeyPair)
-
 }
 
 func (api *rootApi) VerifyTransaction(context context.Context, transaction *models.PaymentTransaction) error {
@@ -338,6 +338,22 @@ func (api *rootApi) VerifyTransaction(context context.Context, transaction *mode
 		return err
 	}
 	return nil
+}
+
+func (n *rootApi) ValidateTimebounds(transaction *models.PaymentTransaction) error {
+	transactionWrapper, e := transaction.XDR.TransactionFromXDR()
+
+	if e != nil {
+		return errors.Errorf("Error deserializing transaction from XDR: %v", e)
+	}
+
+	t, result := transactionWrapper.Transaction()
+
+	if !result {
+		return errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
+	}
+	tb := t.Timebounds()
+	return tb.Validate()
 }
 
 func (n *rootApi) verifyTransactionSequence(context context.Context, transaction *models.PaymentTransaction) error {
@@ -702,14 +718,12 @@ func (api *rootApi) GetAccount() (*horizon.Account, error) {
 func (api *rootApi) GetMicroPPTokenBalance() (models.TransactionAmount, error) {
 	b, err := api.GetPPTokenBalance()
 	if err != nil {
-		return models.TransactionAmount(b), err
+		return models.TransactionAmount(0), err
 	}
 	return models.MicroPPToken2PPtoken(b), nil
-
 }
 
 func (api *rootApi) GetPPTokenBalance() (float64, error) {
-
 	account, err := api.GetAccount()
 	if err != nil {
 		return 0, err

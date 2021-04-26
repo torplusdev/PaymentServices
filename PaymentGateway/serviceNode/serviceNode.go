@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"paidpiper.com/payment-gateway/config"
 	"paidpiper.com/payment-gateway/controllers"
+	chi_server "paidpiper.com/payment-gateway/http/server"
 	"paidpiper.com/payment-gateway/node/local"
 	"paidpiper.com/payment-gateway/version"
 )
@@ -63,12 +64,18 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 	router.Handle("/api/utility/processCommand", http.HandlerFunc(utilityController.HttpProcessCommand)).Methods("POST")
 	router.Handle("/api/utility/balance", http.HandlerFunc(utilityController.HttpGetBalance)).Methods("GET")
 
+	router.Handle("/api/book/history/{commodity}/{hours}/{bins}", http.HandlerFunc(utilityController.HttpBookHistory)).Methods("GET")
+	router.Handle("/api/book/balance", http.HandlerFunc(utilityController.HttpBookBalance)).Methods("GET")
 	router.Handle("/api/gateway/processResponse", http.HandlerFunc(gatewayController.HttpProcessResponse)).Methods("POST")
 	router.Handle("/api/gateway/processPayment", http.HandlerFunc(gatewayController.HttpProcessPayment)).Methods("POST")
 
-	router.Handle("/api/resolver/setupResolving", handlers.LoggingHandler(log.Writer(), http.HandlerFunc(resolverController.SetupResolving))).Methods("GET")
-	router.Handle("/api/resolver/resolve", handlers.LoggingHandler(log.Writer(), http.HandlerFunc(resolverController.DoResolve))).Methods("POST")
+	router.Handle("/api/resolver/setupResolving", http.HandlerFunc(resolverController.SetupResolving)).Methods("GET")
+	router.Handle("/api/resolver/resolve", http.HandlerFunc(resolverController.DoResolve)).Methods("POST")
 
+	chiHandler := chi_server.Handler(utilityController)
+	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		chiHandler.ServeHTTP(w, r)
+	})
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: handlers.RecoveryHandler()(router),

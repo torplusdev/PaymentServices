@@ -14,6 +14,7 @@ import (
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry"
+	"paidpiper.com/payment-gateway/node/local/paymentregestry/database"
 	"paidpiper.com/payment-gateway/regestry"
 	"paidpiper.com/payment-gateway/root"
 
@@ -41,9 +42,13 @@ type LocalPPNode interface {
 	//CLIENT PORPS
 	ProcessPayment(ctx context.Context, request *models.ProcessPaymentRequest) (*models.ProcessPaymentAccepted, error)
 	ProcessCommand(ctx context.Context, command *models.UtilityCommand) (models.OutCommandType, error)
+	// Additional
+	GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error)
+	GetBookBalance() (*models.BookBalanceResponse, error)
 }
 
 type nodeImpl struct {
+	db                           database.Db
 	rootClient                   root.RootApi
 	accumulatingTransactionsMode bool
 	transactionFee               models.TransactionAmount
@@ -64,12 +69,20 @@ func New(rootClient root.RootApi,
 ) (LocalPPNode, error) {
 
 	log.SetLevel(log.InfoLevel)
-
+	db, err := database.NewLiteDB()
+	if err != nil {
+		return nil, err
+	}
+	paymentRegestry, err := paymentregestry.NewWithDB(db)
+	if err != nil {
+		return nil, err
+	}
 	node := &nodeImpl{
+		db:                           db,
 		rootClient:                   rootClient,
 		transactionFee:               nodeTransactionFee,
-		paymentRegistry:              paymentregestry.New(),
-		commodityManager:             commodity.New(), //TODO REMOVE
+		paymentRegistry:              paymentRegestry,
+		commodityManager:             commodity.New(),
 		paymentManagerRegestry:       paymentManager,
 		tracer:                       common.CreateTracer("node"),
 		callbackerFactory:            callbackerFactory,
@@ -149,7 +162,7 @@ func (n *nodeImpl) NewPaymentRequest(ctx context.Context, request *models.Create
 	}
 	log.Infof("CreatePaymentRequest: Starting %d  %s/%s ", request.Amount, pr.Asset, pr.ServiceRef)
 
-	n.paymentRegistry.AddServiceUsage(pr.ServiceSessionId, request.Amount)
+	n.paymentRegistry.AddServiceUsage(sessionId, pr)
 	return pr, nil
 }
 
@@ -537,4 +550,45 @@ func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCo
 		return reply, nil
 	}
 
+}
+
+func (n *nodeImpl) GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error) {
+	err := n.db.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer n.db.Close()
+	stepDuration := time.Duration(hours) * time.Hour
+	till := time.Now().Truncate(stepDuration).Add(stepDuration)
+	from := till.Add(-stepDuration * time.Duration(bins))
+	groups, err := n.db.SelectPaymentRequestGroup(commodity, stepDuration, from)
+	if err != nil {
+		return nil, err
+	}
+	return &models.BookHistoryResponse{
+		Items: groups,
+	}, nil
+}
+
+func (n *nodeImpl) GetActiveTransactionsAmount() (amount models.TransactionAmount) {
+
+	for _, t := range n.paymentRegistry.GetActiveTransactions() {
+		if err := n.rootClient.ValidateTimebounds(&t.PaymentTransaction); err == nil {
+			amount += t.AmountOut
+		}
+	}
+	return amount
+}
+func (n *nodeImpl) GetBookBalance() (*models.BookBalanceResponse, error) {
+	amount := n.GetActiveTransactionsAmount()
+
+	balance, err := n.rootClient.GetPPTokenBalance()
+	if err != nil {
+		return nil, err
+	}
+	timeStamp := time.Now()
+	return &models.BookBalanceResponse{
+		Balance:   models.PPtoken2MicroPP(amount) + balance,
+		Timestamp: models.JsonTime(timeStamp),
+	}, nil
 }

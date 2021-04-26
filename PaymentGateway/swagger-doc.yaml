@@ -1,0 +1,109 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: PaymentGateway
+  description: Payment Gateway Documentation
+security:
+  - securityRequirement: []
+servers:
+  - url: http://localhost:2020/api
+paths:
+  /api/v1/book/history/{commodity}/{hours}/{bins}:
+    get:
+      summary: Get history
+      description: Get history
+      operationId: getHistory
+      parameters:
+        - name: commodity
+          in: path
+          description: commodity type
+          required: true
+          schema:
+            type: string
+            
+        - name: hours
+          in: path
+          description: hours count
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: bins
+          in: path 
+          description: bins count
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: history response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryCollection'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/book/balance:
+    get:
+      summary: Get balance
+      description: Get balance
+      operationId: getBalance
+      responses:
+        '200':
+          description: history response
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: '#/components/schemas/Balance'
+components:
+  schemas:
+    HistoryStatisticItem:
+      required:
+      - date
+      - value
+      properties:
+        date:
+          type: integer
+          format: int64
+          description: Date of unix
+        volume:
+          type: integer
+          format: int64
+          description: Value of bins
+    HistoryCollection:
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+           $ref: '#/components/schemas/HistoryStatisticItem'
+    Balance:
+      properties:
+        balance:
+          type: number
+          format: double
+        timestamp:
+          type: integer
+          format: int64
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+

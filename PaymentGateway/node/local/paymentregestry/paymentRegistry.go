@@ -2,21 +2,20 @@ package paymentregestry
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
-	"time"
 
 	"paidpiper.com/payment-gateway/models"
 )
 
 type PaymentRegistry interface {
-	AddServiceUsage(sessionId string, amount models.TransactionAmount)
-	ReducePendingAmount(sessionId string, amount models.TransactionAmount) error
+	AddServiceUsage(sourceAddress string, amount *models.PaymentRequest)
+	ReducePendingAmount(sourceAddress string, amount models.TransactionAmount) error
 	GetPendingAmount(sourceAddress string) (amount models.TransactionAmount, ok bool)
+
 	SaveTransaction(sequence int64, transaction *models.PaymentTransaction)
+	CompletePayment(paymentSourceAddress string, serviceSessionId string)
 
 	GetActiveTransactions() []*models.PaymentTransactionWithSequence
-	CompletePayment(paymentSourceAddress string, serviceSessionId string)
 	GetActiveTransaction(paymentSourceAddress string) *models.PaymentTransaction
 	GetTransactionBySessionId(sessionId string) *models.PaymentTransaction
 }
@@ -27,44 +26,42 @@ type paymentRegistry struct {
 	paidTransactionsBySessionId map[string]*models.PaymentTransactionWithSequence
 	paidTransactionsByAddress   map[string]*models.PaymentTransactionWithSequence
 	entriesBySourceAddress      map[string]*paymentRegistryEntry
-	isActive                    bool
-	useHousekeeping             bool
+	//isActive                    bool
+	//useHousekeeping bool
 }
 
-func New() PaymentRegistry {
+func New() (PaymentRegistry, error) {
 
 	registry := &paymentRegistry{
 		mutex:                       sync.Mutex{},
 		paidTransactionsBySessionId: make(map[string]*models.PaymentTransactionWithSequence),
 		paidTransactionsByAddress:   make(map[string]*models.PaymentTransactionWithSequence),
 		entriesBySourceAddress:      make(map[string]*paymentRegistryEntry),
-		isActive:                    true,
+		//isActive:                    true,
 	}
-	if registry.useHousekeeping {
-		go func(r *paymentRegistry) { //TODO DO add chain
-			for range time.Tick(3 * time.Second) {
-				r.cleanEvent()
-				runtime.Gosched()
-			}
-		}(registry)
-	}
+	// if registry.useHousekeeping { //TODO CHECK NEED OR NOT
+	// 	go func(r *paymentRegistry) { //TODO DO add chain
+	// 		for range time.Tick(3 * time.Second) {
+	// 			r.cleanEvent()
+	// 			runtime.Gosched()
+	// 		}
+	// 	}(registry)
+	// }
 
-	return registry
+	return registry, nil
 }
 
-func (r *paymentRegistry) cleanEvent() {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	maxDurationBeforeExpiry := 20 * time.Second
-	for _, entry := range r.entriesBySourceAddress {
+// func (r *paymentRegistry) cleanEvent() { //TODO CHECK NEED OR NOT
+// 	r.mutex.Lock()
+// 	defer r.mutex.Unlock()
+// 	maxDurationBeforeExpiry := 20 * time.Second
+// 	for _, entry := range r.entriesBySourceAddress {
+// 		if entry.since() > maxDurationBeforeExpiry {
+// 			delete(r.entriesBySourceAddress, entry.serviceNodeAddress)
+// 		}
+// 	}
 
-		if entry.since() > maxDurationBeforeExpiry {
-			delete(r.entriesBySourceAddress, entry.serviceNodeAddress)
-		}
-
-	}
-
-}
+// }
 
 func (r *paymentRegistry) GetEntryByAddress(sourceAddress string) *paymentRegistryEntry {
 	r.mutex.Lock()
@@ -84,25 +81,24 @@ func (r *paymentRegistry) GetTransactionBySessionId(sessionId string) *models.Pa
 	return nil
 }
 
-func (r *paymentRegistry) AddServiceUsage(sourceAddress string, amount models.TransactionAmount) {
+func (r *paymentRegistry) AddServiceUsage(sourceAddress string, pr *models.PaymentRequest) {
 	entry, ok := r.entriesBySourceAddress[sourceAddress]
 	if ok {
-		entry.add(amount)
+		entry.add(pr.Amount)
 	} else {
-		entry = newEntry(sourceAddress, amount)
+		entry = newEntry(sourceAddress, pr.Amount)
 		r.entriesBySourceAddress[sourceAddress] = entry
 	}
 }
 
 func (r *paymentRegistry) ReducePendingAmount(sourceAddress string, amount models.TransactionAmount) error {
-	entry, ok := r.entriesBySourceAddress[sourceAddress]
+	entry, ok := r.entriesBySourceAddress[sourceAddress] //TODO is by source id
 
 	if ok {
 		entry.reduce(amount)
 		if entry.amount == 0 {
 			r.mutex.Lock()
 			defer r.mutex.Unlock()
-
 			delete(r.entriesBySourceAddress, sourceAddress)
 		}
 		return nil

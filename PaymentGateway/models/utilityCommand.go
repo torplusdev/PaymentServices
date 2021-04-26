@@ -3,7 +3,6 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 )
 
 type CommandType int32
@@ -139,5 +138,5 @@ func (d *UtilityCommand) UnmarshalJSON(data []byte) error {
 
 type GetBalanceResponse struct {
 	Balance   float64
-	Timestamp time.Time
+	Timestamp JsonTime
 }

@@ -100,6 +100,8 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 		asyncMode,
 	)
 
+	resolverController := controllers.NewResolverController()
+
 	router := mux.NewRouter()
 
 	router.Handle("/api/utility/createPaymentInfo", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.CreatePaymentInfo))).Methods("POST")
@@ -112,6 +114,9 @@ func StartServiceNode(keySeed string, port int, torAddressPrefix string, asyncMo
 	router.Handle("/api/utility/processCommand", handlers.LoggingHandler(log.Writer(), HandlerFunc(utilityController.ProcessCommand))).Methods("POST")
 	router.Handle("/api/gateway/processResponse", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessResponse))).Methods("POST")
 	router.Handle("/api/gateway/processPayment", handlers.LoggingHandler(log.Writer(), HandlerFunc(gatewayController.ProcessPayment))).Methods("POST")
+
+	router.Handle("/api/resolver/setupResolving", handlers.LoggingHandler(log.Writer(), HandlerFunc(resolverController.SetupResolving))).Methods("GET")
+	router.Handle("/api/resolver/resolve", handlers.LoggingHandler(log.Writer(), HandlerFunc(resolverController.DoResolve))).Methods("GET")
 
 	server := &Server{
 		Addr:    fmt.Sprintf(":%d", port),

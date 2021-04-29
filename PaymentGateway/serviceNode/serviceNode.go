@@ -45,6 +45,8 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 
 	gatewayController := controllers.NewHttpGatewayController(localNode)
 
+	resolverController := controllers.NewResolverController()
+
 	router := &loggableWriter{
 		Router: *mux.NewRouter(),
 	}
@@ -60,6 +62,9 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 
 	router.Handle("/api/gateway/processResponse", http.HandlerFunc(gatewayController.HttpProcessResponse)).Methods("POST")
 	router.Handle("/api/gateway/processPayment", http.HandlerFunc(gatewayController.HttpProcessPayment)).Methods("POST")
+
+	router.Handle("/api/resolver/setupResolving", handlers.LoggingHandler(log.Writer(), http.HandlerFunc(resolverController.SetupResolving))).Methods("GET")
+	router.Handle("/api/resolver/resolve", handlers.LoggingHandler(log.Writer(), http.HandlerFunc(resolverController.DoResolve))).Methods("GET")
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),

@@ -64,7 +64,7 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 	router.Handle("/api/gateway/processPayment", http.HandlerFunc(gatewayController.HttpProcessPayment)).Methods("POST")
 
 	router.Handle("/api/resolver/setupResolving", handlers.LoggingHandler(log.Writer(), http.HandlerFunc(resolverController.SetupResolving))).Methods("GET")
-	router.Handle("/api/resolver/resolve", handlers.LoggingHandler(log.Writer(), http.HandlerFunc(resolverController.DoResolve))).Methods("GET")
+	router.Handle("/api/resolver/resolve", handlers.LoggingHandler(log.Writer(), http.HandlerFunc(resolverController.DoResolve))).Methods("POST")
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),

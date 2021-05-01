@@ -12,7 +12,7 @@ import (
 )
 
 type ResolverController struct {
-	http  		 *http.Client
+	http         *http.Client
 	lock         *sync.RWMutex
 	resolveCache map[string]string
 }
@@ -44,21 +44,27 @@ type EthResolutionResponse struct {
 	Resolved string `json:"resolved"`
 }
 
+type resolutionRequest struct {
+	Hostname string `json:"hostname"`
+}
+
 func NewResolverController() *ResolverController {
 	resolver := &ResolverController{
 		http: &http.Client{
 			Timeout: time.Second * 10,
 		},
-		lock:&sync.RWMutex{},
-		resolveCache:map[string]string{},
+		lock:         &sync.RWMutex{},
+		resolveCache: map[string]string{},
 	}
+
+	//resolver.resolveCache["video.torplus.eth"] = "yta5tsernfhyqg4rztgqtxpfw5mzdvkwxavfny67xlf3lw5g5jrsz4qd.onion"
 
 	return resolver
 }
 
-func  (r *ResolverController) resolveByEthLink(domain string) (string, error) {
+func (r *ResolverController) resolveByEthLink(domain string) (string, error) {
 
-	log.Debugf("resolveByEthLink: %s ",domain)
+	log.Debugf("resolveByEthLink: %s ", domain)
 
 	req, err := http.NewRequest(http.MethodGet, "https://eth.link/dns-query", nil)
 
@@ -81,7 +87,7 @@ func  (r *ResolverController) resolveByEthLink(domain string) (string, error) {
 
 	defer res.Body.Close()
 
-	log.Infof("resolveByEthLink response for %s : %s, %v",domain, res.Status,res.Header)
+	log.Infof("resolveByEthLink response for %s : %s, %v", domain, res.Status, res.Header)
 
 	data, err := ioutil.ReadAll(res.Body)
 
@@ -89,7 +95,7 @@ func  (r *ResolverController) resolveByEthLink(domain string) (string, error) {
 		return "", errors.Errorf("Error reading response from stream: %s - %w", err.Error(), err)
 	}
 
-	log.Debugf("resolveByEthLink response body: %s ",string(data))
+	log.Debugf("resolveByEthLink response body: %s ", string(data))
 
 	var result EthLinkResult
 
@@ -102,53 +108,89 @@ func  (r *ResolverController) resolveByEthLink(domain string) (string, error) {
 	for _, answer := range result.Answer {
 
 		if strings.HasPrefix(answer.Data, "dnslink") {
-			resolvedData = strings.TrimPrefix(answer.Data,"dnslink=")
+			resolvedData = strings.TrimPrefix(answer.Data, "dnslink=")
 			log.Debugf("resolveByEthLink dnslink response: %s ", answer)
 		}
 	}
 
-	return resolvedData,nil
+	return resolvedData, nil
 }
 
 func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Request) {
-	domain := req.Header.Get("domain")
+	domain := req.Header.Get("domainToResolve")
+	domainKey := req.Header.Get("domainKey")
 
-	if (domain == "") {
+	if (domainKey == "") || (domain == "") {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Domain is empty"))
 		return
+	}
+
+	// If there's a port, trim it
+	if strings.ContainsRune(domain, ':') {
+		var index = strings.LastIndex(domain, ":")
+		domain = domain[:index]
+	}
+
+	if strings.ContainsRune(domainKey, ':') {
+		var index = strings.LastIndex(domainKey, ":")
+		domainKey = domainKey[:index]
+	}
+
+	//TODO: Refactor this to use configuration and some kind of helper class
+	fragment := req.Header.Get("fragment")
+
+	if strings.HasPrefix(domain, "sites.") {
+		fragment = strings.ReplaceAll(fragment, "#", "")
+		domain = strings.ReplaceAll(domain, "sites.", fragment+".")
 	}
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
 	resolvedName, err := r.resolveByEthLink(domain)
-	if (err != nil) {
+	if err != nil {
 		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during resolution process"))
+		return
 	}
 
 	//TODO: Parse the response using multiaddr
-	if (strings.HasPrefix(resolvedName,"/onion3/")) {
-		resolvedName = strings.TrimPrefix(resolvedName,"/onion3/") + ".onion"
+	if strings.HasPrefix(resolvedName, "/onion3/") {
+		resolvedName = strings.TrimPrefix(resolvedName, "/onion3/") + ".onion"
 	}
 
-	r.resolveCache[domain] = resolvedName
+	r.resolveCache[domainKey] = resolvedName
+	log.Infof("Associated %s => %s ", domainKey, resolvedName)
 	w.WriteHeader(http.StatusOK)
 }
 
 func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request) {
+
+	var d resolutionRequest
+
 	domain := req.Header.Get("domain")
 
-	if (domain == "") {
-		Respond(w, MessageWithStatus(http.StatusBadRequest, "Domain is empty"))
-		return
+	if domain == "" {
+		err := json.NewDecoder(req.Body).Decode(&d)
+
+		if err != nil {
+			log.Debugf("Couldn't parse data in headers or body")
+			Respond(w, MessageWithStatus(http.StatusBadRequest, "Error parsing domain"))
+			return
+		}
+
+		domain = d.Hostname
+
+		if domain == "" {
+			Respond(w, MessageWithStatus(http.StatusBadRequest, "Domain is empty"))
+		}
 	}
 
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 
 	if resolvedDomain, ok := r.resolveCache[domain]; ok {
-		response := EthResolutionResponse {
-			Resolved:resolvedDomain,
+		response := EthResolutionResponse{
+			Resolved: resolvedDomain,
 		}
 
 		bytes, err := json.Marshal(response)

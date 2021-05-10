@@ -45,7 +45,7 @@ steps:
   
 - script: |
     go build -v $(addldflags)
-  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/cmd/main
   displayName: 'Building Payment Gateway'
 
 - task: ArchiveFiles@2

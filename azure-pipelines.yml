@@ -44,8 +44,8 @@ steps:
   displayName: 'Running all the tests'
   
 - script: |
-    go build -v $(addldflags)
-  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/cmd/main
+    go build -v -o payment-gateway $(addldflags) 
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
   displayName: 'Building Payment Gateway'
 
 - task: ArchiveFiles@2

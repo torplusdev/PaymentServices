@@ -13,6 +13,7 @@ import (
 	"paidpiper.com/payment-gateway/config"
 	"paidpiper.com/payment-gateway/controllers"
 	"paidpiper.com/payment-gateway/node/local"
+	"paidpiper.com/payment-gateway/version"
 )
 
 type loggableWriter struct {
@@ -50,7 +51,9 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 	router := &loggableWriter{
 		Router: *mux.NewRouter(),
 	}
-
+	router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, version.Version())
+	})
 	router.Handle("/api/utility/createPaymentInfo", http.HandlerFunc(utilityController.HttpNewPaymentRequest)).Methods("POST")
 	router.Handle("/api/utility/validatePayment", http.HandlerFunc(utilityController.HttpValidatePayment)).Methods("POST")
 	router.Handle("/api/utility/transactions/flush", http.HandlerFunc(utilityController.HttpFlushTransactions)).Methods("GET")

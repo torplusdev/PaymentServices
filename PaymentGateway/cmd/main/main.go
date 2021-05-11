@@ -7,6 +7,7 @@ import (
 
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/config"
+	"paidpiper.com/payment-gateway/version"
 
 	"paidpiper.com/payment-gateway/serviceNode"
 )
@@ -14,6 +15,7 @@ import (
 func main() {
 
 	stop := make(chan os.Signal, 1)
+	log.Printf("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
 	config, err := config.ParseConfig()
 
 	if err != nil {

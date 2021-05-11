@@ -34,9 +34,28 @@ test:
 precommit:
 	make lint-check
 	make fmt-check
+
+# Build binaries
+VERSION:=$(shell git describe --tags --dirty --always)
+COMMIT_HASH:=$(shell git rev-parse --short HEAD 2>/dev/null)
+BUILD_DATE:=$(shell date "+%Y-%m-%d")
+
+PKG:=paidpiper.com/payment-gateway/version
+LDFLAGSVERSION:=-X $(PKG).commitHash=$(COMMIT_HASH) -X $(PKG).buildDate=$(BUILD_DATE) -X $(PKG).version=$(VERSION)
+
 build:
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGSVERSION)" -o ./main_darwin ./cmd/main/
+	GOOS=linux GOARCH=386 CGO_ENABLED=0 go build $(LDFLAGSVERSION)" -o ./main_linux  ./cmd/main/
+	GOOS=windows GOARCH=386 CGO_ENABLED=0 go build $(LDFLAGSVERSION)" -o ./main_windows ./cmd/main/
+run:
+	go run ./cmd/main/ 
+generatordeps:
+	go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen
 	
-	GOOS=darwin GOARCH=arm64 go build -o ./main_darwin ./cmd/main/
-	GOOS=linux GOARCH=386 CGO_ENABLED=0 go build -o ./main_linux  ./cmd/main/
-	GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -o ./main_windows ./cmd/main/
+generate:
+	oapi-codegen -package server -generate chi-server swagger-doc.yaml  > ./http/server/chi-server.gen.go
+	oapi-codegen -package server -generate types swagger-doc.yaml  > ./http/server/types.gen.go
+#	oapi-codegen -package server -generate client swagger-doc.yaml  > ./http/client/client.gen.go
+#	oapi-codegen -package server -generate types swagger-doc.yaml  > ./http/client/types.gen.go
+# types,client,chi-server,server,spec,skip-fmt,skip-prune
 	

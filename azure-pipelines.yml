@@ -69,15 +69,15 @@ steps:
     replaceExistingArchive: true
     verbose: true
 
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway$(ext)'
-    includeRootFolder: true
-    archiveType: '7z'
-    sevenZipCompression: 'ultra'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(osName)-latest.7z'
-    replaceExistingArchive: true
-    verbose: true
+#- task: ArchiveFiles@2
+#  inputs:
+#    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway$(ext)'
+#    includeRootFolder: true
+#    archiveType: '7z'
+#    sevenZipCompression: 'ultra'
+#    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(osName)-latest.7z'
+#    replaceExistingArchive: true
+#    verbose: true
 
 - task: PublishBuildArtifacts@1
   inputs:

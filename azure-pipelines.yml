@@ -34,6 +34,7 @@ pool:
 
 steps:
 - script:
+    brew unlink go@1.15
     brew install go@1.16
   displayName: 'Install go 1.16 on macOS'
   condition: eq(variables.osName, 'mac')

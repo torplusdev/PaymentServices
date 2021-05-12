@@ -20,12 +20,12 @@ strategy:
       osName: 'linux'
       ext: ''
       addldflags: ''
-#    windows:
-#      poolName: 'Windows_Pool'
-#      vmImage:
-#      osName: 'windows'
-#      ext: ".exe"
-#      addldflags: '-ldflags -H=windowsgui'
+    windows:
+      poolName: 'Windows_Pool'
+      vmImage:
+      osName: 'windows'
+      ext: ".exe"
+      addldflags: '-ldflags -H=windowsgui'
     mac:
       poolName: 'Azure Pipelines'
       vmImage: 'macOS-10.14'

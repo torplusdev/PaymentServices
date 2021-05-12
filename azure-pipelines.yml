@@ -55,7 +55,7 @@ steps:
   displayName: 'Running all the tests'
   
 - script: |
-    go build -v -o payment-gateway $(addldflags)  paidpiper.com/payment-gateway/cmd/main
+    go build -v -o payment-gateway$(ext) $(addldflags)  paidpiper.com/payment-gateway/cmd/main
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
   displayName: 'Building Payment Gateway'
 

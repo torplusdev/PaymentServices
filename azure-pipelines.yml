@@ -6,6 +6,12 @@
 trigger:
 - pp_master
 
+variables:
+   major: 1
+   minor: 0
+
+name: $(major).$(minor)$(Rev:.r)
+
 strategy:
   matrix:
     linux:
@@ -59,7 +65,7 @@ steps:
     includeRootFolder: true
     archiveType: '7z'
     sevenZipCompression: 'ultra'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(osName)-$(Build.BuildId).7z'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(osName)-$(Build.BuildNumber).7z'
     replaceExistingArchive: true
     verbose: true
 

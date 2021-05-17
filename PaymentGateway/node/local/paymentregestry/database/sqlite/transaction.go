@@ -48,7 +48,7 @@ func (prdb *liteDb) InsertTransaction(item *entity.DbTransactoin) error {
 		?,
 		?,
 		?,
-		?,
+		?
 	);
 
 `)

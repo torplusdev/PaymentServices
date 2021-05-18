@@ -15,14 +15,25 @@ import (
 	chi_server "paidpiper.com/payment-gateway/http/server"
 	"paidpiper.com/payment-gateway/node/local"
 	"paidpiper.com/payment-gateway/version"
+	"paidpiper.com/payment-gateway/web"
 )
 
 type loggableWriter struct {
 	mux.Router
+	cors bool
 }
 
 func (r *loggableWriter) Handle(path string, handler http.Handler) *mux.Route {
-	return r.Router.Handle(path, handlers.LoggingHandler(log.Writer(), handler))
+	if !r.cors {
+		h := handlers.LoggingHandler(log.Writer(), handler)
+		return r.Router.Handle(path, h)
+	} else {
+		h := handlers.LoggingHandler(log.Writer(), handler)
+		return r.Router.Handle(path, http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+			rw.Header().Set("Access-Control-Allow-Origin", "*")
+			h.ServeHTTP(rw, r)
+		}))
+	}
 }
 
 func RunHttpServer(config *config.Configuration) (func(), error) {
@@ -52,6 +63,7 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 	router := &loggableWriter{
 		Router: *mux.NewRouter(),
 	}
+
 	router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, version.Version())
 	})
@@ -71,6 +83,10 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 
 	router.Handle("/api/resolver/setupResolving", http.HandlerFunc(resolverController.SetupResolving)).Methods("GET")
 	router.Handle("/api/resolver/resolve", http.HandlerFunc(resolverController.DoResolve)).Methods("POST")
+	fsHandler, err := web.Handler()
+	if err != nil {
+		router.Handle("/", fsHandler)
+	}
 
 	chiHandler := chi_server.Handler(utilityController)
 	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

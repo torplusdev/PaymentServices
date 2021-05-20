@@ -170,9 +170,38 @@ func (n *nodeImpl) NewPaymentRequest(ctx context.Context, request *models.Create
 	return pr, nil
 }
 
-func (n *nodeImpl) CreateTransaction(context context.Context, command *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
-	fee := command.TotalIn - command.TotalOut
-	return n.createTransactionWithFee(context, fee, command)
+func (n *nodeImpl) CreateTransaction(context context.Context, request *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
+	nodeAddress := n.GetAddress()
+	_, span := n.tracer.Start(context, "node-CreateTransaction "+nodeAddress)
+	defer span.End()
+	fee := request.TotalIn - request.TotalOut
+	log.Infof("CreateTransaction: Starting %s %d + %d = %d => %s ", request.SourceAddress, request.TotalIn, fee, request.TotalOut, nodeAddress)
+	span.SetAttributes(core.KeyValue{Key: "payment.source-address", Value: core.String(request.SourceAddress)})
+	span.SetAttributes(core.KeyValue{Key: "payment.destination-address", Value: core.String(nodeAddress)})
+	span.SetAttributes(core.KeyValue{Key: "payment.amount-in", Value: core.Uint32(request.TotalIn)})
+	span.SetAttributes(core.KeyValue{Key: "payment.amount-out", Value: core.Uint32(request.TotalOut)})
+	pt := &models.PaymentTransaction{
+		TransactionSourceAddress:  nodeAddress,
+		ReferenceAmountIn:         request.TotalIn,
+		AmountOut:                 request.TotalOut,
+		PaymentSourceAddress:      request.SourceAddress,
+		PaymentDestinationAddress: nodeAddress,
+		ServiceSessionId:          request.ServiceSessionId,
+	}
+
+	tr, err := n.createTransactionWrapper(pt)
+	if err != nil {
+		return nil, fmt.Errorf("Error creating transaction wrapper: %v", err)
+	}
+
+	tr, err = n.rootClient.CreateTransaction(request, tr)
+	if err != nil {
+		return nil, err
+	}
+	tr.ToSpanAttributes(span, "create")
+	return &models.CreateTransactionResponse{
+		Transaction: tr,
+	}, nil
 }
 
 func (n *nodeImpl) ValidatePayment(ctx context.Context, request *models.ValidatePaymentRequest) (*models.ValidatePaymentResponse, error) {
@@ -212,46 +241,6 @@ func (n *nodeImpl) createReferenceTransaction(pt *models.PaymentTransaction, ref
 	return &models.PaymentTransactionReplacing{
 		PendingTransaction:   *pt,
 		ReferenceTransaction: ref,
-	}, nil
-
-}
-
-func (n *nodeImpl) createTransactionWithFee(context context.Context, fee uint32, request *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error) {
-
-	_, span := n.tracer.Start(context, "node-CreateTransaction "+n.GetAddress())
-	defer span.End()
-
-	log.Infof("CreateTransaction: Starting %s %d + %d = %d => %s ", request.SourceAddress, request.TotalIn, fee, request.TotalOut, n.GetAddress())
-
-	//Verify fee
-	if request.TotalIn-request.TotalOut != fee {
-		return nil, errors.Errorf("Incorrect fee requested: %d != %d", request.TotalIn-request.TotalOut, fee)
-	}
-
-	span.SetAttributes(core.KeyValue{Key: "payment.source-address", Value: core.String(request.SourceAddress)})
-	span.SetAttributes(core.KeyValue{Key: "payment.destination-address", Value: core.String(n.GetAddress())})
-	span.SetAttributes(core.KeyValue{Key: "payment.amount-in", Value: core.Uint32(request.TotalIn)})
-	span.SetAttributes(core.KeyValue{Key: "payment.amount-out", Value: core.Uint32(request.TotalOut)})
-	pt := &models.PaymentTransaction{
-		TransactionSourceAddress:  n.GetAddress(),
-		ReferenceAmountIn:         request.TotalIn,
-		AmountOut:                 request.TotalOut,
-		PaymentSourceAddress:      request.SourceAddress,
-		PaymentDestinationAddress: n.GetAddress(), //TODO CHECK IN MASTER
-		ServiceSessionId:          request.ServiceSessionId,
-	}
-	tr, err := n.createTransactionWrapper(pt)
-	if err != nil {
-		//log.Fatal("Error creating transaction wrapper: " + err.Error())
-		return nil, errors.Errorf("Error creating transaction wrapper: %v", err)
-	}
-	tr, err = n.rootClient.CreateTransaction(request, tr)
-	if err != nil {
-		return nil, err
-	}
-	tr.ToSpanAttributes(span, "create")
-	return &models.CreateTransactionResponse{
-		Transaction: tr,
 	}, nil
 
 }

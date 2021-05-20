@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	boomserver "paidpiper.com/payment-gateway/boom/server"
 	"paidpiper.com/payment-gateway/models"
 )
 
@@ -43,7 +44,7 @@ func NewServer(commandListenPort int, ppcallback *PPCallback) CallbackHandler {
 	router.HandleFunc("/api/command", callbackServer.HandleProcessCommand).Methods("POST")
 	router.HandleFunc("/api/commandResponse", callbackServer.HandleProcessCommandResponse).Methods("POST")
 	router.HandleFunc("/api/paymentResponse", callbackServer.HandleProcessPaymentResponse).Methods("POST")
-
+	boomserver.AddHandlers(router)
 	callbackServer.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", commandListenPort),
 		Handler: router,

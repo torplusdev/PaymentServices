@@ -2,6 +2,7 @@ package paymentregestry
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"paidpiper.com/payment-gateway/models"
@@ -27,23 +28,42 @@ func NewWithDB(db database.Db) (PaymentRegistry, error) {
 
 	return regestryWithDb, nil
 }
+
+func (prdb *paymentRegistryWithDb) openDb() bool {
+	err := prdb.db.Open()
+	if err != nil {
+		prdb.LogError(err)
+		return false
+	}
+	return true
+}
+func (prdb *paymentRegistryWithDb) closeDb() {
+	err := prdb.db.Close()
+	if err != nil {
+		prdb.LogError(err)
+	}
+}
 func (prdb *paymentRegistryWithDb) LogError(err error) {
 	//TODO TO LOGGER
+	fmt.Printf("Payment regestry error: %s", err)
 }
 
 func (prdb *paymentRegistryWithDb) AddServiceUsage(sessionId string, pr *models.PaymentRequest) {
-	err := prdb.db.InsertPaymentRequest(&entity.DbPaymentRequest{
-		SessionId:        sessionId,
-		Amount:           int(pr.Amount),
-		Asset:            pr.Asset,
-		Address:          pr.Address,
-		ServiceRef:       pr.ServiceRef,
-		ServiceSessionId: pr.ServiceSessionId,
-		Date:             time.Now(),
-		CompleteDate:     sql.NullTime{},
-	})
-	if err != nil {
-		prdb.LogError(err)
+	if prdb.openDb() {
+		defer prdb.closeDb()
+		err := prdb.db.InsertPaymentRequest(&entity.DbPaymentRequest{
+			SessionId:        sessionId,
+			Amount:           int(pr.Amount),
+			Asset:            pr.Asset,
+			Address:          pr.Address,
+			ServiceRef:       pr.ServiceRef,
+			ServiceSessionId: pr.ServiceSessionId,
+			Date:             time.Now(),
+			CompleteDate:     sql.NullTime{},
+		})
+		if err != nil {
+			prdb.LogError(err)
+		}
 	}
 	prdb.PaymentRegistry.AddServiceUsage(sessionId, pr)
 }
@@ -59,12 +79,16 @@ func (prdb *paymentRegistryWithDb) GetPendingAmount(sourceAddress string) (amoun
 }
 
 func (prdb *paymentRegistryWithDb) SaveTransaction(sequence int64, transaction *models.PaymentTransaction) {
-	err := prdb.db.InsertTransaction(&entity.DbTransactoin{
-		Sequence: sequence,
-	})
-	if err != nil {
-		prdb.LogError(err)
+	if prdb.openDb() {
+		defer prdb.closeDb()
+		err := prdb.db.InsertTransaction(&entity.DbTransactoin{
+			Sequence: sequence,
+		})
+		if err != nil {
+			prdb.LogError(err)
+		}
 	}
+
 	prdb.PaymentRegistry.SaveTransaction(sequence, transaction)
 }
 

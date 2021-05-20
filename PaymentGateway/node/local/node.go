@@ -32,6 +32,7 @@ type LocalPPNode interface {
 	GetStellarAddress() *models.GetStellarAddressResponse
 	NewPaymentRequest(ctx context.Context, request *models.CreatePaymentInfo) (*models.PaymentRequest, error)
 	ValidatePayment(ctx context.Context, request *models.ValidatePaymentRequest) (*models.ValidatePaymentResponse, error)
+	GetTransactionInfo() *models.GetTransactionInfoResponse
 	GetTransactions() []*models.PaymentTransaction
 	GetTransaction(sessionId string) *models.PaymentTransaction
 	FlushTransactions(context context.Context) error
@@ -60,6 +61,7 @@ type nodeImpl struct {
 	flushMux                     sync.Mutex
 	asyncMode                    bool
 	callbackerFactory            CallbackerFactory
+	lastFlush					 time.Time
 }
 
 func New(rootClient root.RootApi,
@@ -89,7 +91,9 @@ func New(rootClient root.RootApi,
 		flushMux:                     sync.Mutex{}, //TODO MOVE TO PAYMENT REGESTRY
 		accumulatingTransactionsMode: nodeConfig.AccumulateTransactions,
 		asyncMode:                    nodeConfig.AsyncMode,
+		lastFlush: 					  time.Time{},
 	}
+
 	node.runTicker(nodeConfig.AutoFlushPeriod)
 	return node, nil
 }
@@ -410,6 +414,20 @@ func (n *nodeImpl) GetTransactions() []*models.PaymentTransaction {
 	return trs
 }
 
+func (n *nodeImpl) GetTransactionInfo() *models.GetTransactionInfoResponse {
+	tris := models.GetTransactionInfoResponse{}
+	var total models.TransactionAmount = 0
+
+	for _, item := range n.paymentRegistry.GetActiveTransactions() {
+		total += (item.ReferenceAmountIn - item.AmountOut)
+	}
+
+	tris.TotalPending = total
+	tris.LastSyncTimestamp = n.lastFlush
+
+	return &tris
+}
+
 func (n *nodeImpl) GetTransaction(sessionId string) *models.PaymentTransaction {
 	return n.paymentRegistry.GetTransactionBySessionId(sessionId)
 }
@@ -420,6 +438,8 @@ func (n *nodeImpl) FlushTransactions(context context.Context) error {
 	defer span.End()
 
 	log.Infof("FlushTransactions started")
+
+	n.lastFlush = time.Now()
 
 	//TODO Sort transaction by sequence number and make sure to submit them only in sequence number order
 	transactions := n.paymentRegistry.GetActiveTransactions()

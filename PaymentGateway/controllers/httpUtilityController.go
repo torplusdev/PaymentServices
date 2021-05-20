@@ -32,6 +32,16 @@ func (u *HttpUtilityController) ListTransactions(w http.ResponseWriter, r *http.
 	Respond(w, trx)
 }
 
+func (u *HttpUtilityController) HttpGetTransactionInfo(w http.ResponseWriter, r *http.Request) {
+	_, span := spanFromRequest(r, "requesthandler:GetTransactionInfo")
+	defer span.End()
+
+	trx := u.GetTransactionInfo()
+
+	Respond(w, trx)
+}
+
+
 func (u *HttpUtilityController) HttpGetTransaction(w http.ResponseWriter, r *http.Request) {
 	_, span := spanFromRequest(r, "requesthandler:GetTransaction")
 	defer span.End()

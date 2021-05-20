@@ -58,6 +58,7 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 	router.Handle("/api/utility/createPaymentInfo", http.HandlerFunc(utilityController.HttpNewPaymentRequest)).Methods("POST")
 	router.Handle("/api/utility/validatePayment", http.HandlerFunc(utilityController.HttpValidatePayment)).Methods("POST")
 	router.Handle("/api/utility/transactions/flush", http.HandlerFunc(utilityController.HttpFlushTransactions)).Methods("GET")
+	router.Handle("/api/utility/transactions/info", http.HandlerFunc(utilityController.HttpGetTransactionInfo)).Methods("GET")
 	router.Handle("/api/utility/transactions", http.HandlerFunc(utilityController.ListTransactions)).Methods("GET")
 	router.Handle("/api/utility/transaction/{sessionId}", http.HandlerFunc(utilityController.HttpGetTransaction)).Methods("GET")
 	router.Handle("/api/utility/stellarAddress", http.HandlerFunc(utilityController.HttpGetStellarAddress)).Methods("GET")

@@ -3,7 +3,6 @@ module paidpiper.com/payment-gateway
 go 1.12
 
 require (
-	github.com/d4l3k/messagediff v1.2.1 // indirect
 	github.com/deepmap/oapi-codegen v1.6.1
 	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-errors/errors v0.0.0-20150906023321-a41850380601
@@ -20,7 +19,6 @@ require (
 	github.com/stellar/go v0.0.0-20210324164845-827227e3edd3
 	github.com/stretchr/testify v1.5.1
 	github.com/tkanos/gonfig v0.0.0-20181112185242-896f3d81fadf
-	github.com/tylertreat/BoomFilters v0.0.0-20210315201527-1a82519a3e43
 	go.opentelemetry.io/otel v0.4.2
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.4.2
 	google.golang.org/grpc v1.27.1

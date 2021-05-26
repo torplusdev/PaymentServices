@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	webUiConfig "paidpiper.com/provider-service/config"
+	webUiServer "paidpiper.com/provider-service/server"
+
+	"github.com/go-chi/chi"
 	"github.com/golang/glog"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -14,8 +18,8 @@ import (
 	"paidpiper.com/payment-gateway/controllers"
 	chi_server "paidpiper.com/payment-gateway/http/server"
 	"paidpiper.com/payment-gateway/node/local"
+	"paidpiper.com/payment-gateway/serviceNode/uiclient"
 	"paidpiper.com/payment-gateway/version"
-	"paidpiper.com/payment-gateway/web"
 )
 
 type loggableWriter struct {
@@ -84,12 +88,18 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 
 	router.Handle("/api/resolver/setupResolving", http.HandlerFunc(resolverController.SetupResolving)).Methods("GET")
 	router.Handle("/api/resolver/resolve", http.HandlerFunc(resolverController.DoResolve)).Methods("POST")
-	fsHandler, err := web.Handler()
+
+	uiServer, err := webUiServer.New(webUiConfig.InitConfig(), uiclient.New(localNode))
 	if err != nil {
-		router.Handle("/", fsHandler)
+		fmt.Println("start web ui server error")
+	}
+	var baseRouter chi.Router = chi.NewRouter()
+	baseRouter.NotFound(uiServer.ServeHTTP)
+	clOptions := chi_server.ChiServerOptions{
+		BaseRouter: nil,
 	}
 
-	chiHandler := chi_server.Handler(utilityController)
+	chiHandler := chi_server.HandlerWithOptions(utilityController, clOptions)
 	router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		chiHandler.ServeHTTP(w, r)
 	})

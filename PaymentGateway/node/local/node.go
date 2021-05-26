@@ -46,6 +46,8 @@ type LocalPPNode interface {
 	// Additional
 	GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error)
 	GetBookBalance() (*models.BookBalanceResponse, error)
+	//UI METHODS
+
 }
 
 type nodeImpl struct {

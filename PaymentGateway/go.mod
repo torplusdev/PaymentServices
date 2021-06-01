@@ -1,8 +1,9 @@
 module paidpiper.com/payment-gateway
 
-go 1.12
+go 1.16
 
 require (
+	github.com/bobesa/go-domain-util v0.0.0-20190911083921-4033b5f7dd89 // indirect
 	github.com/deepmap/oapi-codegen v1.6.1
 	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-errors/errors v0.0.0-20150906023321-a41850380601

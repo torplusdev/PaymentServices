@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"encoding/json"
+	"github.com/bobesa/go-domain-util/domainutil"
 	"github.com/go-errors/errors"
 	"github.com/stellar/go/support/log"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -147,15 +149,53 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	resolvedName, err := r.resolveByEthLink(domain)
-	if err != nil {
-		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during resolution process"))
-		return
+	var resolvedName = ""
+
+	if strings.HasSuffix(domain, ".eth") {
+		// Use ENS resolving
+		ethName, err := r.resolveByEthLink(domain)
+		if err != nil {
+			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during resolution process"))
+			return
+		}
+
+		resolvedName = ethName
+	} else {
+
+		topLevelDomain := domainutil.Domain(domain)
+
+		// Use DNS resolving
+		dnsNames, err := net.LookupTXT(topLevelDomain)
+
+		if err != nil {
+			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during DNS resolution process: "+err.Error()))
+			return
+		}
+
+		if len(dnsNames) == 0 {
+			Respond(w, MessageWithStatus(http.StatusInternalServerError, "No TXT entry was found for provided domain: "+domain))
+			return
+		}
+
+		// Parse TXT entry into lookup
+		ss := strings.Split(dnsNames[0], ",")
+		m := make(map[string]string)
+		for _, pair := range ss {
+			z := strings.Split(pair, "=")
+			m[z[0]] = z[1]
+		}
+
+		resolvedName = m["torplus"]
 	}
 
 	//TODO: Parse the response using multiaddr
 	if strings.HasPrefix(resolvedName, "/onion3/") {
 		resolvedName = strings.TrimPrefix(resolvedName, "/onion3/") + ".onion"
+	}
+
+	// If the address is probably an onion address without .onion extension, add it
+	if len(resolvedName) == 56 && !strings.ContainsRune(resolvedName, '.') {
+		resolvedName = resolvedName + ".onion"
 	}
 
 	r.resolveCache[domainKey] = resolvedName

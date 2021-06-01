@@ -1,9 +1,9 @@
 {
-  "Port"        : 28080,
-  "StellarSeed"	: "SAGWKBJQ5J2AJAM5YTEUGSOEXUBOVNZJ6FNJDN7CBKZ543VRQ7XTDFIQ",
-  "JaegerUrl"   : "http://192.168.162.128:14268/api/traces",
-  "JaegerServiceName" : "TestNode",
-  "AutoFlushPeriod"	  : "15m",
-  "TransactionValidityPeriodSec"  : 21600,
-  "MaxConcurrency"	  : 10
+  "Port": 28080,
+  "StellarSeed": "SAGWKBJQ5J2AJAM5YTEUGSOEXUBOVNZJ6FNJDN7CBKZ543VRQ7XTDFIQ",
+  "JaegerUrl": "http://192.168.162.128:14268/api/traces",
+  "JaegerServiceName": "TestNode",
+  "AutoFlushPeriod": "15m",
+  "TransactionValidityPeriodSec": 21600,
+  "MaxConcurrency": 10
 }

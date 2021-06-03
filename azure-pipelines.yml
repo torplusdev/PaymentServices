@@ -48,7 +48,10 @@ steps:
     go version
     go env
   displayName: 'Checking Go installation'
-  
+- checkout: self 
+  clean: true
+  submodules: recursive
+  displayName: 'Fetching all the changes'
 - script: |
     go test -v ./... | true
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway

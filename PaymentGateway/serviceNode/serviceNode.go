@@ -94,20 +94,16 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 		fmt.Println("start web ui server error")
 	}
 	var baseRouter chi.Router = chi.NewRouter()
-	baseRouter.NotFound(func(rw http.ResponseWriter, r *http.Request) {
-		uiServer.ServeHTTP(rw, r)
-	})
+	baseRouter.NotFound(uiServer.ServeHTTP)
 	clOptions := chi_server.ChiServerOptions{
 		BaseRouter: baseRouter,
 	}
-
 	chiHandler := chi_server.HandlerWithOptions(utilityController, clOptions)
 	router.NotFoundHandler = http.HandlerFunc(chiHandler.ServeHTTP)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: handlers.RecoveryHandler()(router),
 	}
-
 	server.SetKeepAlivesEnabled(false)
 
 	go func() { //TODO DONE
@@ -115,5 +111,6 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 			glog.Warningf("Error starting service node: %s", err)
 		}
 	}()
+	fmt.Println("Server is ready!")
 	return server
 }

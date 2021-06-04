@@ -47,14 +47,9 @@ build:
 	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_darwin ./cmd/main/
 	GOOS=linux GOARCH=386 CGO_ENABLED=0 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_linux  ./cmd/main/
 	GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_windows ./cmd/main/
+	go build -ldflags "$(LDFLAGSVERSION)" -o ./main_current ./cmd/main/
 run:
 	go run ./cmd/main/ 
-image: 
-	docker build -f Dockerfile -t paymentgateway -t torplusserviceregistry.azurecr.io/private/paymentgateway ../
-push: image
-	docker push torplusserviceregistry.azurecr.io/private/paymentgateway 
-run: 
-	docker run -p 28080:28080 --rm torplusserviceregistry.azurecr.io/private/paymentgateway
 
 generatordeps:
 	go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen

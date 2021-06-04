@@ -21,5 +21,5 @@ if [ $# -eq 0 ]
 then
     /opt/paidpiper/payment-gateway | mark "Server is ready!" ".pgready"
 else 
-    exec "$@" | mark "Server is ready!" ".pgready"
+    exec "$@" | mark "Server is ready!" ".pg_ready"
 fi

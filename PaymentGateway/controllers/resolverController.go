@@ -109,8 +109,9 @@ func (r *ResolverController) resolveByEthLink(domain string) (string, error) {
 
 	for _, answer := range result.Answer {
 
-		if strings.HasPrefix(answer.Data, "dnslink") {
-			resolvedData = strings.TrimPrefix(answer.Data, "dnslink=")
+		var token = strings.Trim(answer.Data, "\"'\n ")
+		if strings.HasPrefix(token, "dnslink") {
+			resolvedData = strings.TrimPrefix(token, "dnslink=")
 			log.Debugf("resolveByEthLink dnslink response: %s ", answer)
 		}
 	}

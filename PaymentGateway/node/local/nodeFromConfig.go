@@ -96,7 +96,7 @@ func CreateRootApi(cfg config.RootApiConfig) (root.RootApi, error) {
 		glog.Infof("Error retrieving account data: %s", err)
 		return nil, err
 	}
-	fmt.Printf("Current balance for %v:%v", rootClient.GetAddress(), balance)
+	fmt.Printf("Current balance for %v:%v\n", rootClient.GetAddress(), balance)
 	return rootClient, nil
 }
 

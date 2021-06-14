@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 type TransactionAmount = uint32
 type PeerID string
 
@@ -20,7 +22,7 @@ type PaymentRequest struct {
 	Address          string
 }
 
-/*
+
 
 type inPaymentRequest PaymentRequest
 
@@ -58,4 +60,4 @@ func (pr *PaymentRequest) UnmarshalJSON(b []byte) error {
 	pr.ServiceSessionId = inPr.ServiceSessionId
 	return nil
 }
-*/
+

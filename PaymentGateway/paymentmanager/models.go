@@ -13,7 +13,7 @@ type PaymentData interface {
 }
 
 type InitiatePayment struct {
-	PaymentRequest string
+	PaymentRequest *models.PaymentRequest // json marshal
 }
 
 func (m *InitiatePayment) Handler(from models.PeerID) PaymentHandler {
@@ -29,8 +29,8 @@ type InitiatePaymentHandler struct {
 }
 
 func (i *InitiatePaymentHandler) Handle(paymentHandler DebtRegestry, peerHandler PeerHandler, client ClientHandler) {
-	req := &models.ShapelessValidatePaymentRequest{
-		PaymentRequest: i.msg.PaymentRequest,
+	req := &models.ValidatePaymentRequest{
+		PaymentRequest: *i.msg.PaymentRequest,
 		ServiceType:    "ipfs",
 		CommodityType:  "data",
 	}

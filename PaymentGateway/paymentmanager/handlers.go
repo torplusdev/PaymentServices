@@ -40,7 +40,7 @@ func (r *RequirePaymentHandler) Handle(paymentHandler DebtRegestry, peerHandler 
 			return
 		}
 		initiatePayment := &InitiatePayment{ //TODO SERIALIZE PROPERTY LIKE BYTES
-			paymentRequest,
+			PaymentRequest: paymentRequest,
 		}
 		peerHandler.SendPaymentDataMessage(r.target, initiatePayment)
 		debt.requestedAmount += amount

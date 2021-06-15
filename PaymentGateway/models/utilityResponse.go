@@ -12,7 +12,6 @@ type UtilityResponse struct {
 	CommandResponse []byte `json:"responseBody"`
 }
 
-
 type ProcessCommandResponse struct {
 	CommandResponseCore
 	Response OutCommandType `json:"responseBody"`
@@ -34,28 +33,27 @@ func (pr *ProcessCommandResponse) MarshalJSON() ([]byte, error) {
 	return bs, err
 }
 
-func UnmarshalCommandResponseJSON(commandType CommandType, data []byte) (*ProcessCommandResponse, error) {
-	typ := &UtilityResponse{}
-	if err := json.Unmarshal(data, &typ); err != nil {
-		return nil, err
-	}
-	val, err := CommandType_CommandResponse(commandType)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(typ.CommandResponse, val)
-	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &ProcessCommandResponse{
-		CommandResponseCore: typ.CommandResponseCore,
-		Response:            val,
-	}, nil
-}
-
+// func UnmarshalCommandResponseJSON(commandType CommandType, data []byte) (*ProcessCommandResponse, error) {
+// 	typ := &UtilityResponse{}
+// 	if err := json.Unmarshal(data, &typ); err != nil {
+// 		return nil, err
+// 	}
+// 	val, err := CommandType_CommandResponse(commandType)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	err = json.Unmarshal(typ.CommandResponse, val)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return &ProcessCommandResponse{
+// 		CommandResponseCore: typ.CommandResponseCore,
+// 		Response:            val,
+// 	}, nil
+// }
 
 // func (d *ProcessCommandResponse) UnmarshalJSON(data []byte) error {
 // 	var typ struct {

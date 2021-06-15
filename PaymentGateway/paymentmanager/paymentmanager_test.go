@@ -9,14 +9,14 @@ import (
 type paymentHandlerMock struct {
 	debtRegistry           map[models.PeerID]*Debt
 	requestedPaymentAmount uint32
-	paymentRequest         string
+	paymentRequest         *models.PaymentRequest
 }
 
 func (p *paymentHandlerMock) GetDebt(id models.PeerID) *Debt {
 	return p.debtRegistry[id]
 }
 
-func (p *paymentHandlerMock) CreatePaymentInfo(amount uint32) (string, error) {
+func (p *paymentHandlerMock) CreatePaymentInfo(amount uint32) (*models.PaymentRequest, error) {
 	p.requestedPaymentAmount = amount
 
 	return p.paymentRequest, nil
@@ -34,7 +34,7 @@ func (p *paymentHandlerMock) ProcessResponse(nodeId models.PeerID, msg *PaymentR
 	panic("not implemented")
 }
 
-func (p *paymentHandlerMock) ValidatePayment(req *models.ShapelessValidatePaymentRequest) (uint32, error) {
+func (p *paymentHandlerMock) ValidatePayment(req *models.ValidatePaymentRequest) (uint32, error) {
 	panic("not implemented")
 }
 
@@ -63,7 +63,7 @@ func TestRequirePayment(t *testing.T) {
 		transferredBytes: 49 * 1024 * 1024, // 52 Mega transferred
 		receivedBytes:    0,
 	}
-	paymentRequestConst := "sampleRequestInJson"
+	paymentRequestConst := &models.PaymentRequest{}
 	paymentMock := &paymentHandlerMock{
 		debtRegistry: map[models.PeerID]*Debt{
 			"TargetId": &debt,

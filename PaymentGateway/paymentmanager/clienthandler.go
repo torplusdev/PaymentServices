@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/stellar/go/support/log"
@@ -67,10 +66,10 @@ func (pm *ppClient) ProcessCommand(nodeId models.PeerID, msg *PaymentCommand) er
 
 func (pm *ppClient) ProcessPayment(nodeId models.PeerID, msg *InitiatePayment) {
 	request := &models.ProcessPaymentRequest{
-		CallbackUrl: fmt.Sprintf("http://localhost:%d/api/command", pm.commandListenPort),
-		//PaymentRequest: msg.paymentRequest, TODO FIX WHEN
-		NodeId: nodeId,
-		Route:  nil, // TODO: remove to start chain payment
+		CallbackUrl:    fmt.Sprintf("http://localhost:%d/api/command", pm.commandListenPort),
+		PaymentRequest: msg.PaymentRequest, // TODO FIX WHEN
+		NodeId:         nodeId,
+		Route:          nil, // TODO: remove to start chain payment
 	}
 	url := fmt.Sprintf("%s/api/gateway/processPayment", pm.channelUrl)
 	response := &models.ProcessPaymentAccepted{}
@@ -83,7 +82,7 @@ func (pm *ppClient) ProcessPayment(nodeId models.PeerID, msg *InitiatePayment) {
 	pm.sessionHandler.Open(response.SessionId, nodeId)
 }
 
-func (pm *ppClient) ValidatePayment(request *models.ShapelessValidatePaymentRequest) (uint32, error) {
+func (pm *ppClient) ValidatePayment(request *models.ValidatePaymentRequest) (uint32, error) {
 	url := fmt.Sprintf("%s/api/utility/validatePayment", pm.channelUrl)
 	response := &models.ValidatePaymentResponse{}
 	err := post(url, request, response)
@@ -94,18 +93,20 @@ func (pm *ppClient) ValidatePayment(request *models.ShapelessValidatePaymentRequ
 }
 
 //TODO CHECK WHY NOT DESEREALIZE
-func (pm *ppClient) CreatePaymentInfo(amount uint32) (string, error) {
+func (pm *ppClient) CreatePaymentInfo(amount uint32) (*models.PaymentRequest, error) {
 	request := models.CreatePaymentInfo{
 		ServiceType:   "ipfs",
 		CommodityType: "data",
 		Amount:        amount,
 	}
 	url := fmt.Sprintf("%s/api/utility/createPaymentInfo", pm.channelUrl)
-	str, err := postBody(url, request)
+	response := &models.PaymentRequest{}
+	err := post(url, request, response)
 	if err != nil {
 		log.Errorf("Validate Payment Request failed: %s", err.Error())
+		return nil, fmt.Errorf("Validate Payment Request failed: %s", err.Error())
 	}
-	return str, err
+	return response, err
 }
 
 func (pm *ppClient) GetTransaction(sessionId string) (trx *models.PaymentTransaction, err error) {
@@ -117,24 +118,6 @@ func (pm *ppClient) GetTransaction(sessionId string) (trx *models.PaymentTransac
 		return nil, err
 	}
 	return
-}
-
-func postBody(url string, values interface{}) (string, error) {
-	jsonValue, err := json.Marshal(values)
-	if err != nil {
-		return "", err
-	}
-	reply, err := http.Post(url, "application/json", bytes.NewBuffer(jsonValue))
-	if err != nil {
-		return "", err
-	}
-	defer reply.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(reply.Body)
-
-	if err != nil {
-		return "", err
-	}
-	return string(bodyBytes), nil
 }
 
 func post(url string, values interface{}, response interface{}) error {

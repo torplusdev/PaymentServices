@@ -91,29 +91,7 @@ func (u *HttpUtilityController) HttpNewPaymentRequest(w http.ResponseWriter, r *
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid commodity"))
 		return
 	}
-
-	// ****** Workaround for incorrect marshalling
-	type innerPaymentRequest struct {
-		Amount           models.TransactionAmount
-		Asset            string
-		ServiceRef       string
-		ServiceSessionId string
-		Address          string
-	}
-
-	dummy := innerPaymentRequest{}
-
-	dummy.Asset = pr.Asset
-	dummy.Amount = pr.Amount
-	dummy.Address = pr.Address
-	dummy.ServiceRef = pr.ServiceRef
-	dummy.ServiceSessionId = pr.ServiceSessionId
-	Respond(w, dummy)
-
-	// ****** End of workaround
-
-
-	//Respond(w, pr)
+	Respond(w, pr)
 }
 
 func (u *HttpUtilityController) HttpValidatePayment(w http.ResponseWriter, r *http.Request) {

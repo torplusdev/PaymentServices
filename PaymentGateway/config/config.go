@@ -113,6 +113,7 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 
 	err := gonfig.GetConf(configFile, &rawConfig)
 	if err != nil {
+		fmt.Println("Read json config error: ", err)
 		return nil, err
 	}
 	instance := &Configuration{
@@ -158,6 +159,7 @@ func ParseConfig() (*Configuration, error) {
 		if len(os.Args) < 3 {
 			log.Panic("Reading configuration file failed, and no command line parameters supplied.")
 		}
+		config = DefaultCfg()
 		config.RootApiConfig.Seed = os.Args[1]
 		config.Port, err = strconv.Atoi(os.Args[2])
 		if err != nil {

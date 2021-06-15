@@ -92,7 +92,28 @@ func (u *HttpUtilityController) HttpNewPaymentRequest(w http.ResponseWriter, r *
 		return
 	}
 
-	Respond(w, pr)
+	// ****** Workaround for incorrect marshalling
+	type innerPaymentRequest struct {
+		Amount           models.TransactionAmount
+		Asset            string
+		ServiceRef       string
+		ServiceSessionId string
+		Address          string
+	}
+
+	dummy := innerPaymentRequest{}
+
+	dummy.Asset = pr.Asset
+	dummy.Amount = pr.Amount
+	dummy.Address = pr.Address
+	dummy.ServiceRef = pr.ServiceRef
+	dummy.ServiceSessionId = pr.ServiceSessionId
+	Respond(w, dummy)
+
+	// ****** End of workaround
+
+
+	//Respond(w, pr)
 }
 
 func (u *HttpUtilityController) HttpValidatePayment(w http.ResponseWriter, r *http.Request) {

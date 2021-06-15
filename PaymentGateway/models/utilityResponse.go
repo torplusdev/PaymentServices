@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 type CommandResponseCore struct {
 	SessionId string `json:"sessionId"`
 	CommandId string `json:"commandId"`
@@ -10,7 +12,7 @@ type UtilityResponse struct {
 	CommandResponse []byte `json:"responseBody"`
 }
 
-/*
+
 type ProcessCommandResponse struct {
 	CommandResponseCore
 	Response OutCommandType `json:"responseBody"`
@@ -53,7 +55,7 @@ func UnmarshalCommandResponseJSON(commandType CommandType, data []byte) (*Proces
 		Response:            val,
 	}, nil
 }
-*/
+
 
 // func (d *ProcessCommandResponse) UnmarshalJSON(data []byte) error {
 // 	var typ struct {
@@ -77,4 +79,5 @@ func UnmarshalCommandResponseJSON(commandType CommandType, data []byte) (*Proces
 // 		d.CommandBody = val
 // 	}
 // 	return nil
+
 // }

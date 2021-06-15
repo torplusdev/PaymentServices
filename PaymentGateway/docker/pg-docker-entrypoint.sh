@@ -19,7 +19,7 @@ function mark {
 }
 if [ $# -eq 0 ]
 then
-    /opt/paidpiper/payment-gateway | mark "Server is ready!" ".pgready"
+    /opt/paidpiper/payment-gateway | mark "Server is ready!" ".pg_ready"
 else 
     exec "$@" | mark "Server is ready!" ".pg_ready"
 fi

@@ -22,7 +22,7 @@ func NewHttpGatewayController(n local.LocalPPNode) *HttpGatewayController {
 }
 
 func (g *HttpGatewayController) HttpProcessResponse(w http.ResponseWriter, r *http.Request) {
-	response := &models.UtilityResponse{}
+	response := &models.ShapelessProcessCommandResponse{}
 
 	err := json.NewDecoder(r.Body).Decode(response)
 

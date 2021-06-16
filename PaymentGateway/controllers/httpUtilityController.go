@@ -125,6 +125,7 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 	defer span.End()
 
 	command := &models.UtilityCommand{}
+
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {

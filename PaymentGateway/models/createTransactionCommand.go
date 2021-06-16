@@ -1,10 +1,10 @@
 package models
 
 type CreateTransactionCommand struct {
-	TotalIn          uint32 `json:"totalIn"`
-	TotalOut         uint32 `json:"totalOut"`
-	SourceAddress    string `json:"sourceAddress"`
-	ServiceSessionId string `json:"serviceSessionId"`
+	TotalIn          uint32 `json:"TotalIn"`
+	TotalOut         uint32 `json:"TotalOut"`
+	SourceAddress    string `json:"SourceAddress"`
+	ServiceSessionId string `json:"ServiceSessionId"`
 }
 
 func (cmd *CreateTransactionCommand) Type() CommandType {
@@ -12,7 +12,7 @@ func (cmd *CreateTransactionCommand) Type() CommandType {
 }
 
 type CreateTransactionResponse struct {
-	Transaction *PaymentTransactionReplacing `json:"transaction"`
+	Transaction *PaymentTransactionReplacing `json:"Transaction"`
 }
 
 func (cmd *CreateTransactionResponse) Type() CommandType {

@@ -43,10 +43,14 @@ BUILD_DATE:=$(shell date "+%Y-%m-%d")
 PKG:=paidpiper.com/payment-gateway/version
 LDFLAGSVERSION:=-X $(PKG).commitHash=$(COMMIT_HASH) -X $(PKG).buildDate=$(BUILD_DATE) -X $(PKG).version=$(VERSION)
 
-build:
+build: build_current build_darwin build_windows build_linux build_current
+build_darwin:
 	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_darwin ./cmd/main/
+build_linux:
 	GOOS=linux GOARCH=386 CGO_ENABLED=0 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_linux  ./cmd/main/
+build_windows:
 	GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_windows ./cmd/main/
+build_current:
 	go build -ldflags "$(LDFLAGSVERSION)" -o ./main_current ./cmd/main/
 run:
 	go run ./cmd/main/ 
@@ -60,4 +64,6 @@ generate:
 #	oapi-codegen -package server -generate client swagger-doc.yaml  > ./http/client/client.gen.go
 #	oapi-codegen -package server -generate types swagger-doc.yaml  > ./http/client/types.gen.go
 # types,client,chi-server,server,spec,skip-fmt,skip-prune
+	
+run_multiple:
 	

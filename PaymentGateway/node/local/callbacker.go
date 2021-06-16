@@ -27,6 +27,7 @@ func newCallbacker(cmd *models.UtilityCommand) CallBacker {
 
 func (cb *callBackerImpl) call(reply models.OutCommandType, err error) error {
 	if cb.url == "" || err != nil {
+		log.Fatalf("Call backer not call reason error: %v", err)
 		return nil
 	}
 	data, err := json.Marshal(reply)
@@ -39,13 +40,16 @@ func (cb *callBackerImpl) call(reply models.OutCommandType, err error) error {
 	values := &models.UtilityResponse{
 		CommandResponse: data,
 		CommandResponseCore: models.CommandResponseCore{
-			CommandId: cmd.CommandCore.CommandId,
-			NodeId:    cmd.CommandCore.NodeId,
+			CommandId: cmd.CommandId,
+			NodeId:    cmd.NodeId,
 			SessionId: cmd.CommandCore.SessionId,
 		},
 	}
-	jsonValue, _ := json.Marshal(values)
-
+	jsonValue, err := json.Marshal(values)
+	if err != nil {
+		log.Errorf("Callbacker marshal error: %v", err)
+	}
+	log.Info("Callbacker Body: %v", string(jsonValue))
 	err = common.HttpPostWithoutResponseContext(cmd.CallbackUrl, bytes.NewBuffer(jsonValue))
 
 	if err != nil {

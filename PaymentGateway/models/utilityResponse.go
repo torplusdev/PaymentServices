@@ -3,18 +3,22 @@ package models
 import "encoding/json"
 
 type CommandResponseCore struct {
-	SessionId string `json:"sessionId"`
-	CommandId string `json:"commandId"`
-	NodeId    string `json:"nodeId"`
+	SessionId string `json:"SessionId"`
+	CommandId string `json:"CommandId"`
+	NodeId    string `json:"NodeId"`
 }
-type UtilityResponse struct {
+type UtilityResponse struct { // FROM PG TO TOR
 	CommandResponseCore
-	CommandResponse []byte `json:"responseBody"`
+	CommandResponse []byte `json:"CommandResponse"`
+}
+type ShapelessProcessCommandResponse struct { // FROM TOR TO PG
+	CommandResponseCore
+	CommandResponse []byte `json:"ResponseBody"`
 }
 
 type ProcessCommandResponse struct {
 	CommandResponseCore
-	Response OutCommandType `json:"responseBody"`
+	Response OutCommandType `json:"CommandResponse"`
 }
 
 func (pr *ProcessCommandResponse) MarshalJSON() ([]byte, error) {
@@ -32,50 +36,3 @@ func (pr *ProcessCommandResponse) MarshalJSON() ([]byte, error) {
 	}
 	return bs, err
 }
-
-// func UnmarshalCommandResponseJSON(commandType CommandType, data []byte) (*ProcessCommandResponse, error) {
-// 	typ := &UtilityResponse{}
-// 	if err := json.Unmarshal(data, &typ); err != nil {
-// 		return nil, err
-// 	}
-// 	val, err := CommandType_CommandResponse(commandType)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	err = json.Unmarshal(typ.CommandResponse, val)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &ProcessCommandResponse{
-// 		CommandResponseCore: typ.CommandResponseCore,
-// 		Response:            val,
-// 	}, nil
-// }
-
-// func (d *ProcessCommandResponse) UnmarshalJSON(data []byte) error {
-// 	var typ struct {
-// 		CommandType CommandType `json:"commandType"`
-// 		CommandBody []byte      `json:"commandBody"`
-// 	}
-// 	if err := json.Unmarshal(data, &typ); err != nil {
-// 		return err
-// 	}
-// 	val, err := CommandType_Command(typ.CommandType)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	err = json.Unmarshal(typ.CommandBody, val)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if err != nil {
-// 		return err
-// 	} else {
-// 		d.CommandBody = val
-// 	}
-// 	return nil
-
-// }

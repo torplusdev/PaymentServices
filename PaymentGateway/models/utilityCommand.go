@@ -44,13 +44,13 @@ func CommandType_Command(c CommandType) (InCommandType, error) {
 	case CommandType_CreateTransaction:
 		return &CreateTransactionCommand{}, nil
 	case CommandType_SignServiceTransaction:
-		return &CreateTransactionCommand{}, nil
+		return &SignServiceTransactionCommand{}, nil
 	case CommandType_SignChainTransaction:
-		return &CreateTransactionCommand{}, nil
+		return &SignChainTransactionCommand{}, nil
 	case CommandType_CommitChainTransaction:
-		return &CreateTransactionCommand{}, nil
+		return &CommitChainTransactionCommand{}, nil
 	case CommandType_CommitServiceTransaction:
-		return &CreateTransactionCommand{}, nil
+		return &CommitServiceTransactionCommand{}, nil
 	default:
 		return nil, fmt.Errorf("command type not found")
 	}
@@ -78,27 +78,18 @@ func CommandType_CommandResponse(c CommandType) (OutCommandType, error) {
 }
 
 type CommandCore struct {
-	SessionId   string      `json:"sessionId"`
-	NodeId      string      `json:"nodeId"`
-	CommandId   string      `json:"commandId"`
-	CommandType CommandType `json:"commandType"`
+	SessionId   string      `json:"SessionId"`
+	NodeId      string      `json:"NodeId"`
+	CommandId   string      `json:"CommandId"`
+	CommandType CommandType `json:"CommandType"`
 }
 type UtilityCommand struct {
 	CommandCore
-	CommandBody InCommandType `json:"commandBody"` //`json:"-"` //
-	CallbackUrl string        `json:"callbackUrl"`
-}
-type ShapelessUtilityCommand struct {
-	CommandCore
-	CommandBody []byte `json:"commandBody"`
-	CallbackUrl string `json:"callbackUrl"` //TODO TO OTHER LAYER
-}
-type ProcessCommand struct {
-	CommandCore
-	CommandBody []byte `json:"commandBody"`
+	CommandBody InCommandType `json:"CommandBody"` //`json:"-"` //
+	CallbackUrl string        `json:"CallbackUrl"`
 }
 
-func (pr *UtilityCommand) MarshalJSON() ([]byte, error) {
+func (pr UtilityCommand) MarshalJSON() ([]byte, error) {
 	bs, err := json.Marshal(&pr.CommandBody)
 	if err != nil {
 		return bs, err
@@ -115,25 +106,32 @@ func (pr *UtilityCommand) MarshalJSON() ([]byte, error) {
 }
 
 func (d *UtilityCommand) UnmarshalJSON(data []byte) error {
-	typ := &ProcessCommand{}
+	typ := &ShapelessUtilityCommand{}
 	if err := json.Unmarshal(data, &typ); err != nil {
 		return err
 	}
 	d.CommandCore = typ.CommandCore
+	d.CallbackUrl = typ.CallbackUrl
 	val, err := CommandType_Command(typ.CommandType)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(typ.CommandBody, val)
-	if err != nil {
-		return err
+	commandBody := typ.CommandBody
+	if err = json.Unmarshal(commandBody, val); err != nil {
+		return fmt.Errorf("unmarshal error: json %v err: %v", string(commandBody), err)
 	}
-	if err != nil {
-		return err
-	} else {
-		d.CommandBody = val
-	}
+	d.CommandBody = val
 	return nil
+}
+
+type ShapelessUtilityCommand struct {
+	CommandCore
+	CommandBody []byte `json:"CommandBody"`
+	CallbackUrl string `json:"CallbackUrl"`
+}
+type ProcessCommand struct {
+	CommandCore
+	CommandBody []byte `json:"CommandBody"`
 }
 
 type GetBalanceResponse struct {

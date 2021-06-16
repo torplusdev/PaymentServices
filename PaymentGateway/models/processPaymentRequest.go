@@ -1,6 +1,10 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 type ProcessPaymentRequest struct {
 	Route []RoutingNode
@@ -59,7 +63,11 @@ func (pr *ProcessPaymentRequest) UnmarshalJSON(b []byte) error {
 	pr.StatusCallbackUrl = typ.StatusCallbackUrl
 	pr.NodeId = typ.NodeId
 	paymentRequest := &PaymentRequest{}
-	err = json.Unmarshal([]byte(typ.PaymentRequest), paymentRequest)
+
+	cleanPaymentRequest := strings.TrimRight(typ.PaymentRequest, "\r\n ")
+	cleanPaymentRequest = strings.ReplaceAll(cleanPaymentRequest, "\\n", "")
+	fmt.Println("JSON: ", cleanPaymentRequest)
+	err = json.Unmarshal([]byte(cleanPaymentRequest), paymentRequest)
 	if err != nil {
 		return err
 	}

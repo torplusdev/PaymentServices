@@ -166,6 +166,14 @@ func ParseConfig() (*Configuration, error) {
 			return nil, fmt.Errorf("port supplied, but couldn't be parsed: %v", err)
 		}
 		return config, nil
+	} else {
+		if len(os.Args) >= 2 {
+			config.RootApiConfig.Seed = os.Args[1]
+			config.Port, err = strconv.Atoi(os.Args[2])
+			if err != nil {
+				return nil, fmt.Errorf("port supplied, but couldn't be parsed: %v", err)
+			}
+		}
 	}
 	return config, nil
 }

@@ -79,7 +79,7 @@ func (p *PPCallbackServer) HandleProcessCommand(w http.ResponseWriter, r *http.R
 
 func (p *PPCallbackServer) HandleProcessCommandResponse(w http.ResponseWriter, r *http.Request) {
 	// Extract command response from the request and forward it to peer
-	response := &models.UtilityResponse{}
+	response := &models.ProcessCommandResponse{}
 	err := json.NewDecoder(r.Body).Decode(response)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)

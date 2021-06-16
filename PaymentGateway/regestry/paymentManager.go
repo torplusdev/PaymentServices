@@ -48,14 +48,22 @@ func (pm *paymentManager) AddStatusCallbacker(scb StatusCallbacker) {
 }
 
 func (pm *paymentManager) AddSourceNode(address string, node node.PPNode) error {
+
 	return pm.nodes.AddSourceNode(address, node)
 }
 
 func (pm *paymentManager) AddChainNode(address, nodeId string, node node.PPNode) error {
+	if n, ok := node.(proxy.ProxyNode); ok {
+		pm.nodesByNodeId[nodeId] = n
+	}
+
 	return pm.nodes.AddChainNode(address, node)
 }
 
 func (pm *paymentManager) AddDestinationNode(address, nodeId string, node node.PPNode) error {
+	if n, ok := node.(proxy.ProxyNode); ok {
+		pm.nodesByNodeId[nodeId] = n
+	}
 	err := pm.nodes.AddDestinationNode(address, node)
 	return err
 }
@@ -151,7 +159,7 @@ func (pm *paymentManager) Complete(msg *models.PaymentStatusResponseModel) {
 func (pm *paymentManager) ProcessResponse(context context.Context, nodeId string, commandId string, response []byte) error {
 	proxyNode, ok := pm.nodesByNodeId[nodeId]
 	if !ok {
-		return fmt.Errorf("proxynode not found")
+		return fmt.Errorf("proxynode not found: NodeID: %v", nodeId)
 	}
 	return proxyNode.ProcessResponse(context, commandId, response)
 }

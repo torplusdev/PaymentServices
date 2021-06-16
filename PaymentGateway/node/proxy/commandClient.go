@@ -117,12 +117,15 @@ func processCommandWrapper(cl *commandClient, context context.Context, request m
 	reply, err := cl.processCommand(context, body)
 
 	if err != nil {
+		log.Printf("Tor command error: %v", err)
 		return errors.Errorf(err.Error())
 	}
 
 	err = json.Unmarshal(reply, out)
 
 	if err != nil {
+		log.Printf("ResponseJSON: %v", string(reply))
+		log.Printf("Tor command unmarshal error: %v", err)
 		return errors.Errorf(err.Error())
 	}
 
@@ -134,6 +137,7 @@ func (cl *commandClient) WrapToCommand(cmd models.InCommandType) (*models.Proces
 	body, err := json.Marshal(cmd)
 
 	if err != nil {
+		log.Printf("WrapToCommand marshal error: %v", err)
 		return nil, errors.Errorf(err.Error())
 	}
 	command := &models.ProcessCommand{
@@ -160,9 +164,10 @@ func (cl *commandClient) processCommand(context context.Context, cmd *models.Pro
 	log.Printf("Process command SessionId=%s, NodeId=%s, CommandId=%s CommandType:%d", cmd.SessionId, cl.nodeId, commandId, cmd.CommandType)
 	//TODO ERROR
 	jsonValue, _ := json.Marshal(cmd)
-
+	log.Printf("Tor Request Body: %v", string(jsonValue))
 	res, err := common.HttpPostWithoutContext(cl.torUrl, bytes.NewBuffer(jsonValue))
 	if err != nil {
+		log.Fatalf("request to tor error: %v", err)
 		return nil, err
 	}
 	defer res.Body.Close()

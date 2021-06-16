@@ -36,7 +36,7 @@ type LocalPPNode interface {
 	GetTransactions() []*models.PaymentTransaction
 	GetTransaction(sessionId string) *models.PaymentTransaction
 	FlushTransactions(context context.Context) error
-	ProcessResponse(ctx context.Context, response *models.UtilityResponse) error
+	ProcessResponse(ctx context.Context, response *models.ShapelessProcessCommandResponse) error
 	CommandHandler(ctx context.Context, cmd *models.UtilityCommand) (models.OutCommandType, error)
 	SetTransactionValiditySecs(transactionValiditySecs int64)
 	SetAutoFlush(autoFlush time.Duration)
@@ -63,7 +63,7 @@ type nodeImpl struct {
 	flushMux                     sync.Mutex
 	asyncMode                    bool
 	callbackerFactory            CallbackerFactory
-	lastFlush					 time.Time
+	lastFlush                    time.Time
 }
 
 func New(rootClient root.RootApi,
@@ -93,7 +93,7 @@ func New(rootClient root.RootApi,
 		flushMux:                     sync.Mutex{}, //TODO MOVE TO PAYMENT REGESTRY
 		accumulatingTransactionsMode: nodeConfig.AccumulateTransactions,
 		asyncMode:                    nodeConfig.AsyncMode,
-		lastFlush: 					  time.Time{},
+		lastFlush:                    time.Time{},
 	}
 
 	node.runTicker(nodeConfig.AutoFlushPeriod)
@@ -474,7 +474,7 @@ func (n *nodeImpl) FlushTransactions(context context.Context) error {
 	return nil
 }
 
-func (n *nodeImpl) ProcessResponse(ctx context.Context, response *models.UtilityResponse) error {
+func (n *nodeImpl) ProcessResponse(ctx context.Context, response *models.ShapelessProcessCommandResponse) error {
 	paymentManager := n.paymentManagerRegestry.Get(response.SessionId)
 	if paymentManager == nil {
 		return fmt.Errorf("session unknown")
@@ -509,15 +509,19 @@ func (u *nodeImpl) CommandHandler(ctx context.Context, cmd *models.UtilityComman
 
 	switch body := cmd.CommandBody.(type) {
 	case *models.CreateTransactionCommand:
+		log.Infof("Command: CreateTransaction: SessionId: %v", cmd.SessionId)
 		return u.CreateTransaction(ctx, body)
 
 	case *models.SignServiceTransactionCommand:
+		log.Infof("Command: SignServiceTransaction: SessionId: %v", cmd.SessionId)
 		return u.SignServiceTransaction(ctx, body)
 
 	case *models.SignChainTransactionCommand:
+		log.Infof("Command: SignChainTransaction: SessionId: %v", cmd.SessionId)
 		return u.SignChainTransaction(ctx, body)
 
 	case *models.CommitChainTransactionCommand:
+		log.Infof("Command: CommitChainTransaction: SessionId: %v", cmd.SessionId)
 		err := u.CommitChainTransaction(ctx, body)
 		if err != nil {
 			return nil, err
@@ -525,6 +529,7 @@ func (u *nodeImpl) CommandHandler(ctx context.Context, cmd *models.UtilityComman
 		return &models.CommitServiceTransactionResponse{}, nil
 
 	case *models.CommitServiceTransactionCommand:
+		log.Infof("Command: CommitServiceTransactionCommand: SessionId: %v", cmd.SessionId)
 		err := u.CommitServiceTransaction(ctx, body)
 		if err != nil {
 			return nil, err
@@ -545,6 +550,7 @@ func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCo
 				log.Fatalf("CommandHandler error: %v", err)
 				return
 			}
+			log.Infof("callbacker: SessionId: %v Url: ", command.SessionId, command.CallbackUrl)
 			err = callbacker.call(reply, err)
 			if err != nil {
 				log.Fatalf("Callback error: %v", err)
@@ -552,6 +558,8 @@ func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCo
 			}
 		}(callbacker)
 		return nil, nil
+	} else {
+		log.Infof("CallbackUrl is null, CommandType : %v", command.CommandType)
 	}
 	reply, err := u.CommandHandler(ctx, command)
 

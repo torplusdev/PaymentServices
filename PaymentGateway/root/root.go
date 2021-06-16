@@ -266,7 +266,7 @@ func (api *rootApi) CheckSourceAddress(a string) error {
 		horizonclient.AccountRequest{
 			AccountID: a})
 	if err != nil {
-		return fmt.Errorf("error getting source account data: %v", err)
+		return fmt.Errorf("error getting source account data: %v, value: %v", err, a)
 	}
 	return nil
 }

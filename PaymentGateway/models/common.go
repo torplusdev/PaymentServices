@@ -1,6 +1,8 @@
 package models
 
 import (
+	"encoding/json"
+
 	"github.com/go-errors/errors"
 	"github.com/stellar/go/txnbuild"
 )
@@ -71,11 +73,37 @@ type PaymentTransaction struct {
 	TransactionSourceAddress  string
 	ReferenceAmountIn         TransactionAmount
 	AmountOut                 TransactionAmount
-	XDR                       XDR
+	XDR                       XDR `json:"-"`
 	PaymentSourceAddress      string
 	PaymentDestinationAddress string
 	StellarNetworkToken       string
 	ServiceSessionId          string
+}
+
+func (d PaymentTransaction) MarshalJSON() ([]byte, error) {
+	type InPaymentTransaction PaymentTransaction
+	var typ struct {
+		InPaymentTransaction
+		XDR string
+	}
+	typ.InPaymentTransaction = InPaymentTransaction(d)
+	typ.XDR = d.XDR.String()
+	return json.Marshal(typ)
+}
+
+func (d *PaymentTransaction) UnmarshalJSON(b []byte) error {
+	type InPaymentTransaction PaymentTransaction
+	var typ struct {
+		InPaymentTransaction
+		XDR string
+	}
+	err := json.Unmarshal(b, &typ)
+	if err != nil {
+		return err
+	}
+	typ.InPaymentTransaction.XDR = NewXDR(typ.XDR)
+	*d = PaymentTransaction(typ.InPaymentTransaction)
+	return nil
 }
 
 func (pt *PaymentTransaction) Validate() error {

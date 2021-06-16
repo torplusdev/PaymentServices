@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"runtime"
@@ -17,7 +18,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	log.Printf("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
 	config, err := config.ParseConfig()
-
+	fmt.Println("Port: ", config.Port)
 	if err != nil {
 		log.Fatalf("get config error: %v", err)
 		<-stop

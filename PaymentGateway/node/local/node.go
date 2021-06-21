@@ -121,7 +121,7 @@ func (n *nodeImpl) runTicker(autoFlushPeriod time.Duration) {
 				}
 			}
 		}(n)
-
+		log.Debugf("run autoflush with: %v", autoFlushPeriod)
 	} else {
 		log.Debugf("node %s: autoflush disabled.", n.GetAddress())
 	}

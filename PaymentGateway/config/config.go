@@ -130,7 +130,7 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 
 		MaxConcurrency: rawConfig.MaxConcurrency,
 		NodeConfig: NodeConfig{
-			AutoFlushPeriod:        0,
+			AutoFlushPeriod:        rawConfig.AutoFlushPeriod.Duration,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
 		},

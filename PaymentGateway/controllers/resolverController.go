@@ -123,6 +123,9 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 	domain := req.Header.Get("domainToResolve")
 	domainKey := req.Header.Get("domainKey")
 
+
+	log.Infof("SetupResolving with %s, %s\n",domain,domainKey)
+
 	if (domainKey == "") || (domain == "") {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Domain is empty"))
 		return
@@ -166,14 +169,23 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 
 		topLevelDomain := domainutil.Domain(domain)
 
-		// Use DNS resolving
-		dnsNames, err := net.LookupTXT(topLevelDomain)
+		// First attempt to resolve exact domain
+		dnsNames, err := net.LookupTXT(domain)
 
 		if err != nil {
-			log.Errorf("Error resolving domain (dns)(%s): %s",domain, err.Error())
-			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during DNS resolution process: "+err.Error()))
-			return
+			log.Infof("Direct resolution failed (%s), attempting root domain(%s): %s",domain,topLevelDomain, err.Error())
+
+			// Use DNS resolving
+			dnsNames, err = net.LookupTXT(topLevelDomain)
+
+			if err != nil {
+				log.Errorf("Error resolving root domain (dns)(%s): %s",topLevelDomain, err.Error())
+				Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during DNS resolution process: "+err.Error()))
+				return
+			}
 		}
+
+
 
 		if len(dnsNames) == 0 {
 			log.Errorf("Error resolving domain (dns)(%s): No TXT entry", domain)

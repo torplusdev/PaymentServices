@@ -24,6 +24,7 @@ clean_up:
 	torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
 	torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
 	torplusserviceregistry.azurecr.io/private/tor_plus:latest
+	docker image prune --force
 run: 
 	docker run -p 28080:28080 --rm torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
 run_it:

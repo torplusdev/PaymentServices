@@ -79,18 +79,33 @@ steps:
     replaceExistingArchive: true
     verbose: true
 
-#- task: ArchiveFiles@2
-#  inputs:
-#    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway$(ext)'
-#    includeRootFolder: true
-#    archiveType: '7z'
-#    sevenZipCompression: 'ultra'
-#    archiveFile: '$(Build.ArtifactStagingDirectory)/payment-gateway-$(osName)-latest.7z'
-#    replaceExistingArchive: true
-#    verbose: true
-
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(Build.ArtifactStagingDirectory)'
     ArtifactName: 'payment-gateway'
     publishLocation: 'Container'
+
+- task: Docker@1
+  inputs:
+    containerregistrytype: 'Azure Container Registry'
+    azureSubscriptionEndpoint: 'U-BTech - CSP (Georest)(8a8eed1d-a101-45a3-bb4d-34065921a9aa)'
+    azureContainerRegistry: 'torplusserviceregistry.azurecr.io'
+    command: 'login'
+
+- script: |
+    make az_pipeline_image
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
+  displayName: 'make az_pipeline_image'
+  condition: eq(variables.osName, 'linux')
+
+- script: |
+    make push
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
+  displayName: 'make push'
+  condition: eq(variables.osName, 'linux')
+
+- script: |
+    make clean_up
+  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
+  displayName: 'make clean_up'
+  condition: eq(variables.osName, 'linux')

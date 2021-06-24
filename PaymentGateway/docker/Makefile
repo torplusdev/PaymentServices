@@ -15,6 +15,9 @@ az_pipeline_image:
 push: image
 	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) 
 	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:latest 
+az_pipeline_push: az_pipeline_image
+	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
+	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:latest
 clean_up:
 	docker rmi paymentgateway --force
 run: 

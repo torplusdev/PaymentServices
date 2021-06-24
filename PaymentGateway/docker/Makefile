@@ -8,15 +8,15 @@ image:
 	-t torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
 	../../
 az_pipeline_image:
-        docker build --build-arg PG_VERSION=$(VERSION) -f ./Dockerfile_az_pipeline -t paymentgateway \
-        -t torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
-        -t torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
-        ../../
+	docker build --build-arg PG_VERSION=$(VERSION) -f ./Dockerfile_az_pipeline -t paymentgateway \
+	-t torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
+	-t torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
+	../../
 push: image
 	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) 
 	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:latest 
 clean_up:
-        docker rmi paymentgateway --force
+	docker rmi paymentgateway --force
 run: 
 	docker run -p 28080:28080 --rm torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
 run_it:

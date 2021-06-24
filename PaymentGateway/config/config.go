@@ -78,7 +78,7 @@ type Configuration struct {
 }
 
 const torAddressPrefix = "http://localhost:5817"
-const asyncMode = false
+const asyncMode = true
 const useTestApi = true
 const accumulateTransactions = true
 const jaegerUrl = "http://192.168.162.128:14268/api/traces"

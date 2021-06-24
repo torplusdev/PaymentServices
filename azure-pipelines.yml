@@ -100,7 +100,7 @@ steps:
   condition: eq(variables.osName, 'linux')
 
 - script: |
-    make push
+    make az_pipeline_push
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
   displayName: 'make push'
   condition: eq(variables.osName, 'linux')

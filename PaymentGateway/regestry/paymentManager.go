@@ -138,7 +138,7 @@ func (pm *paymentManager) Run(ctx context.Context, async bool) error {
 		go func(pm *paymentManager) {
 			err := pm.runSync(context.Background())
 			if err != nil {
-				log.Fatalf("Error paymentProcess %v", err)
+				log.Printf("Error paymentProcess %v", err)
 			}
 		}(pm)
 		return nil

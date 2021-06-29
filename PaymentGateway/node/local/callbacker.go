@@ -27,13 +27,13 @@ func newCallbacker(cmd *models.UtilityCommand) CallBacker {
 
 func (cb *callBackerImpl) call(reply models.OutCommandType, err error) error {
 	if cb.url == "" || err != nil {
-		log.Fatalf("Call backer not call reason error: %v", err)
+		log.Printf("Call backer not call reason error: %v", err)
 		return nil
 	}
 	data, err := json.Marshal(reply)
 
 	if err != nil {
-		log.Fatalf("Command response marshal failed: %v", err)
+		log.Printf("Command response marshal failed: %v", err)
 		return err
 	}
 	cmd := cb.cmd

@@ -31,7 +31,7 @@ func (sq Sequencer) PerformPayment(sourceSeed string, destinationSeed string, co
 	sq.assert.NoError(err)
 
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Printf("Error: %v", err)
 		return nil, nil, err
 	}
 
@@ -39,7 +39,7 @@ func (sq Sequencer) PerformPayment(sourceSeed string, destinationSeed string, co
 	sq.assert.NoError(err)
 
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Printf("Error: %v", err)
 		return nil, nil, err
 	}
 

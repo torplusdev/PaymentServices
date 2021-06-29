@@ -123,8 +123,7 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 	domain := req.Header.Get("domainToResolve")
 	domainKey := req.Header.Get("domainKey")
 
-
-	log.Infof("SetupResolving with %s, %s\n",domain,domainKey)
+	log.Infof("SetupResolving with %s, %s\n", domain, domainKey)
 
 	if (domainKey == "") || (domain == "") {
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Domain is empty"))
@@ -159,7 +158,7 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 		// Use ENS resolving
 		ethName, err := r.resolveByEthLink(domain)
 		if err != nil {
-			log.Errorf("Error resolving domain (ens)(%s): %s",domain, err.Error())
+			log.Errorf("Error resolving domain (ens)(%s): %s", domain, err.Error())
 			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during resolution process"))
 			return
 		}
@@ -173,19 +172,17 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 		dnsNames, err := net.LookupTXT(domain)
 
 		if err != nil {
-			log.Infof("Direct resolution failed (%s), attempting root domain(%s): %s",domain,topLevelDomain, err.Error())
+			log.Infof("Direct resolution failed (%s), attempting root domain(%s): %s", domain, topLevelDomain, err.Error())
 
 			// Use DNS resolving
 			dnsNames, err = net.LookupTXT(topLevelDomain)
 
 			if err != nil {
-				log.Errorf("Error resolving root domain (dns)(%s): %s",topLevelDomain, err.Error())
+				log.Errorf("Error resolving root domain (dns)(%s): %s", topLevelDomain, err.Error())
 				Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during DNS resolution process: "+err.Error()))
 				return
 			}
 		}
-
-
 
 		if len(dnsNames) == 0 {
 			log.Errorf("Error resolving domain (dns)(%s): No TXT entry", domain)
@@ -228,8 +225,8 @@ func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request)
 	if domain == "" {
 		err := json.NewDecoder(req.Body).Decode(&d)
 
-		if err != nil {			
-			log.Errorf("Couldn't parse data in headers or body (%s): %s",domain, err.Error())
+		if err != nil {
+			log.Errorf("Couldn't parse data in headers or body (%s): %s", domain, err.Error())
 			Respond(w, MessageWithStatus(http.StatusBadRequest, "Error parsing domain"))
 			return
 		}
@@ -251,7 +248,7 @@ func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request)
 
 		bytes, err := json.Marshal(response)
 		if err != nil {
-			log.Errorf("Error serializing domain resolution (%s => %s): %s",domain, resolvedDomain, err.Error())
+			log.Errorf("Error serializing domain resolution (%s => %s): %s", domain, resolvedDomain, err.Error())
 			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error serializing resolved domain"))
 			return
 		}

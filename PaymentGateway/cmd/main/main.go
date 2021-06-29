@@ -20,7 +20,7 @@ func main() {
 	config, err := config.ParseConfig()
 	fmt.Println("Port: ", config.Port)
 	if err != nil {
-		log.Fatalf("get config error: %v", err)
+		log.Printf("get config error: %v", err)
 		<-stop
 		return
 	}

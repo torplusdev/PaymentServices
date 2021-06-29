@@ -182,7 +182,7 @@ func (tor *TorMock) GetNodeByAddress(address string) local.LocalPPNode {
 func (tor *TorMock) SetDefaultRoute(route []string) {
 	for _, node := range route {
 		if _, ok := tor.nodes[node]; !ok {
-			log.Fatalf("Error in route setup, node %s not in nodes", node)
+			log.Printf("Error in route setup, node %s not in nodes", node)
 		}
 	}
 

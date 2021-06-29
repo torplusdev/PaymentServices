@@ -167,7 +167,7 @@ func (cl *commandClient) processCommand(context context.Context, cmd *models.Pro
 	log.Printf("Tor Request Body: %v", string(jsonValue))
 	res, err := common.HttpPostWithoutContext(cl.torUrl, bytes.NewBuffer(jsonValue))
 	if err != nil {
-		log.Fatalf("request to tor error: %v", err)
+		log.Printf("request to tor error: %v", err)
 		return nil, err
 	}
 	defer res.Body.Close()

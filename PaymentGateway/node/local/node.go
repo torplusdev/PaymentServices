@@ -547,13 +547,13 @@ func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCo
 		go func(callbacker CallBacker) {
 			reply, err := u.CommandHandler(ctx, command)
 			if err != nil {
-				log.Printf("CommandHandler error: %v", err)
+				log.Errorf("CommandHandler error: %v", err)
 				return
 			}
 			log.Infof("callbacker: SessionId: %v Url: ", command.SessionId, command.CallbackUrl)
 			err = callbacker.call(reply, err)
 			if err != nil {
-				log.Printf("Callback error: %v", err)
+				log.Errorf("Callback error: %v", err)
 				return
 			}
 		}(callbacker)

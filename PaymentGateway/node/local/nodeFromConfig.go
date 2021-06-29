@@ -112,6 +112,9 @@ func TorClientFactory(host string) regestry.CommandClientFactory {
 }
 
 func TorRouteBuilder(host string) torclient.TorClient {
+	if host == "" {
+		host = "http://localhost:5817"
+	}
 	torRouteUrl := fmt.Sprintf("%s/api/paymentRoute/", host)
 	torClient := torclient.NewTorClient(torRouteUrl)
 	return torClient

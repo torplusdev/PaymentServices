@@ -43,7 +43,7 @@ func (i *InitiatePaymentHandler) Handle(paymentHandler DebtRegestry, peerHandler
 	debt := paymentHandler.GetDebt(i.from)
 
 	if quantity > debt.receivedBytes {
-		log.Printf("invalid quantity requested")
+		log.Printf("invalid quantity requested: quantity: %v  receivedBytes: %v", quantity, debt.receivedBytes)
 	}
 
 	client.ProcessPayment(i.from, i.msg)

@@ -11,8 +11,6 @@ import (
 )
 
 type ppClient struct {
-	//controllers.GatewayController
-	//controllers.UtilityController
 	channelUrl        string
 	sessionHandler    *SessionHandler
 	commandListenPort int
@@ -67,7 +65,7 @@ func (pm *ppClient) ProcessCommand(nodeId models.PeerID, msg *PaymentCommand) er
 func (pm *ppClient) ProcessPayment(nodeId models.PeerID, msg *InitiatePayment) {
 	request := &models.ProcessPaymentRequest{
 		CallbackUrl:    fmt.Sprintf("http://localhost:%d/api/command", pm.commandListenPort),
-		PaymentRequest: msg.PaymentRequest, // TODO FIX WHEN
+		PaymentRequest: msg.PaymentRequest,
 		NodeId:         nodeId,
 		Route:          nil, // TODO: remove to start chain payment
 	}
@@ -76,7 +74,6 @@ func (pm *ppClient) ProcessPayment(nodeId models.PeerID, msg *InitiatePayment) {
 	err := post(url, request, response)
 	if err != nil {
 		log.Errorf("Initiate Payment failed: %s", err.Error())
-
 	}
 
 	pm.sessionHandler.Open(response.SessionId, nodeId)
@@ -92,7 +89,6 @@ func (pm *ppClient) ValidatePayment(request *models.ValidatePaymentRequest) (uin
 	return response.Quantity, nil
 }
 
-//TODO CHECK WHY NOT DESEREALIZE
 func (pm *ppClient) CreatePaymentInfo(amount uint32) (*models.PaymentRequest, error) {
 	request := models.CreatePaymentInfo{
 		ServiceType:   "ipfs",

@@ -24,7 +24,7 @@ func Fill(selfProvider boom.BoomDataProvider, ipfs IPFS) error {
 		clientOfMain := client.New(host)
 		els, err := clientOfMain.Elements()
 		if err != nil {
-			log.Printf(("error request elements: %v", err)
+			log.Printf("error request elements: %v", err)
 			continue
 		}
 		for _, el := range els {

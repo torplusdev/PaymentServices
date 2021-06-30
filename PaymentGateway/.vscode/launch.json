@@ -81,6 +81,20 @@
                 "SCOYT53V54NK2SKLMU4QVHBEGIXQHG3QHWQTEYCJ7WSVT2Q37XGTGZSO",
                 "5778"
             ]
+        },
+
+        {
+            "name": "PG",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/main/",
+            "env": {},
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "SCOYT53V54NK2SKLMU4QVHBEGIXQHG3QHWQTEYCJ7WSVT2Q37XGTGZSO",
+                "28080"
+            ]
         }
     ]
 }

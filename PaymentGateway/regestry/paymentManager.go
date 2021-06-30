@@ -3,7 +3,8 @@ package regestry
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/common"
@@ -76,7 +77,7 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 	transactions, err := pm.client.InitiatePayment(ctx, pm.nodes, request.PaymentRequest)
 
 	if err != nil {
-		log.Printf("Payment failed SessionId=%s", sessionId)
+		log.Infof("Payment failed SessionId=%s", sessionId)
 		log.Print(err)
 		return fmt.Errorf("initiate payment failed: %v", err)
 	}
@@ -85,7 +86,7 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 	err = pm.client.VerifyTransactions(ctx, transactions)
 
 	if err != nil {
-		log.Printf("Payment failed SessionId=%s", sessionId)
+		log.Error("Payment failed SessionId=%s", sessionId)
 		log.Print(err)
 		return fmt.Errorf("verification failed")
 	}
@@ -95,13 +96,13 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 
 	if err != nil {
 
-		log.Printf("payment failed SessionId=%s", sessionId)
-		log.Print(err)
+		log.Errorf("payment failed SessionId=%s", sessionId)
+		log.Error(err)
 
 		return fmt.Errorf("finalize failed: %v", err)
 	}
 
-	log.Printf("Payment completed SessionId=%s, ServiceRef=%s", sessionId, request.PaymentRequest.ServiceRef)
+	log.Info("Payment completed SessionId=%s, ServiceRef=%s", sessionId, request.PaymentRequest.ServiceRef)
 
 	return nil
 }
@@ -138,7 +139,7 @@ func (pm *paymentManager) Run(ctx context.Context, async bool) error {
 		go func(pm *paymentManager) {
 			err := pm.runSync(context.Background())
 			if err != nil {
-				log.Printf("Error paymentProcess %v", err)
+				log.Errorf("Error paymentProcess %v", err)
 			}
 		}(pm)
 		return nil

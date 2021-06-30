@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"github.com/gorilla/mux"
 	boomserver "paidpiper.com/payment-gateway/boom/server"

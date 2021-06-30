@@ -1,7 +1,7 @@
 package paymentmanager
 
 import (
-	"log"
+	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/models"
 )

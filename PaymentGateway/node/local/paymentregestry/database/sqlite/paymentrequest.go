@@ -3,8 +3,9 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
@@ -29,7 +30,8 @@ func (prdb *liteDb) createTablePaymentRequest() error {
 func (prdb *liteDb) InsertPaymentRequest(item *entity.DbPaymentRequest) error {
 	tx, err := prdb.db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return err
 	}
 	stmt, err := tx.Prepare(`INSERT INTO PaymentRequest (
 		SessionId,
@@ -53,7 +55,8 @@ func (prdb *liteDb) InsertPaymentRequest(item *entity.DbPaymentRequest) error {
 	);
 `)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return err
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(

@@ -16,10 +16,6 @@ func TestMarshalValidatePaymentRequest(t *testing.T) {
 	bs, err := json.Marshal(m)
 	assert.Nil(err)
 
-	// serString := string(bs)
-	// fmt.Println(serString)
-	// t.Log(serString)
-
 	unm := &ValidatePaymentRequest{}
 	err = json.Unmarshal(bs, unm)
 	assert.Nil(err)

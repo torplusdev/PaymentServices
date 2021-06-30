@@ -3,7 +3,8 @@ package local
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"github.com/golang/glog"
 	"paidpiper.com/payment-gateway/client"
@@ -96,7 +97,7 @@ func CreateRootApi(cfg config.RootApiConfig) (root.RootApi, error) {
 		glog.Infof("Error retrieving account data: %s", err)
 		return nil, err
 	}
-	fmt.Printf("Current balance for %v:%v\n", rootClient.GetAddress(), balance)
+	log.Infof("Current balance for %v:%v\n", rootClient.GetAddress(), balance)
 	return rootClient, nil
 }
 
@@ -104,7 +105,7 @@ func TorClientFactory(host string) regestry.CommandClientFactory {
 	defaultUrl := fmt.Sprintf("%s/api/command", host)
 	return func(url string, sessionId string, nodeId string) (proxy.CommandClient, proxy.CommandResponseHandler) {
 		if url == "" {
-			log.Printf("Callback url not provided for %s", sessionId)
+			log.Tracef("Callback url not provided for %s", sessionId)
 			url = defaultUrl
 		}
 		return proxy.NewCommandClient(url, sessionId, nodeId)

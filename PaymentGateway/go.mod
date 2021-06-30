@@ -3,7 +3,7 @@ module paidpiper.com/payment-gateway
 go 1.16
 
 require (
-	github.com/bobesa/go-domain-util v0.0.0-20190911083921-4033b5f7dd89 // indirect
+	github.com/bobesa/go-domain-util v0.0.0-20190911083921-4033b5f7dd89
 	github.com/deepmap/oapi-codegen v1.6.1
 	github.com/go-chi/chi/v5 v5.0.2
 	github.com/go-errors/errors v0.0.0-20150906023321-a41850380601
@@ -17,6 +17,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/rs/xid v1.2.1
+	github.com/sirupsen/logrus v1.4.1
 	github.com/stellar/go v0.0.0-20210324164845-827227e3edd3
 	github.com/stretchr/testify v1.5.1
 	github.com/tkanos/gonfig v0.0.0-20181112185242-896f3d81fadf

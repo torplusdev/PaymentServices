@@ -2,9 +2,10 @@ package paymentregestry
 
 import (
 	"database/sql"
-	"fmt"
+
 	"time"
 
+	"paidpiper.com/payment-gateway/log"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
@@ -45,7 +46,7 @@ func (prdb *paymentRegistryWithDb) closeDb() {
 }
 func (prdb *paymentRegistryWithDb) LogError(err error) {
 	//TODO TO LOGGER
-	fmt.Printf("Payment regestry error: %s", err)
+	log.Errorf("Payment regestry error: %s", err)
 }
 
 func (prdb *paymentRegistryWithDb) AddServiceUsage(sessionId string, pr *models.PaymentRequest) {

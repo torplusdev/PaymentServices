@@ -2,7 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -29,8 +28,6 @@ func TestUnmarshal(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	marshalStr := string(bs)
-	fmt.Println(marshalStr)
 
 	unm := &UtilityCommand{}
 	err = json.Unmarshal(bs, unm)

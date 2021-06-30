@@ -2,9 +2,10 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"github.com/gorilla/mux"
 	"paidpiper.com/payment-gateway/common"
@@ -58,7 +59,7 @@ func (u *HttpUtilityController) HttpFlushTransactions(w http.ResponseWriter, r *
 	defer span.End()
 	err := u.FlushTransactions(ctx)
 	if err != nil {
-		log.Printf("Error flushing transactions: %s", err.Error())
+		log.Errorf("Error flushing transactions: %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Error in FlushTransactions: "+err.Error()))
 	}
 
@@ -79,7 +80,7 @@ func (u *HttpUtilityController) HttpNewPaymentRequest(w http.ResponseWriter, r *
 	err := json.NewDecoder(r.Body).Decode(request)
 
 	if err != nil {
-		log.Printf("Error decoding new payment request: %s", err.Error())
+		log.Errorf("Error decoding new payment request: %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
@@ -87,7 +88,7 @@ func (u *HttpUtilityController) HttpNewPaymentRequest(w http.ResponseWriter, r *
 	pr, err := u.NewPaymentRequest(ctx, request)
 
 	if err != nil {
-		log.Printf("Error creating new payment request (invalid commodity): %s", err.Error())
+		log.Errorf("Error creating new payment request (invalid commodity): %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid commodity"))
 		return
 	}
@@ -104,7 +105,7 @@ func (u *HttpUtilityController) HttpValidatePayment(w http.ResponseWriter, r *ht
 	err := json.NewDecoder(r.Body).Decode(request)
 
 	if err != nil {
-		log.Printf("Error decoding payment validation request : %s", err.Error())
+		log.Error("Error decoding payment validation request : %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Bad request"))
 		return
 	}
@@ -112,7 +113,7 @@ func (u *HttpUtilityController) HttpValidatePayment(w http.ResponseWriter, r *ht
 	response, err := u.ValidatePayment(ctx, request)
 
 	if err != nil {
-		log.Printf("Error validating payment: %s", err.Error())
+		log.Errorf("Error validating payment: %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusBadRequest, err.Error()))
 		return
 	}
@@ -129,14 +130,14 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 	err := json.NewDecoder(r.Body).Decode(command)
 
 	if err != nil {
-		log.Printf("Error decoding process command request : %s", err.Error())
+		log.Errorf("Error decoding process command request : %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
 
 	data, err := u.ProcessCommand(ctx, command)
 	if err != nil {
-		log.Printf("Error processing command request : %s", err.Error())
+		log.Errorf("Error processing command request : %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusConflict, err.Error()))
 		return
 	}
@@ -151,7 +152,7 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 func (u *HttpUtilityController) HttpGetBalance(w http.ResponseWriter, r *http.Request) {
 	res, err := u.GetBookBalance()
 	if err != nil {
-		log.Printf("Error processing get balance request : %s", err.Error())
+		log.Errorf("Error processing get balance request : %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusConflict, err.Error()))
 		return
 	}
@@ -171,19 +172,19 @@ func (u *HttpUtilityController) HttpBookHistory(w http.ResponseWriter, r *http.R
 	binsValue, err := strconv.Atoi(bins)
 
 	if err != nil {
-		log.Printf("Error - bad value for bins : %s", vars["bins"])
+		log.Errorf("Error - bad value for bins : %s", vars["bins"])
 		Respond(w, common.Error(500, "HISTORY_BINS should be int"))
 	}
 
 	hoursValue, err := strconv.Atoi(hours)
 	if err != nil {
-		log.Printf("Error - bad value for hours : %s", vars["hours"])
+		log.Errorf("Error - bad value for hours : %s", vars["hours"])
 		Respond(w, common.Error(500, "hours should be int"))
 	}
 	res, err := u.GetBookHistory(commodity, binsValue, hoursValue)
 
 	if err != nil {
-		log.Printf("Error retrieving book history: %s", vars["hours"])
+		log.Errorf("Error retrieving book history: %s", vars["hours"])
 		Respond(w, common.Error(500, err.Error()))
 	}
 	Respond(w, res)
@@ -193,7 +194,7 @@ func (u *HttpUtilityController) HttpBookHistory(w http.ResponseWriter, r *http.R
 func (u *HttpUtilityController) HttpBookBalance(w http.ResponseWriter, r *http.Request) {
 	res, err := u.GetBookBalance()
 	if err != nil {
-		log.Printf("Error retrieving book balance: %s", err.Error())
+		log.Errorf("Error retrieving book balance: %s", err.Error())
 		Respond(w, common.Error(500, err.Error()))
 	}
 	Respond(w, res)

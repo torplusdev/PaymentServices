@@ -2,8 +2,9 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
+
+	"paidpiper.com/payment-gateway/log"
 )
 
 type ProcessPaymentRequest struct {
@@ -66,7 +67,7 @@ func (pr *ProcessPaymentRequest) UnmarshalJSON(b []byte) error {
 
 	cleanPaymentRequest := strings.TrimRight(typ.PaymentRequest, "\r\n ")
 	cleanPaymentRequest = strings.ReplaceAll(cleanPaymentRequest, "\\n", "")
-	fmt.Println("JSON: ", cleanPaymentRequest)
+	log.Error("JSON: ", cleanPaymentRequest)
 	err = json.Unmarshal([]byte(cleanPaymentRequest), paymentRequest)
 	if err != nil {
 		return err

@@ -3,9 +3,10 @@ package serviceNode
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
+
+	"paidpiper.com/payment-gateway/log"
 
 	webUiConfig "paidpiper.com/provider-service/config"
 	webUiServer "paidpiper.com/provider-service/server"
@@ -51,7 +52,7 @@ func RunHttpServer(config *config.Configuration) (func(), error) {
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
-			log.Printf("Error shutting down server: %v", err)
+			log.Errorf("Error shutting down server: %v", err)
 		}
 	}, nil
 }
@@ -91,7 +92,7 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 
 	uiServer, err := webUiServer.New(webUiConfig.InitConfig(), uiclient.New(localNode))
 	if err != nil {
-		fmt.Println("start web ui server error")
+		log.Error("start web ui server error")
 	}
 	var baseRouter chi.Router = chi.NewRouter()
 	baseRouter.NotFound(uiServer.ServeHTTP)

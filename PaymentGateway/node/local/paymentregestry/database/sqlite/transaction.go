@@ -1,7 +1,7 @@
 package sqlite
 
 import (
-	"log"
+	log "paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 )
@@ -26,7 +26,8 @@ func (prdb *liteDb) createTableTransaction() error {
 func (prdb *liteDb) InsertTransaction(item *entity.DbTransactoin) error {
 	tx, err := prdb.db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return err
 	}
 	stmt, err := tx.Prepare(`INSERT INTO Transactoin (
 		Sequence,
@@ -53,7 +54,8 @@ func (prdb *liteDb) InsertTransaction(item *entity.DbTransactoin) error {
 
 `)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return err
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(

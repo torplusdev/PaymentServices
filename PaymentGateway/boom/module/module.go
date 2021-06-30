@@ -3,11 +3,11 @@ package module
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 
 	"paidpiper.com/payment-gateway/boom"
 	"paidpiper.com/payment-gateway/boom/client"
 	"paidpiper.com/payment-gateway/boom/data"
+	"paidpiper.com/payment-gateway/log"
 )
 
 type IPFS interface {
@@ -24,7 +24,7 @@ func Fill(selfProvider boom.BoomDataProvider, ipfs IPFS) error {
 		clientOfMain := client.New(host)
 		els, err := clientOfMain.Elements()
 		if err != nil {
-			log.Printf("error request elements: %v", err)
+			log.Errorf("error request elements: %v", err)
 			continue
 		}
 		for _, el := range els {

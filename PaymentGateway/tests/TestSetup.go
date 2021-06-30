@@ -3,8 +3,9 @@ package tests
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"github.com/stellar/go/keypair"
 	"go.opentelemetry.io/otel/api/core"

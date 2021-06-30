@@ -1,7 +1,7 @@
 package common
 
 import (
-	"log"
+	"paidpiper.com/payment-gateway/log"
 
 	"go.opentelemetry.io/otel/api/core"
 	"go.opentelemetry.io/otel/api/key"

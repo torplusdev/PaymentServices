@@ -242,7 +242,7 @@ func (api *rootApi) ValidateForPPNode() error {
 		return nil
 	}
 	if balance < models.PPTokenMinAllowedBalance {
-		fmt.Printf("balance of PPToken  is too low %d. Should be at least %d", balance, models.PPTokenMinAllowedBalance)
+		log.Info("balance of PPToken  is too low %d. Should be at least %d", balance, models.PPTokenMinAllowedBalance)
 	}
 	address := api.GetAddress()
 	nodeAccountDetail, err := api.GetAccount()

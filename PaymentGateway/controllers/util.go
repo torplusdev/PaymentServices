@@ -2,8 +2,9 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/common"
 )
@@ -68,6 +69,6 @@ func Respond(w http.ResponseWriter, data interface{}) {
 	}
 
 	if err != nil {
-		log.Printf("Error encoding data for response: %v", err.Error())
+		log.Errorf("Error encoding data for response: %v", err.Error())
 	}
 }

@@ -3,10 +3,10 @@ package torclient
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/go-errors/errors"
 	"paidpiper.com/payment-gateway/common"
+	"paidpiper.com/payment-gateway/log"
 	"paidpiper.com/payment-gateway/models"
 )
 
@@ -25,7 +25,7 @@ func (c *torClient) GetRoute(ctx context.Context, sessionId string) (*models.Rou
 	resp, err := common.HttpGetWithContext(ctx, url)
 
 	if err != nil {
-		fmt.Println("HttpRequest error: url:", url)
+		log.Errorf("HttpRequest error: url:", url)
 		return nil, errors.Errorf("Cant get payment route: %v", err)
 	}
 

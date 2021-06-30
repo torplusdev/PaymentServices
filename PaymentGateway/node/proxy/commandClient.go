@@ -6,7 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"github.com/go-errors/errors"
 	"github.com/google/uuid"
@@ -117,15 +118,15 @@ func processCommandWrapper(cl *commandClient, context context.Context, request m
 	reply, err := cl.processCommand(context, body)
 
 	if err != nil {
-		log.Printf("Tor command error: %v", err)
+		log.Errorf("Tor command error: %v", err)
 		return errors.Errorf(err.Error())
 	}
 
 	err = json.Unmarshal(reply, out)
 
 	if err != nil {
-		log.Printf("ResponseJSON: %v", string(reply))
-		log.Printf("Tor command unmarshal error: %v", err)
+		log.Errorf("ResponseJSON: %v", string(reply))
+		log.Errorf("Tor command unmarshal error: %v", err)
 		return errors.Errorf(err.Error())
 	}
 
@@ -137,7 +138,7 @@ func (cl *commandClient) WrapToCommand(cmd models.InCommandType) (*models.Proces
 	body, err := json.Marshal(cmd)
 
 	if err != nil {
-		log.Printf("WrapToCommand marshal error: %v", err)
+		log.Errorf("WrapToCommand marshal error: %v", err)
 		return nil, errors.Errorf(err.Error())
 	}
 	command := &models.ProcessCommand{
@@ -161,13 +162,13 @@ func (cl *commandClient) processCommand(context context.Context, cmd *models.Pro
 
 	defer cl.chainStore.close(commandId)
 
-	log.Printf("Process command SessionId=%s, NodeId=%s, CommandId=%s CommandType:%d", cmd.SessionId, cl.nodeId, commandId, cmd.CommandType)
+	log.Infof("Process command SessionId=%s, NodeId=%s, CommandId=%s CommandType:%d", cmd.SessionId, cl.nodeId, commandId, cmd.CommandType)
 	//TODO ERROR
 	jsonValue, _ := json.Marshal(cmd)
-	log.Printf("Tor Request Body: %v", string(jsonValue))
+	log.Trace("Tor Request Body: %v", string(jsonValue))
 	res, err := common.HttpPostWithoutContext(cl.torUrl, bytes.NewBuffer(jsonValue))
 	if err != nil {
-		log.Printf("request to tor error: %v", err)
+		log.Errorf("request to tor error: %v", err)
 		return nil, err
 	}
 	defer res.Body.Close()
@@ -196,8 +197,9 @@ func (cl *commandClient) processCommand(context context.Context, cmd *models.Pro
 func (cl *commandClient) ProcessResponse(context context.Context, commandId string, responseBody []byte) error {
 	ok := cl.chainStore.processResponse(commandId, responseBody)
 	if !ok {
-		log.Printf("Unknown command response: : %s on %s", commandId, cl.nodeId)
-		return fmt.Errorf("unknown command response: : %s on %s", commandId, cl.nodeId)
+		err := fmt.Errorf("unknown command response: : %s on %s", commandId, cl.nodeId)
+		log.Error(err)
+		return err
 	}
 	return nil
 }

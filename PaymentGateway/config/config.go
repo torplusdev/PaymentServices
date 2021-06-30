@@ -3,10 +3,11 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"github.com/go-errors/errors"
 	"github.com/tkanos/gonfig"
@@ -113,7 +114,7 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 
 	err := gonfig.GetConf(configFile, &rawConfig)
 	if err != nil {
-		fmt.Println("Read json config error: ", err)
+		log.Error("Read json config error: ", err)
 		return nil, err
 	}
 	instance := &Configuration{
@@ -155,7 +156,7 @@ func ParseConfig() (*Configuration, error) {
 	config, err := ParseConfiguration("config.json")
 
 	if err != nil {
-		log.Printf("Error reading configuration file (config.json), trying cmdline params: %v", err)
+		log.Error("Error reading configuration file (config.json), trying cmdline params: %v", err)
 		if len(os.Args) < 3 {
 			log.Panic("Reading configuration file failed, and no command line parameters supplied.")
 		}

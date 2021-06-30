@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"log"
+	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/node/local"
 )

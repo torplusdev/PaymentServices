@@ -2,7 +2,8 @@ package tests
 
 import (
 	"context"
-	"log"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"github.com/stretchr/testify/assert"
 	"paidpiper.com/payment-gateway/models"

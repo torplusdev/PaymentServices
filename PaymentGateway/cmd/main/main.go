@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"os"
 	"runtime"
+
+	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/config"
@@ -16,11 +16,11 @@ import (
 func main() {
 
 	stop := make(chan os.Signal, 1)
-	log.Printf("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
+	log.Info("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
 	config, err := config.ParseConfig()
-	fmt.Println("Port: ", config.Port)
+	log.Info("Port: ", config.Port)
 	if err != nil {
-		log.Printf("get config error: %v", err)
+		log.Errorf("get config error: %v", err)
 		<-stop
 		return
 	}

@@ -31,7 +31,7 @@ func (p *PPCallbackServer) Shutdown(ctx context.Context) {
 	err := p.server.Shutdown(ctx)
 
 	if err != nil {
-		log.Printf("connection shutdown failed %s", err.Error())
+		log.Errorf("connection shutdown failed %s", err.Error())
 	}
 }
 
@@ -62,7 +62,7 @@ func (p *PPCallbackServer) HandleProcessCommand(w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
-			log.Printf("Error:%v", err)
+			log.Errorf("Error:%v", err)
 		}
 		return
 	}
@@ -71,7 +71,7 @@ func (p *PPCallbackServer) HandleProcessCommand(w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
-			log.Printf("Error:%v", err)
+			log.Errorf("Error:%v", err)
 		}
 		return
 	}
@@ -86,7 +86,7 @@ func (p *PPCallbackServer) HandleProcessCommandResponse(w http.ResponseWriter, r
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
-			log.Printf("Error:%v", err)
+			log.Errorf("Error:%v", err)
 		}
 		return
 	}
@@ -95,7 +95,7 @@ func (p *PPCallbackServer) HandleProcessCommandResponse(w http.ResponseWriter, r
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
-			log.Printf("Error:%v", err)
+			log.Errorf("Error:%v", err)
 		}
 		return
 	}
@@ -109,7 +109,7 @@ func (p *PPCallbackServer) HandleProcessPaymentResponse(w http.ResponseWriter, r
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
-			log.Printf("Error:%v", err)
+			log.Errorf("Error:%v", err)
 		}
 		return
 	}
@@ -118,7 +118,7 @@ func (p *PPCallbackServer) HandleProcessPaymentResponse(w http.ResponseWriter, r
 		w.WriteHeader(http.StatusNotFound)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
-			log.Printf("Error:%v", err)
+			log.Errorf("Error:%v", err)
 		}
 
 		return

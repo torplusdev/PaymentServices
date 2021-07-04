@@ -1,0 +1,157 @@
+package paymentmanager
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+
+	"paidpiper.com/payment-gateway/log"
+
+	"github.com/gorilla/mux"
+	boomserver "paidpiper.com/payment-gateway/boom/server"
+	"paidpiper.com/payment-gateway/models"
+)
+
+type ppCallbackServer struct {
+	server          *http.Server
+	callbackHandler PPCallbackHandler
+	router          *mux.Router
+	metricsStore    *MetricsStore
+}
+
+func (p *ppCallbackServer) Start() {
+	err := p.server.ListenAndServe()
+
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (p *ppCallbackServer) Shutdown(ctx context.Context) {
+	err := p.server.Shutdown(ctx)
+
+	if err != nil {
+		log.Errorf("connection shutdown failed %s", err.Error())
+	}
+}
+
+func (p *ppCallbackServer) SetPort(port int) {
+	p.server.Addr = fmt.Sprintf(":%d", port)
+}
+
+func NewServer() CallbackServer {
+	router := mux.NewRouter()
+
+	callbackServer := &ppCallbackServer{}
+	AddHandlers(router, callbackServer)
+	callbackServer.server = &http.Server{
+		Addr:    ":30500",
+		Handler: router,
+	}
+
+	return callbackServer
+
+}
+func (p *ppCallbackServer) SetMetricsSource(source MetricsSource) {
+	p.metricsStore = NewMetricsStore(source)
+	p.router.Handle("/metrics", p.metricsStore.Handler())
+}
+func AddHandlers(router *mux.Router, callbackServer *ppCallbackServer) {
+	router.HandleFunc("/api/command", callbackServer.HandleProcessCommand).Methods("POST")
+	router.HandleFunc("/api/commandResponse", callbackServer.HandleProcessCommandResponse).Methods("POST")
+	router.HandleFunc("/api/paymentResponse", callbackServer.HandleProcessPaymentResponse).Methods("POST")
+	boomserver.AddHandlers(router)
+}
+func (p *ppCallbackServer) SetCallbackHandler(cb PPCallbackHandler) {
+	p.callbackHandler = cb
+}
+func (p *ppCallbackServer) HandleProcessCommand(w http.ResponseWriter, r *http.Request) {
+	// Extract command request from the request and forward it to peer
+	request := &models.ProcessCommand{}
+	err := json.NewDecoder(r.Body).Decode(request)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := io.WriteString(w, err.Error())
+		if err != nil {
+			log.Errorf("Error:%v", err)
+		}
+		return
+	}
+	if p.callbackHandler != nil {
+		err = p.callbackHandler.ProcessCommand(request)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := io.WriteString(w, err.Error())
+			if err != nil {
+				log.Errorf("Error:%v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	} else {
+		fmt.Fprintln(w, "callbackHandler not found")
+		w.WriteHeader(http.StatusBadGateway)
+	}
+}
+
+func (p *ppCallbackServer) HandleProcessCommandResponse(w http.ResponseWriter, r *http.Request) {
+	// Extract command response from the request and forward it to peer
+	response := &models.ProcessCommandResponse{}
+	err := json.NewDecoder(r.Body).Decode(response)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := io.WriteString(w, err.Error())
+		if err != nil {
+			log.Errorf("Error:%v", err)
+		}
+		return
+	}
+	if p.callbackHandler != nil {
+		err = p.callbackHandler.ProcessCommandResponse(response)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := io.WriteString(w, err.Error())
+			if err != nil {
+				log.Errorf("Error:%v", err)
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	} else {
+		fmt.Fprintln(w, "callbackHandler not found")
+		w.WriteHeader(http.StatusBadGateway)
+	}
+
+}
+
+func (p *ppCallbackServer) HandleProcessPaymentResponse(w http.ResponseWriter, r *http.Request) {
+	request := &models.PaymentStatusResponseModel{}
+	err := json.NewDecoder(r.Body).Decode(request)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := io.WriteString(w, err.Error())
+		if err != nil {
+			log.Errorf("Error:%v", err)
+		}
+		return
+	}
+	if p.callbackHandler != nil {
+		err = p.callbackHandler.ProcessPaymentResponse(request)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			_, err := io.WriteString(w, err.Error())
+			if err != nil {
+				log.Errorf("Error:%v", err)
+			}
+
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	} else {
+		fmt.Fprintln(w, "callbackHandler not found")
+		w.WriteHeader(http.StatusBadGateway)
+	}
+
+}

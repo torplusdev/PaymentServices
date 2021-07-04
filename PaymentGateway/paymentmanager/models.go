@@ -43,7 +43,7 @@ func (i *InitiatePaymentHandler) Handle(paymentHandler DebtRegestry, peerHandler
 	debt := paymentHandler.GetDebt(i.from)
 
 	if quantity > debt.receivedBytes {
-		log.Errorf("invalid quantity requested: quantity: %v  receivedBytes: %v", quantity, debt.receivedBytes)
+		log.Warnf("invalid quantity requested: quantity: %v  receivedBytes: %v", quantity, debt.receivedBytes)
 	}
 
 	client.ProcessPayment(i.from, i.msg)
@@ -73,7 +73,7 @@ func (h *ProcessOutgoingPaymentHandler) Handle(paymentHandler DebtRegestry, peer
 	err := client.ProcessCommand(h.from, msg)
 
 	if err != nil {
-		log.Errorf("process command failed: %s", err.Error())
+		log.Errorf("process command failed: %v", err)
 	}
 }
 
@@ -121,14 +121,13 @@ func (h *ProcessPaymentStatusResponseHandler) Handle(paymentHandler DebtRegestry
 	m := h.msg
 	if !m.Status {
 		// TODO: retry ?
-
 		return
 	}
 
 	trx, err := client.GetTransaction(m.SessionId)
 
 	if err != nil {
-		log.Errorf("Transaction not found: %v", err.Error())
+		log.Errorf("Transaction not found: %v", err)
 	}
 
 	debt := paymentHandler.GetDebt(h.from)

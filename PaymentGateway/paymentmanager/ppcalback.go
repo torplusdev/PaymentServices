@@ -6,6 +6,12 @@ import (
 	"paidpiper.com/payment-gateway/models"
 )
 
+type PPCallbackHandler interface {
+	ProcessCommand(msg *models.ProcessCommand) (err error)
+	ProcessCommandResponse(msg *models.ProcessCommandResponse) (err error)
+	ProcessPaymentResponse(msg *models.PaymentStatusResponseModel) (err error)
+}
+
 type PPCallback struct {
 	peerHandler    PeerHandler
 	sessionHandler *SessionHandler
@@ -14,7 +20,7 @@ type PPCallback struct {
 
 func NewPPCallback(peerHandler PeerHandler,
 	clientHandler ClientHandler,
-	sessionHandler *SessionHandler) *PPCallback {
+	sessionHandler *SessionHandler) PPCallbackHandler {
 	return &PPCallback{
 		peerHandler,
 		sessionHandler,

@@ -1,25 +1,31 @@
 package paymentmanager
 
-func NewHttpConnection(port int, ppaddres string, peerHandler PeerHandler) PPConnection {
+import "context"
+
+func NewHttpConnection(port int, addres string, server CallbackServer, peerHandler PeerHandler) PPConnection {
 	sessionHandler := NewSessionHandler()
-	client := NewClient(ppaddres, port, sessionHandler)
+	client := NewClient(addres, port, sessionHandler)
 	ppCallBack := &PPCallback{
 		peerHandler,
 		sessionHandler,
 		client,
 	}
-	server := NewServer(port, ppCallBack)
+	server.SetCallbackHandler(ppCallBack)
 	return &httpPPConnectionConnection{
-		ClientHandler:   client,
-		CallbackHandler: server,
+		ClientHandler:  client,
+		CallbackServer: server,
 	}
 }
 
 type httpPPConnectionConnection struct {
 	ClientHandler
-	CallbackHandler
+	CallbackServer
 }
 
 func (c *httpPPConnectionConnection) Start() {
 	go c.Start()
+}
+
+func (c *httpPPConnectionConnection) Shutdown(ctx context.Context) {
+	c.CallbackServer.Shutdown(ctx)
 }

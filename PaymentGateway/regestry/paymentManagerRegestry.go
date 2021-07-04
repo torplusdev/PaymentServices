@@ -60,7 +60,6 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 		return nil, err
 	}
 
-	//I THINK IT IS WRONG LINE
 	commandCallbackUrl := request.CallbackUrl
 	if routingNotes == nil {
 		routeResponse, err := g.torClient.GetRoute(ctx, sessionId)

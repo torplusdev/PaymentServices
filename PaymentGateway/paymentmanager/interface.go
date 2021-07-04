@@ -16,11 +16,14 @@ type ClientHandler interface {
 	GetTransaction(sessionId string) (*models.PaymentTransaction, error)
 }
 
-type CallbackHandler interface {
+type CallbackServer interface {
 	Start()
+	SetPort(port int)
+	SetCallbackHandler(cb PPCallbackHandler)
+	SetMetricsSource(source MetricsSource)
 	Shutdown(ctx context.Context)
 }
 type PPConnection interface {
 	ClientHandler
-	CallbackHandler
+	CallbackServer
 }

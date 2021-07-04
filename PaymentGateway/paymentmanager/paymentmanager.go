@@ -13,7 +13,7 @@ type PaymentManager interface {
 	RequirePayment(ctx context.Context, id models.PeerID, msgSize int)
 	RegisterReceivedBytes(ctx context.Context, id models.PeerID, msgSize int)
 	ReceivePaymentDataMessage(ctx context.Context, id models.PeerID, data PaymentData)
-	SetHttpConnection(commandListenPort int, channelUrl string)
+	SetHttpConnection(commandListenPort int, channelUrl string, server CallbackServer)
 	Startup()
 }
 
@@ -46,8 +46,9 @@ func New(ctx context.Context, peerHandler PeerHandler) PaymentManager {
 	}
 }
 
-func (pm *paymentManager) SetHttpConnection(commandListenPort int, channelUrl string) {
-	conn := NewHttpConnection(commandListenPort, channelUrl, pm.peerHandler)
+func (pm *paymentManager) SetHttpConnection(commandListenPort int, channelUrl string, server CallbackServer) {
+
+	conn := NewHttpConnection(commandListenPort, channelUrl, server, pm.peerHandler)
 	pm.SetConnection(conn)
 }
 

@@ -21,7 +21,7 @@ type MetricsStore struct {
 func NewMetricsStore(source MetricsSource) *MetricsStore {
 	s := &MetricsStore{}
 	s.createRegestry()
-
+	s.source = source
 	return s
 }
 

@@ -58,6 +58,7 @@ func (pm *paymentManager) SetConnection(ppConnection PPConnection) {
 
 // Startup starts processing for the PayManager.
 func (pm *paymentManager) Startup() {
+
 	go pm.run()
 
 	if pm.ppConnection != nil {

@@ -23,7 +23,7 @@ type httpPPConnectionConnection struct {
 }
 
 func (c *httpPPConnectionConnection) Start() {
-	go c.Start()
+	go c.CallbackServer.Start()
 }
 
 func (c *httpPPConnectionConnection) Shutdown(ctx context.Context) {

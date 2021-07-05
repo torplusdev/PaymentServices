@@ -19,9 +19,11 @@ type ppCallbackServer struct {
 	callbackHandler PPCallbackHandler
 	router          *mux.Router
 	metricsStore    *MetricsStore
+	metricsHandler  http.Handler
 }
 
 func (p *ppCallbackServer) Start() {
+	log.Infof("Start pp server %v", p.server.Addr)
 	err := p.server.ListenAndServe()
 
 	if err != nil {
@@ -38,6 +40,7 @@ func (p *ppCallbackServer) Shutdown(ctx context.Context) {
 }
 
 func (p *ppCallbackServer) SetPort(port int) {
+	log.Infof("PP server port %v", port)
 	p.server.Addr = fmt.Sprintf(":%d", port)
 }
 
@@ -56,9 +59,20 @@ func NewServer() CallbackServer {
 }
 func (p *ppCallbackServer) SetMetricsSource(source MetricsSource) {
 	p.metricsStore = NewMetricsStore(source)
-	p.router.Handle("/metrics", p.metricsStore.Handler())
+	p.metricsHandler = p.metricsStore.Handler()
 }
 func AddHandlers(router *mux.Router, callbackServer *ppCallbackServer) {
+	router.HandleFunc("/version", func(rw http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(rw, "dev_version")
+	})
+	router.HandleFunc("/metrics", func(rw http.ResponseWriter, r *http.Request) {
+		if callbackServer.metricsHandler != nil {
+			callbackServer.metricsHandler.ServeHTTP(rw, r)
+		} else {
+			rw.WriteHeader(http.StatusBadGateway)
+		}
+
+	})
 	router.HandleFunc("/api/command", callbackServer.HandleProcessCommand).Methods("POST")
 	router.HandleFunc("/api/commandResponse", callbackServer.HandleProcessCommandResponse).Methods("POST")
 	router.HandleFunc("/api/paymentResponse", callbackServer.HandleProcessPaymentResponse).Methods("POST")

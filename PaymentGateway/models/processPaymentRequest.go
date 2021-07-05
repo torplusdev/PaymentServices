@@ -2,9 +2,8 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
-
-	"paidpiper.com/payment-gateway/log"
 )
 
 type ProcessPaymentRequest struct {
@@ -57,7 +56,7 @@ func (pr *ProcessPaymentRequest) UnmarshalJSON(b []byte) error {
 	}
 	err := json.Unmarshal(b, &typ)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal ProcessPaymentRequest error JSON: %v error: %v", string(b), err)
 	}
 	pr.Route = typ.Route
 	pr.CallbackUrl = typ.CallbackUrl
@@ -67,10 +66,10 @@ func (pr *ProcessPaymentRequest) UnmarshalJSON(b []byte) error {
 
 	cleanPaymentRequest := strings.TrimRight(typ.PaymentRequest, "\r\n ")
 	cleanPaymentRequest = strings.ReplaceAll(cleanPaymentRequest, "\\n", "")
-	log.Error("JSON: ", cleanPaymentRequest)
+
 	err = json.Unmarshal([]byte(cleanPaymentRequest), paymentRequest)
 	if err != nil {
-		return err
+		return fmt.Errorf("unmarshal PaymentRequest error JSON: %v error: %v", cleanPaymentRequest, err)
 	}
 	pr.PaymentRequest = paymentRequest
 	return nil

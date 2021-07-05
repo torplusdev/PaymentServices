@@ -28,7 +28,7 @@ type paymentManager struct {
 }
 
 const (
-	requestPaymentAfterBytes = 2 * 1024 * 1024 // Pey per each 50 MB including transaction fee => 50 * 0.00002 + 0.00001 = 0.00101 XLM , 1 XLM pays for 49,5GB of data
+	requestPaymentAfterBytes = 50 * 1024 * 1024 // Pey per each 50 MB including transaction fee => 50 * 0.00002 + 0.00001 = 0.00101 XLM , 1 XLM pays for 49,5GB of data
 )
 
 // New initializes a new WantManager for a given context.

@@ -16,7 +16,7 @@ import (
 func main() {
 
 	stop := make(chan os.Signal, 1)
-	log.Info("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
+	log.Infof("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
 	config, err := config.ParseConfig()
 	log.Info("Port: ", config.Port)
 	if err != nil {

@@ -158,7 +158,7 @@ func (cl *commandClient) WrapToCommand(cmd models.InCommandType) (*models.Proces
 //TODO TO INTERFACE
 func (cl *commandClient) processCommand(context context.Context, cmd *models.ProcessCommand) ([]byte, error) {
 	commandId := cmd.CommandId
-	ch := cl.chainStore.open(commandId)
+	ch := cl.chainStore.open(commandId, cmd.CommandType)
 
 	defer cl.chainStore.close(commandId)
 

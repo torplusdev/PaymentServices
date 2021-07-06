@@ -165,7 +165,7 @@ func (cl *commandClient) processCommand(context context.Context, cmd *models.Pro
 	log.Infof("Process command SessionId=%s, NodeId=%s, CommandId=%s CommandType:%d", cmd.SessionId, cl.nodeId, commandId, cmd.CommandType)
 	//TODO ERROR
 	jsonValue, _ := json.Marshal(cmd)
-	log.Trace("Tor Request Body: %v", string(jsonValue))
+	log.Infof("Tor Request Body: %v", string(jsonValue))
 	res, err := common.HttpPostWithoutContext(cl.torUrl, bytes.NewBuffer(jsonValue))
 	if err != nil {
 		log.Errorf("request to tor error: %v", err)

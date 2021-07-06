@@ -30,7 +30,7 @@ func (g *HttpGatewayController) HttpProcessResponse(w http.ResponseWriter, r *ht
 	if err != nil {
 		log.Errorf("Error read request body: %s", err.Error())
 	}
-
+	log.Infof("Http process response %v", string(data))
 	err = json.NewDecoder(bytes.NewReader(data)).Decode(response)
 
 	if err != nil {

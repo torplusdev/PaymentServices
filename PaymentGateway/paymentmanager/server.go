@@ -87,12 +87,15 @@ func (p *ppCallbackServer) HandleProcessCommand(w http.ResponseWriter, r *http.R
 	err := json.NewDecoder(r.Body).Decode(request)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Errorf("ProcessCommand error: ", err)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
 			log.Errorf("Error:%v", err)
 		}
 		return
 	}
+	log.Infof("Process command: SessionId: %v CommandType: %v NodeId: %v CommandId: %v",
+		request.SessionId, request.CommandType, request.NodeId, request.CommandId)
 	if p.callbackHandler != nil {
 		err = p.callbackHandler.ProcessCommand(request)
 		if err != nil {
@@ -116,12 +119,15 @@ func (p *ppCallbackServer) HandleProcessCommandResponse(w http.ResponseWriter, r
 	err := json.NewDecoder(r.Body).Decode(response)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_, err := io.WriteString(w, err.Error())
+		log.Errorf("ProcessCommandResponse error: ", err)
+
 		if err != nil {
 			log.Errorf("Error:%v", err)
 		}
 		return
 	}
+	log.Infof("Process response: SessionId: %v NodeId: %v CommandId: %v",
+		response.SessionId, response.NodeId, response.CommandId)
 	if p.callbackHandler != nil {
 		err = p.callbackHandler.ProcessCommandResponse(response)
 		if err != nil {
@@ -145,15 +151,18 @@ func (p *ppCallbackServer) HandleProcessPaymentResponse(w http.ResponseWriter, r
 	err := json.NewDecoder(r.Body).Decode(request)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Errorf("ProcessPaymentResponse error: ", err)
 		_, err := io.WriteString(w, err.Error())
 		if err != nil {
 			log.Errorf("Error:%v", err)
 		}
 		return
 	}
+	log.Infof("Payment response: SessionId: %v Status: %v", request.SessionId, request.Status)
 	if p.callbackHandler != nil {
 		err = p.callbackHandler.ProcessPaymentResponse(request)
 		if err != nil {
+
 			w.WriteHeader(http.StatusNotFound)
 			_, err := io.WriteString(w, err.Error())
 			if err != nil {

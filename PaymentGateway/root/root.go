@@ -442,7 +442,7 @@ func (n *rootApi) verifyTransactionSignatures(context context.Context, transacti
 	payerVerified := false
 	sourceVerified := false
 	signatures := t.Signatures()
-	log.Info("Signatures count: %d", len(signatures))
+	log.Info("Signatures count:", len(signatures))
 	for _, signature := range signatures {
 		from, err := keypair.ParseAddress(payerAccount)
 

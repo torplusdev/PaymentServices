@@ -300,7 +300,7 @@ func (client *serviceClient) InitiatePayment(context context.Context,
 			return nil, errors.Errorf("Error invalid transaction chain, address targets itself %s.", t.PendingTransaction.PaymentSourceAddress)
 		}
 	}
-	log.Info("Payment Complete Success: %v", paymentRequest.ServiceSessionId)
+	log.Info("Payment Complete Success: ", paymentRequest.ServiceSessionId)
 	return singedTransaction, nil
 }
 

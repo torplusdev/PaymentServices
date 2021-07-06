@@ -550,7 +550,7 @@ func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCo
 				log.Errorf("CommandHandler error: %v", err)
 				return
 			}
-			log.Infof("callbacker: SessionId: %v Url: ", command.SessionId, command.CallbackUrl)
+			log.Infof("callbacker: CommandId: %v SessionId: %v Url: ", command.CommandId, command.SessionId, command.CallbackUrl)
 			err = callbacker.call(reply, err)
 			if err != nil {
 				log.Errorf("Callback error: %v", err)

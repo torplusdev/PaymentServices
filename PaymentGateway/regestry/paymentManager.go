@@ -102,7 +102,7 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 		return fmt.Errorf("finalize failed: %v", err)
 	}
 
-	log.Info("Payment completed SessionId=%s, ServiceRef=%s", sessionId, request.PaymentRequest.ServiceRef)
+	log.Infof("Payment completed SessionId=%s, ServiceRef=%s", sessionId, request.PaymentRequest.ServiceRef)
 
 	return nil
 }

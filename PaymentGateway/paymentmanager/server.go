@@ -140,6 +140,7 @@ func (p *ppCallbackServer) HandleProcessCommandResponse(w http.ResponseWriter, r
 		}
 		w.WriteHeader(http.StatusOK)
 	} else {
+		log.Error("Error callback handler is null SessionId: ", response.SessionId)
 		fmt.Fprintln(w, "callbackHandler not found")
 		w.WriteHeader(http.StatusBadGateway)
 	}

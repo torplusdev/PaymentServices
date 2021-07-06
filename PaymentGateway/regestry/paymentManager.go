@@ -77,8 +77,7 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 	transactions, err := pm.client.InitiatePayment(ctx, pm.nodes, request.PaymentRequest)
 
 	if err != nil {
-		log.Infof("Payment failed SessionId=%s", sessionId)
-		log.Print(err)
+		log.Errorf("Payment failed SessionId=%s Error: %v", sessionId, err)
 		return fmt.Errorf("initiate payment failed: %v", err)
 	}
 

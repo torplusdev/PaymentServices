@@ -1,9 +1,11 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"paidpiper.com/payment-gateway/log"
@@ -24,18 +26,21 @@ func NewHttpGatewayController(n local.LocalPPNode) *HttpGatewayController {
 
 func (g *HttpGatewayController) HttpProcessResponse(w http.ResponseWriter, r *http.Request) {
 	response := &models.ShapelessProcessCommandResponse{}
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Errorf("Error read request body: %s", err.Error())
+	}
 
-	err := json.NewDecoder(r.Body).Decode(response)
+	err = json.NewDecoder(bytes.NewReader(data)).Decode(response)
 
 	if err != nil {
 		log.Errorf("Error decoding request: %s", err.Error())
-		log.Trace(r.Body)
+		log.Tracef("Body: %v", string(data))
 
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
 
-	//TODO context
 	err = g.ProcessResponse(context.Background(), response)
 	if err != nil {
 		log.Errorf("Error processing response: %s", err.Error())

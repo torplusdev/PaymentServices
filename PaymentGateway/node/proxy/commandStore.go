@@ -52,7 +52,7 @@ func (n *commandChannelStore) processResponse(commandId string, bs []byte) bool 
 	defer n.mutex.Unlock()
 	ch, ok := n.commandChannel[commandId]
 	if ok {
-		ch <- bs
+		ch.ch <- bs
 		return true
 	}
 	return false

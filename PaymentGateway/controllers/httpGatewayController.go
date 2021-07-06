@@ -71,7 +71,7 @@ func (g *HttpGatewayController) HttpProcessPayment(w http.ResponseWriter, r *htt
 		return
 	}
 	if res != nil {
-		log.Errorf("Payment processing complete (session %s)", res.SessionId)
+		log.Infof("Payment processing complete (session %s)", res.SessionId)
 		Respond(w, MessageWithData(http.StatusCreated, res))
 		return
 	}

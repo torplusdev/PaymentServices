@@ -53,7 +53,7 @@ build_windows:
 build_current:
 	go build -ldflags "$(LDFLAGSVERSION)" -o ./main_current ./cmd/main/
 run:
-	go run ./cmd/main/ 
+	go run ./cmd/main/ SCAVSOJY7K4XQ5UW4Q33ATWK3LWHAN5VRE4GW4VJ7UXGQ2WIZPP5HOPE 28080
 
 generatordeps:
 	go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen

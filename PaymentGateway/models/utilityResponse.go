@@ -7,7 +7,7 @@ type CommandResponseCore struct {
 	CommandId string `json:"CommandId"`
 	NodeId    string `json:"NodeId"`
 }
-type UtilityResponse struct { // FROM PG TO TOR
+type UtilityResponse struct { // FROM PG TO TOR or IPFS
 	CommandResponseCore
 	CommandResponse []byte `json:"CommandResponse"`
 }

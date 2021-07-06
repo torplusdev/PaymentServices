@@ -1,14 +1,12 @@
 package paymentmanager
 
 import (
-	"encoding/json"
-
 	"paidpiper.com/payment-gateway/models"
 )
 
 type PPCallbackHandler interface {
 	ProcessCommand(msg *models.ProcessCommand) (err error)
-	ProcessCommandResponse(msg *models.ProcessCommandResponse) (err error)
+	ProcessCommandResponse(msg *models.UtilityResponse) (err error) //*models.ProcessCommandResponse
 	ProcessPaymentResponse(msg *models.PaymentStatusResponseModel) (err error)
 }
 
@@ -47,16 +45,16 @@ type IncomingCommandResponseModel struct { //TODO REMOVE
 	SessionId       string
 }
 
-func (ppc *PPCallback) ProcessCommandResponse(msg *models.ProcessCommandResponse) (err error) {
+func (ppc *PPCallback) ProcessCommandResponse(msg *models.UtilityResponse) (err error) {
 	peerID := models.PeerID(msg.CommandResponseCore.NodeId)
 
-	bs, err := json.Marshal(msg.Response)
-	if err != nil {
-		return err
-	}
+	// bs, err := json.Marshal(msg.Response)
+	// if err != nil {
+	// 	return err
+	// }
 	paymentResponse := &PaymentResponse{ //TODO replace UtilityResponse
 		CommandId:    msg.CommandId,
-		CommandReply: bs,
+		CommandReply: msg.CommandResponse,
 		SessionId:    msg.SessionId,
 	}
 	ppc.peerHandler.SendPaymentDataMessage(peerID, paymentResponse)

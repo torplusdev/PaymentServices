@@ -1,6 +1,8 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type CommandResponseCore struct {
 	SessionId string `json:"SessionId"`
@@ -11,9 +13,25 @@ type UtilityResponse struct { // FROM PG TO TOR or IPFS
 	CommandResponseCore
 	CommandResponse []byte `json:"CommandResponse"`
 }
+type UtilityResponseFixModel struct {
+	CommandResponseCore
+	CommandResponse []byte `json:"CommandResponse"`
+	ResponseBody    []byte `json:"ResponseBody"`
+}
 type ShapelessProcessCommandResponse struct { // FROM TOR TO PG
 	CommandResponseCore
 	CommandResponse []byte `json:"ResponseBody"`
+}
+
+func NewShapelessProcessCommandResponse(im *UtilityResponseFixModel) *ShapelessProcessCommandResponse {
+	b := im.CommandResponse
+	if len(b) == 0 {
+		b = im.ResponseBody
+	}
+	return &ShapelessProcessCommandResponse{
+		CommandResponseCore: im.CommandResponseCore,
+		CommandResponse:     b,
+	}
 }
 
 type ProcessCommandResponse struct {

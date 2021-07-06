@@ -173,19 +173,12 @@ func (cl *commandClient) processCommand(context context.Context, cmd *models.Pro
 	}
 	defer res.Body.Close()
 
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-
 	bodyBytes, err := ioutil.ReadAll(res.Body)
-
+	if err != nil {
+		log.Error("Read body error:", err)
+	}
 	if err == nil && len(bodyBytes) > 0 {
 		return bodyBytes, nil
-	}
-
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	// Wait

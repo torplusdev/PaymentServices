@@ -25,7 +25,8 @@ func NewHttpGatewayController(n local.LocalPPNode) *HttpGatewayController {
 }
 
 func (g *HttpGatewayController) HttpProcessResponse(w http.ResponseWriter, r *http.Request) {
-	response := &models.ShapelessProcessCommandResponse{}
+
+	response := &models.UtilityResponseFixModel{}
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Errorf("Error read request body: %s", err.Error())
@@ -40,8 +41,8 @@ func (g *HttpGatewayController) HttpProcessResponse(w http.ResponseWriter, r *ht
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))
 		return
 	}
-
-	err = g.ProcessResponse(context.Background(), response)
+	res := models.NewShapelessProcessCommandResponse(response)
+	err = g.ProcessResponse(context.Background(), res)
 	if err != nil {
 		log.Errorf("Error processing response: %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusConflict, err.Error()))

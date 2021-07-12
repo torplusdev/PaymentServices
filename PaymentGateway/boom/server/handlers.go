@@ -15,13 +15,20 @@ func AddHandlers(router *mux.Router) {
 }
 
 func httpConnections(w http.ResponseWriter, r *http.Request) {
-	res, err := globConnectionSource.Connections()
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, err.Error())
+	if globConnectionSource != nil {
+		res, err := globConnectionSource.Connections()
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, err.Error())
+			return
+		}
+		writeJson(w, res)
 		return
 	}
-	writeJson(w, res)
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprint(w, "globConnectionSource is null")
+	return
+
 }
 
 func httpProcessResponse(w http.ResponseWriter, r *http.Request) {

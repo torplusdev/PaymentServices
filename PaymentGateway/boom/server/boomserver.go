@@ -20,6 +20,9 @@ var globConnectionSource ConnectionSource
 func AddSource(source BoomDataSource) {
 	globSource = source
 }
+func AddConnectionSource(source ConnectionSource) {
+	globConnectionSource = source
+}
 
 func FrequentElements() ([]*data.FrequencyContentMetadata, error) {
 	if globSource == nil {

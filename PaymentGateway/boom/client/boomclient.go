@@ -20,9 +20,15 @@ type boomClient struct {
 }
 
 func (bc *boomClient) Connections() (*data.Connections, error) {
+	httpClient, err := NewClientWithProxy()
+	if err != nil {
+		return nil, err
+	}
 	url := fmt.Sprintf("%s/api/boom/connections", bc.host)
+	// create a request
+	req, err := http.NewRequest("GET", url, nil)
 
-	reply, err := http.Get(url)
+	reply, err := httpClient.Do(req)
 
 	if err != nil {
 		return nil, err
@@ -38,9 +44,15 @@ func (bc *boomClient) Connections() (*data.Connections, error) {
 	return response, nil
 }
 func (bc *boomClient) Elements() ([]*data.FrequencyContentMetadata, error) {
+	httpClient, err := NewClientWithProxy()
+	if err != nil {
+		return nil, err
+	}
 	url := fmt.Sprintf("%s/api/boom/elements", bc.host)
 
-	reply, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+
+	reply, err := httpClient.Do(req)
 
 	if err != nil {
 		return nil, err

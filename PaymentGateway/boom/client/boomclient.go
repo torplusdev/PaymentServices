@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"paidpiper.com/payment-gateway/boom"
 	"paidpiper.com/payment-gateway/boom/data"
 )
 
 func New(host string) boom.BoomDataProvider {
+	host = strings.ReplaceAll(host, "/onion3/", "http://")
+	host = strings.ReplaceAll(host, ":", ".onion:")
+	host = strings.ReplaceAll(host, "4001", "30500")
 	return &boomClient{
 		host: host,
 	}
@@ -20,6 +24,7 @@ type boomClient struct {
 }
 
 func (bc *boomClient) Connections() (*data.Connections, error) {
+
 	httpClient, err := NewClientWithProxy()
 	if err != nil {
 		return nil, err

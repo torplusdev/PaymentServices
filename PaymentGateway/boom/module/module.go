@@ -3,6 +3,7 @@ package module
 import (
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"paidpiper.com/payment-gateway/boom"
 	"paidpiper.com/payment-gateway/boom/client"
@@ -21,6 +22,9 @@ func Fill(selfProvider boom.BoomDataProvider, ipfs IPFS) error {
 		return fmt.Errorf("fail connections request: %v", err)
 	}
 	for _, host := range conn.Hosts {
+		if !strings.Contains(host, "onion") {
+			continue
+		}
 		clientOfMain := client.New(host)
 		els, err := clientOfMain.Elements()
 		if err != nil {

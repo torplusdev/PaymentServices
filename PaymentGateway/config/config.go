@@ -153,7 +153,12 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 }
 
 func ParseConfig() (*Configuration, error) {
-	config, err := ParseConfiguration("config.json")
+	configPath := "config.json"
+	if len(os.Args) == 2 {
+		configPath = os.Args[1]
+		fmt.Println(configPath)
+	}
+	config, err := ParseConfiguration(configPath)
 
 	if err != nil {
 		log.Error("Error reading configuration file (config.json), trying cmdline params: %v", err)

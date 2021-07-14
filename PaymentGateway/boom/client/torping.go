@@ -30,8 +30,8 @@ func newClient(dialContext DialContext) *http.Client {
 		},
 	}
 }
-func NewClientWithProxy() (*http.Client, error) {
 
+func NewClientWithProxy() (*http.Client, error) {
 	baseDialer := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,

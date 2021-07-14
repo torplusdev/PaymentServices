@@ -94,10 +94,8 @@ func (pm *paymentManager) paymentProcess(ctx context.Context) error {
 	err = pm.client.FinalizePayment(ctx, pm.nodes, request.PaymentRequest, transactions)
 
 	if err != nil {
-
 		log.Errorf("payment failed SessionId=%s", sessionId)
 		log.Error(err)
-
 		return fmt.Errorf("finalize failed: %v", err)
 	}
 

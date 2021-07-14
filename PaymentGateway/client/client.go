@@ -24,6 +24,8 @@ type NodeChain interface {
 	GetAllNodes() []node.PPNode
 	GetDestinationNode() node.PPNode
 }
+
+//TODO TO STAGE MODEL
 type ServiceClient interface {
 	InitiatePayment(context.Context, NodeChain, *models.PaymentRequest) ([]*models.PaymentTransactionReplacing, error)
 	VerifyTransactions(context.Context, []*models.PaymentTransactionReplacing) error

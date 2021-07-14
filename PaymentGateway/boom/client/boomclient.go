@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -11,8 +12,8 @@ import (
 )
 
 func New(host string) boom.BoomDataProvider {
-	host = strings.ReplaceAll(host, "/onion3/", "http://")
 	host = strings.ReplaceAll(host, ":", ".onion:")
+	host = strings.ReplaceAll(host, "/onion3/", "http://")
 	host = strings.ReplaceAll(host, "4001", "30500")
 	return &boomClient{
 		host: host,
@@ -64,8 +65,15 @@ func (bc *boomClient) Elements() ([]*data.FrequencyContentMetadata, error) {
 	}
 	response := []*data.FrequencyContentMetadata{}
 	defer reply.Body.Close()
+	responseString, err := ioutil.ReadAll(reply.Body)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(string(responseString))
+
 	if response != nil {
-		err = json.NewDecoder(reply.Body).Decode(response)
+		err := json.Unmarshal(responseString, &response)
+		//err = json.NewDecoder(reply.Body).Decode(response)
 		if err != nil {
 			return nil, err
 		}

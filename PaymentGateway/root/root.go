@@ -71,8 +71,8 @@ func createTestRootApi(seed string, transactionValiditySecs int64) (RootApi, err
 
 func createPublicRootApi(seed string, transactionValiditySecs int64) (RootApi, error) {
 	rc := &rootApiCore{
-		client:       horizonclient.DefaultTestNetClient,
-		networkToken: network.TestNetworkPassphrase,
+		client:       horizonclient.DefaultPublicNetClient,
+		networkToken: network.PublicNetworkPassphrase,
 	}
 	r, err := createRootApi(rc, seed, transactionValiditySecs)
 	return r, err

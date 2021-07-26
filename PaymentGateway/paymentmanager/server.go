@@ -126,8 +126,8 @@ func (p *ppCallbackServer) HandleProcessCommandResponse(w http.ResponseWriter, r
 		}
 		return
 	}
-	log.Infof("Process response: SessionId: %v NodeId: %v CommandId: %v",
-		response.SessionId, response.NodeId, response.CommandId)
+	log.Infof("Process response: SessionId: %v NodeId: %v CommandId: %v  CommandType: %v",
+		response.SessionId, response.NodeId, response.CommandId, response.CommandType)
 	if p.callbackHandler != nil {
 		err = p.callbackHandler.ProcessCommandResponse(response)
 		if err != nil {

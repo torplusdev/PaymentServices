@@ -27,9 +27,10 @@ func NewClient(channelUrl string, commandListenPort int, sessionHandler *Session
 func (pm *ppClient) ProcessResponse(nodeId models.PeerID, msg *PaymentResponse) {
 	req := &models.UtilityResponse{
 		CommandResponseCore: models.CommandResponseCore{
-			CommandId: msg.CommandId,
-			NodeId:    nodeId.String(),
-			SessionId: msg.SessionId,
+			CommandId:   msg.CommandId,
+			NodeId:      nodeId.String(),
+			SessionId:   msg.SessionId,
+			CommandType: msg.CommandType,
 		},
 		CommandResponse: msg.CommandReply,
 	}

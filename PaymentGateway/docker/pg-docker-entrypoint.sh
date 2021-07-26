@@ -3,6 +3,7 @@ if [[ "${no_conf}" != "1" ]]; then
 
   cat /opt/paidpiper/config.json.tmpl | envsubst > /opt/paidpiper/config.json
 fi
+mkdir /opt/paidpiper/logs
 function mark {
   match=$1
   file=$2
@@ -19,7 +20,7 @@ function mark {
 }
 if [ $# -eq 0 ]
 then
-    /opt/paidpiper/payment-gateway | mark "Server is ready!" ".pg_ready"
+    /opt/paidpiper/payment-gateway | mark "Server is ready!" ".pg_ready" &> /opt/paidpiper/logs/haproxylog.log
 else 
     exec "$@" | mark "Server is ready!" ".pg_ready"
 fi

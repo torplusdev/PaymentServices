@@ -1,5 +1,6 @@
 FROM pg_build as build
-FROM torplusserviceregistry.azurecr.io/private/tor_plus:latest
+FROM torplusserviceregistry.azurecr.io/private/tor_plus:latest as tor_plus
+FROM torplusserviceregistry.azurecr.io/private/tor:latest
 RUN apt-get update && \
     apt-get install -y curl gettext-base supervisor && \
     rm -rf /var/lib/apt/lists/*
@@ -13,5 +14,5 @@ COPY PaymentGateway/docker/pg-docker-entrypoint.sh /pg-docker-entrypoint.sh
 RUN chmod 755 /pg-docker-entrypoint.sh
 COPY PaymentGateway/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY PaymentGateway/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
+COPY --from=tor_plus /usr/local/bin/tor /usr/local/bin/tor_plus
 ENTRYPOINT ["/usr/bin/supervisord"]

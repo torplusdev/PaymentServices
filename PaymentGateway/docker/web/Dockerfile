@@ -19,7 +19,6 @@ COPY PaymentGateway/docker/config.json.tmpl config.json.tmpl
 COPY PaymentGateway/docker/pg-docker-entrypoint.sh /pg-docker-entrypoint.sh
 RUN chmod 755 /pg-docker-entrypoint.sh
 COPY PaymentGateway/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY PaymentGateway/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY PaymentGateway/docker/web/nginx.conf /etc/nginx/nginx.conf
 COPY PaymentGateway/docker/web/start.sh /start.sh
 RUN chmod 755 /start.sh

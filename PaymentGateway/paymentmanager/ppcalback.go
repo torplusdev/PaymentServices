@@ -56,6 +56,7 @@ func (ppc *PPCallback) ProcessCommandResponse(msg *models.UtilityResponse) (err 
 		CommandId:    msg.CommandId,
 		CommandReply: msg.CommandResponse,
 		SessionId:    msg.SessionId,
+		CommandType:  msg.CommandType,
 	}
 	ppc.peerHandler.SendPaymentDataMessage(peerID, paymentResponse)
 	return

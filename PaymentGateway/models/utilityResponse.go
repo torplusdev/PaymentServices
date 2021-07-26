@@ -5,9 +5,10 @@ import (
 )
 
 type CommandResponseCore struct {
-	SessionId string `json:"SessionId"`
-	CommandId string `json:"CommandId"`
-	NodeId    string `json:"NodeId"`
+	SessionId   string      `json:"SessionId"`
+	CommandId   string      `json:"CommandId"`
+	NodeId      string      `json:"NodeId"`
+	CommandType CommandType `json:"CommandType"`
 }
 type UtilityResponse struct { // FROM PG TO TOR or IPFS
 	CommandResponseCore
@@ -16,7 +17,6 @@ type UtilityResponse struct { // FROM PG TO TOR or IPFS
 type UtilityResponseFixModel struct {
 	CommandResponseCore
 	CommandResponse []byte `json:"CommandResponse"`
-	ResponseBody    []byte `json:"ResponseBody"`
 }
 type ShapelessProcessCommandResponse struct { // FROM TOR TO PG
 	CommandResponseCore
@@ -25,9 +25,6 @@ type ShapelessProcessCommandResponse struct { // FROM TOR TO PG
 
 func NewShapelessProcessCommandResponse(im *UtilityResponseFixModel) *ShapelessProcessCommandResponse {
 	b := im.CommandResponse
-	if len(b) == 0 {
-		b = im.ResponseBody
-	}
 	return &ShapelessProcessCommandResponse{
 		CommandResponseCore: im.CommandResponseCore,
 		CommandResponse:     b,

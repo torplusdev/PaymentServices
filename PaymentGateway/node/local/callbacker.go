@@ -40,9 +40,10 @@ func (cb *callBackerImpl) call(reply models.OutCommandType, err error) error {
 	values := &models.UtilityResponse{
 		CommandResponse: data,
 		CommandResponseCore: models.CommandResponseCore{
-			CommandId: cmd.CommandId,
-			NodeId:    cmd.NodeId,
-			SessionId: cmd.CommandCore.SessionId,
+			CommandId:   cmd.CommandId,
+			NodeId:      cmd.NodeId,
+			SessionId:   cmd.CommandCore.SessionId,
+			CommandType: cb.cmd.CommandType,
 		},
 	}
 	jsonValue, err := json.Marshal(values)

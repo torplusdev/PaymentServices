@@ -81,6 +81,7 @@ type PaymentResponse struct {
 	CommandId    string
 	CommandReply []byte
 	SessionId    string
+	CommandType  models.CommandType
 }
 
 func (m *PaymentResponse) Handler(from models.PeerID) PaymentHandler {

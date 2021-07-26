@@ -83,17 +83,3 @@ ProcessPaymentRequest -> http (/api/gateway/processPayment )
 
 
 IPFSS
-
-
-
-
-
-
-
-
-
-err: exit status 1: stderr: go: paidpiper.com/payment-gateway/controllers: package github.com/pkg/errors imported from implicitly required module; to add missing requirements, run:
-	go get github.com/pkg/errors@v0.8.1
-go: paidpiper.com/payment-gateway/models: package github.com/pkg/errors imported from implicitly required module; to add missing requirements, run:
-	go get github.com/pkg/errors@v0.8.1
-: packages.Load error

@@ -121,7 +121,7 @@ func createTransactionIncorrectSequence(r *RogueNode, context context.Context, r
 			Amount:      payment.Amount,
 			Asset: txnbuild.CreditAsset{
 				Code:   models.PPTokenAssetName,
-				Issuer: models.PPTokenIssuerAddress,
+				Issuer: models.PPTokenTestnetIssuerAddress,
 			},
 			SourceAccount: payment.SourceAccount,
 		},

@@ -46,8 +46,9 @@ type RootApi interface {
 }
 
 type rootApiCore struct {
-	client       *horizonclient.Client
-	networkToken string
+	client               *horizonclient.Client
+	networkToken         string
+	ppTokenIssuerAddress string
 }
 type rootApi struct {
 	rootApiCore
@@ -62,8 +63,9 @@ type RootApiFactory func(seed string, transactionValiditySecs int64) (RootApi, e
 
 func createTestRootApi(seed string, transactionValiditySecs int64) (RootApi, error) {
 	rc := &rootApiCore{
-		client:       horizonclient.DefaultTestNetClient,
-		networkToken: network.TestNetworkPassphrase,
+		client:               horizonclient.DefaultTestNetClient,
+		networkToken:         network.TestNetworkPassphrase,
+		ppTokenIssuerAddress: models.PPTokenTestnetIssuerAddress,
 	}
 	r, err := createRootApi(rc, seed, transactionValiditySecs)
 	return r, err
@@ -71,8 +73,9 @@ func createTestRootApi(seed string, transactionValiditySecs int64) (RootApi, err
 
 func createPublicRootApi(seed string, transactionValiditySecs int64) (RootApi, error) {
 	rc := &rootApiCore{
-		client:       horizonclient.DefaultPublicNetClient,
-		networkToken: network.PublicNetworkPassphrase,
+		client:               horizonclient.DefaultPublicNetClient,
+		networkToken:         network.PublicNetworkPassphrase,
+		ppTokenIssuerAddress: models.PPTokenMainnetIssuerAddress,
 	}
 	r, err := createRootApi(rc, seed, transactionValiditySecs)
 	return r, err
@@ -204,7 +207,7 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 			Amount:      models.PPTokenToString(amount),
 			Asset: txnbuild.CreditAsset{
 				Code:   models.PPTokenAssetName,
-				Issuer: models.PPTokenIssuerAddress,
+				Issuer: api.ppTokenIssuerAddress,
 			},
 			SourceAccount: request.SourceAddress,
 		}},
@@ -729,7 +732,7 @@ func (api *rootApi) GetPPTokenBalance() (float64, error) {
 		return 0, err
 	}
 
-	balance := account.GetCreditBalance(models.PPTokenAssetName, models.PPTokenIssuerAddress)
+	balance := account.GetCreditBalance(models.PPTokenAssetName, api.ppTokenIssuerAddress)
 	nbalance, err := strconv.ParseFloat(balance, 32)
 	if err != nil {
 		return 0, err

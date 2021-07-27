@@ -24,6 +24,7 @@ type jsonCnfiguration struct {
 	AutoFlushPeriod              Duration
 	MaxConcurrency               int
 	TransactionValidityPeriodSec int64
+	UseTestApi                   bool
 }
 
 type Duration struct {
@@ -120,7 +121,7 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 	instance := &Configuration{
 		Port: rawConfig.Port,
 		RootApiConfig: RootApiConfig{
-			UseTestApi:              useTestApi,
+			UseTestApi:              rawConfig.UseTestApi,
 			Seed:                    rawConfig.StellarSeed,
 			TransactionValiditySecs: rawConfig.TransactionValidityPeriodSec,
 		},

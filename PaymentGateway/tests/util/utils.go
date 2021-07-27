@@ -87,7 +87,7 @@ func GetAccountBalances(seeds []string) []float64 {
 		kp, _ := keypair.ParseFull(seed)
 		acc, _ := GetAccount(kp.Address())
 
-		strBalance := acc.GetCreditBalance(models.PPTokenAssetName, models.PPTokenIssuerAddress)
+		strBalance := acc.GetCreditBalance(models.PPTokenAssetName, models.PPTokenTestnetIssuerAddress)
 
 		balances[i], _ = strconv.ParseFloat(strBalance, 64)
 	}
@@ -107,7 +107,7 @@ func UpdateAccountLimits(address string, limit int) {
 	// Create trust line
 	tokenAsset := txnbuild.CreditAsset{
 		Code:   models.PPTokenAssetName,
-		Issuer: models.PPTokenIssuerAddress,
+		Issuer: models.PPTokenTestnetIssuerAddress,
 	}
 
 	changeTrust := txnbuild.ChangeTrust{
@@ -164,7 +164,7 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 			horizonclient.AccountRequest{
 				AccountID: pair.Address()})
 
-		log.Printf("Account "+seed+" created - trans#:", txSuccess.Hash)
+		log.Infof("Account "+seed+" created - trans#:", txSuccess.Hash)
 	}
 
 	var weight byte
@@ -218,7 +218,7 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 
 	hasBalance := false
 	for _, b := range detail.Balances {
-		if b.Issuer == models.PPTokenIssuerAddress && b.Code == models.PPTokenAssetName {
+		if b.Issuer == models.PPTokenTestnetIssuerAddress && b.Code == models.PPTokenAssetName {
 			hasBalance = true
 		}
 	}
@@ -229,7 +229,7 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 		// Create trust line
 		tokenAsset := txnbuild.CreditAsset{
 			Code:   models.PPTokenAssetName,
-			Issuer: models.PPTokenIssuerAddress,
+			Issuer: models.PPTokenTestnetIssuerAddress,
 		}
 
 		changeTrust := txnbuild.ChangeTrust{
@@ -256,7 +256,7 @@ func CreateAndFundAccount(seed string, role NodeRoleType) {
 		}
 	}
 
-	strBalance := detail.GetCreditBalance(models.PPTokenAssetName, models.PPTokenIssuerAddress)
+	strBalance := detail.GetCreditBalance(models.PPTokenAssetName, models.PPTokenTestnetIssuerAddress)
 	balance, _ := strconv.ParseFloat(strBalance, 32)
 
 	if balance < 200 {
@@ -308,7 +308,7 @@ func injectFundsPPToken(kp *keypair.Full, amount int) error {
 
 	tokenAsset := txnbuild.CreditAsset{
 		Code:   "pptoken",
-		Issuer: models.PPTokenIssuerAddress,
+		Issuer: models.PPTokenTestnetIssuerAddress,
 	}
 
 	hasPPTokenBalance := false

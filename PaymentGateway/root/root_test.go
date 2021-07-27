@@ -67,7 +67,7 @@ func TestUserAccountCreation(t *testing.T) {
 		Destination:   destination.Address(),
 		Asset: txnbuild.CreditAsset{
 			Code:   models.PPTokenAssetName,
-			Issuer: models.PPTokenIssuerAddress,
+			Issuer: models.PPTokenTestnetIssuerAddress,
 		},
 	}
 	tp := txnbuild.TransactionParams{
@@ -96,7 +96,7 @@ func TestUserAccountCreation(t *testing.T) {
 		Amount:      "1",
 		Asset: txnbuild.CreditAsset{
 			Code:   models.PPTokenAssetName,
-			Issuer: models.PPTokenIssuerAddress,
+			Issuer: models.PPTokenTestnetIssuerAddress,
 		},
 		SourceAccount: k.Address(),
 		//	Asset         Asset

@@ -1,4 +1,4 @@
-package sqlite
+package dbtime
 
 import (
 	"database/sql"
@@ -30,6 +30,9 @@ func (t *SqlTime) Scan(v interface{}) error {
 	}
 
 	return nil
+}
+func Now() SqlTime {
+	return SqlTime(time.Now())
 }
 
 type NullSqlTime sql.NullTime

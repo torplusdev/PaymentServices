@@ -8,6 +8,7 @@ import (
 	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/models"
+	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/dbtime"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 )
 
@@ -112,7 +113,7 @@ func (prdb *liteDb) SelectPaymentRequestGroup(comodity string, group time.Durati
 	now := time.Now()
 
 	groupSeconds := int(group.Seconds())
-	q := fmt.Sprintf(query, SqlTime(where).String(), SqlTime(now).String(), comodity, groupSeconds)
+	q := fmt.Sprintf(query, dbtime.SqlTime(where).String(), dbtime.SqlTime(now).String(), comodity, groupSeconds)
 	res, err := prdb.db.Query(q)
 	if err != nil {
 		return nil, err
@@ -123,7 +124,7 @@ func (prdb *liteDb) SelectPaymentRequestGroup(comodity string, group time.Durati
 	for res.Next() {
 
 		var asset string
-		var date SqlTime
+		var date dbtime.SqlTime
 		var sum int
 
 		err := res.Scan(
@@ -169,8 +170,8 @@ func (prdb *liteDb) SelectPaymentRequestById(id int) (*entity.DbPaymentRequest, 
 		var serviceRef string
 		var serviceSessionId string
 		var address string
-		var date SqlTime
-		var completeDate NullSqlTime
+		var date dbtime.SqlTime
+		var completeDate dbtime.NullSqlTime
 
 		err := res.Scan(
 			&id,
@@ -227,8 +228,8 @@ func (prdb *liteDb) SelectPaymentRequest() ([]*entity.DbPaymentRequest, error) {
 		var serviceRef string
 		var serviceSessionId string
 		var address string
-		var date SqlTime
-		var completeDate NullSqlTime
+		var date dbtime.SqlTime
+		var completeDate dbtime.NullSqlTime
 
 		err := res.Scan(
 			&id,

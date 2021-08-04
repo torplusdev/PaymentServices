@@ -15,6 +15,11 @@ func TestInsert(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	err = db.Open()
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
 	err = db.InsertPaymentRequest(&entity.DbPaymentRequest{
 		SessionId:        "SessionId",
 		Amount:           5,
@@ -35,7 +40,11 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
+	err = db.Open()
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
 	items, err := db.SelectPaymentRequest()
 	if err != nil {
 		t.Error(err)

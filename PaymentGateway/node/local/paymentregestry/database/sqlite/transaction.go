@@ -3,6 +3,7 @@ package sqlite
 import (
 	log "paidpiper.com/payment-gateway/log"
 
+	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/dbtime"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 )
 
@@ -18,7 +19,8 @@ func (prdb *liteDb) createTableTransaction() error {
 		PaymentSourceAddress      	TEXT NOT NULL,
 		PaymentDestinationAddress 	TEXT NOT NULL,
 		StellarNetworkToken       	TEXT NOT NULL,
-		ServiceSessionId          	TEXT  NOT NULL
+		ServiceSessionId          	TEXT  NOT NULL,
+		Date                        LONG NOT NULL
 	)
 `)
 }
@@ -38,9 +40,11 @@ func (prdb *liteDb) InsertTransaction(item *entity.DbTransaction) error {
 		PaymentSourceAddress,
 		PaymentDestinationAddress,
 		StellarNetworkToken,
-		ServiceSessionId
+		ServiceSessionId,
+		Date
 	)
 	VALUES (
+		?,
 		?,
 		?,
 		?,
@@ -68,6 +72,7 @@ func (prdb *liteDb) InsertTransaction(item *entity.DbTransaction) error {
 		item.PaymentDestinationAddress,
 		item.StellarNetworkToken,
 		item.ServiceSessionId,
+		item.Date,
 	)
 	if err != nil {
 		return err
@@ -87,7 +92,8 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 			PaymentSourceAddress,
 			PaymentDestinationAddress,
 			StellarNetworkToken,
-			ServiceSessionId
+			ServiceSessionId,
+			Date
 		FROM Transactoin;
 	`
 
@@ -108,7 +114,7 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 		var paymentDestinationAddress string
 		var stellarNetworkToken string
 		var serviceSessionId string
-
+		var date dbtime.SqlTime
 		err := res.Scan(
 			&id,
 			&sequence,
@@ -120,6 +126,7 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 			&paymentDestinationAddress,
 			&stellarNetworkToken,
 			&serviceSessionId,
+			&date,
 		)
 		if err != nil {
 			return nil, err
@@ -135,6 +142,7 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 			PaymentDestinationAddress: paymentDestinationAddress,
 			StellarNetworkToken:       stellarNetworkToken,
 			ServiceSessionId:          serviceSessionId,
+			Date:                      date,
 		}
 		items = append(items, item)
 	}

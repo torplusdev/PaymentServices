@@ -2,12 +2,12 @@ package paymentregestry
 
 import (
 	"database/sql"
-
 	"time"
 
 	"paidpiper.com/payment-gateway/log"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database"
+	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/dbtime"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 )
 
@@ -60,7 +60,7 @@ func (prdb *paymentRegistryWithDb) AddServiceUsage(sessionId string, pr *models.
 			ServiceRef:       pr.ServiceRef,
 			ServiceSessionId: pr.ServiceSessionId,
 			Date:             time.Now(),
-			CompleteDate:     sql.NullTime{},
+			CompleteDate:     sql.NullTime{Valid: false},
 		})
 		if err != nil {
 			prdb.LogError(err)
@@ -84,6 +84,16 @@ func (prdb *paymentRegistryWithDb) SaveTransaction(sequence int64, transaction *
 		defer prdb.closeDb()
 		err := prdb.db.InsertTransaction(&entity.DbTransaction{
 			Sequence: sequence,
+
+			TransactionSourceAddress:  transaction.TransactionSourceAddress,
+			ReferenceAmountIn:         int(transaction.ReferenceAmountIn),
+			AmountOut:                 int(transaction.AmountOut),
+			XDR:                       transaction.XDR.String(),
+			PaymentSourceAddress:      transaction.PaymentSourceAddress,
+			PaymentDestinationAddress: transaction.PaymentDestinationAddress,
+			StellarNetworkToken:       transaction.StellarNetworkToken,
+			ServiceSessionId:          transaction.ServiceSessionId,
+			Date:                      dbtime.Now(),
 		})
 		if err != nil {
 			prdb.LogError(err)

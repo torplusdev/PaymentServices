@@ -83,6 +83,8 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 	router.Handle("/api/utility/balance", http.HandlerFunc(utilityController.HttpGetBalance)).Methods("GET")
 
 	router.Handle("/api/book/history/{commodity}/{hours}/{bins}", http.HandlerFunc(utilityController.HttpBookHistory)).Methods("GET")
+	router.Handle("/api/book/transactionHistory/{hours}/{bins}", http.HandlerFunc(utilityController.HttpBookTransactions)).Methods("GET")
+
 	router.Handle("/api/book/balance", http.HandlerFunc(utilityController.HttpBookBalance)).Methods("GET")
 	router.Handle("/api/gateway/processResponse", http.HandlerFunc(gatewayController.HttpProcessResponse)).Methods("POST")
 	router.Handle("/api/gateway/processPayment", http.HandlerFunc(gatewayController.HttpProcessPayment)).Methods("POST")

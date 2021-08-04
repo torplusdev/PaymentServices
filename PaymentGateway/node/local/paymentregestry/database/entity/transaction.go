@@ -1,6 +1,6 @@
 package entity
 
-type DbTransactoin struct {
+type DbTransaction struct {
 	Id                        int
 	Sequence                  int64
 	TransactionSourceAddress  string

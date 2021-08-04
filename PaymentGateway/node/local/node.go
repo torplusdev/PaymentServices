@@ -45,6 +45,8 @@ type LocalPPNode interface {
 	ProcessCommand(ctx context.Context, command *models.UtilityCommand) (models.OutCommandType, error)
 	// Additional
 	GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error)
+	GetTransactionHistory(bins int, hours int) (*models.BookTransactionResponse, error)
+
 	GetBookBalance() (*models.BookBalanceResponse, error)
 	//UI METHODS
 
@@ -585,6 +587,27 @@ func (n *nodeImpl) GetBookHistory(commodity string, bins int, hours int) (*model
 		return nil, err
 	}
 	return &models.BookHistoryResponse{
+		Items: groups,
+	}, nil
+}
+
+func (n *nodeImpl) GetTransactionHistory(bins int, hours int) (*models.BookTransactionResponse, error) {
+	err := n.db.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer n.db.Close()
+
+	stepDuration := time.Duration(hours) * time.Hour
+	till := time.Now().Truncate(stepDuration).Add(stepDuration)
+	from := till.Add(-stepDuration * time.Duration(bins))
+	groups, err := n.db.SelectTransactionGroup( stepDuration, from)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.BookTransactionResponse{
 		Items: groups,
 	}, nil
 }

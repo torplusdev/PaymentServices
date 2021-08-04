@@ -102,7 +102,7 @@ func TestInsertTransaction(t *testing.T) {
 		t.Error(err)
 	}
 	defer db.Close()
-	base := &entity.DbTransactoin{
+	base := &entity.DbTransaction{
 		Sequence:                  2,
 		TransactionSourceAddress:  "TransactionSourceAddress",
 		ReferenceAmountIn:         100,

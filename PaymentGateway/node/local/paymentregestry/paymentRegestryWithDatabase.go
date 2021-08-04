@@ -82,7 +82,7 @@ func (prdb *paymentRegistryWithDb) GetPendingAmount(sourceAddress string) (amoun
 func (prdb *paymentRegistryWithDb) SaveTransaction(sequence int64, transaction *models.PaymentTransaction) {
 	if prdb.openDb() {
 		defer prdb.closeDb()
-		err := prdb.db.InsertTransaction(&entity.DbTransactoin{
+		err := prdb.db.InsertTransaction(&entity.DbTransaction{
 			Sequence: sequence,
 		})
 		if err != nil {

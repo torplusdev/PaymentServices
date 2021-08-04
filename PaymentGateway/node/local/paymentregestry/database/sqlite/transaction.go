@@ -23,7 +23,7 @@ func (prdb *liteDb) createTableTransaction() error {
 `)
 }
 
-func (prdb *liteDb) InsertTransaction(item *entity.DbTransactoin) error {
+func (prdb *liteDb) InsertTransaction(item *entity.DbTransaction) error {
 	tx, err := prdb.db.Begin()
 	if err != nil {
 		log.Error(err)
@@ -76,7 +76,7 @@ func (prdb *liteDb) InsertTransaction(item *entity.DbTransactoin) error {
 
 }
 
-func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransactoin, error) {
+func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 	query := `
 		SELECT Id,
 			Sequence,
@@ -96,7 +96,7 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransactoin, error) {
 		return nil, err
 	}
 	defer res.Close()
-	var items []*entity.DbTransactoin
+	var items []*entity.DbTransaction
 	for res.Next() {
 		var id int
 		var sequence int64
@@ -124,7 +124,7 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransactoin, error) {
 		if err != nil {
 			return nil, err
 		}
-		item := &entity.DbTransactoin{
+		item := &entity.DbTransaction{
 			Id:                        id,
 			Sequence:                  sequence,
 			TransactionSourceAddress:  transactionSourceAddress,

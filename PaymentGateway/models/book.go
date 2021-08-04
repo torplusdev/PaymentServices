@@ -40,6 +40,10 @@ type BookBalanceResponse struct {
 type BookHistoryResponse struct {
 	Items []*BookHistoryItem
 }
+type BookTransactionResponse struct {
+	Items []*BookTransactionItem
+}
+
 type BookHistoryItem struct {
 	Date   time.Time
 	Volume int64
@@ -48,4 +52,11 @@ type BookHistoryItem struct {
 type HistoryItem struct {
 	Date   time.Time
 	Amount float64
+}
+
+type BookTransactionItem struct {
+	Timestamp   time.Time
+	SourceAddress string
+	TargetAddress string
+	Value float64
 }

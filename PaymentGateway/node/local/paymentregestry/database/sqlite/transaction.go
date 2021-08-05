@@ -1,9 +1,10 @@
 package sqlite
 
 import (
+	"time"
+
 	log "paidpiper.com/payment-gateway/log"
 
-	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/dbtime"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 )
 
@@ -114,7 +115,7 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 		var paymentDestinationAddress string
 		var stellarNetworkToken string
 		var serviceSessionId string
-		var date dbtime.SqlTime
+		var date time.Time
 		err := res.Scan(
 			&id,
 			&sequence,

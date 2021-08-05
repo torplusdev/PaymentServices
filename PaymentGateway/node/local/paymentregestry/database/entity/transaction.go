@@ -1,8 +1,8 @@
 package entity
 
-import "paidpiper.com/payment-gateway/node/local/paymentregestry/database/dbtime"
+import "time"
 
-type DbTransactoin struct {
+type DbTransaction struct {
 	Id                        int
 	Sequence                  int64
 	TransactionSourceAddress  string
@@ -13,5 +13,5 @@ type DbTransactoin struct {
 	PaymentDestinationAddress string
 	StellarNetworkToken       string
 	ServiceSessionId          string
-	Date                      dbtime.SqlTime
+	Date                      time.Time
 }

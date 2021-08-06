@@ -1,8 +1,13 @@
 package sqlite
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	log "paidpiper.com/payment-gateway/log"
 
+	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/dbtime"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 )
@@ -19,7 +24,7 @@ func (prdb *liteDb) createTableTransaction() error {
 		PaymentSourceAddress      	TEXT NOT NULL,
 		PaymentDestinationAddress 	TEXT NOT NULL,
 		StellarNetworkToken       	TEXT NOT NULL,
-		ServiceSessionId          	TEXT  NOT NULL,
+		ServiceSessionId          	TEXT NOT NULL,
 		Date                        LONG NOT NULL
 	)
 `)
@@ -78,11 +83,12 @@ func (prdb *liteDb) InsertTransaction(item *entity.DbTransaction) error {
 		return err
 	}
 	return tx.Commit()
-
 }
 
-func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
-	query := `
+func (prdb *liteDb) SelectTransaction(limits int) ([]*entity.DbTransaction, error) {
+	var query strings.Builder
+
+	query.WriteString(`
 		SELECT Id,
 			Sequence,
 			TransactionSourceAddress,
@@ -94,10 +100,18 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 			StellarNetworkToken,
 			ServiceSessionId,
 			Date
-		FROM Transactoin;
-	`
+		FROM Transactoin
+	`)
 
-	res, err := prdb.db.Query(query)
+	if limits > 0 {
+		query.WriteString(fmt.Sprintf("LIMIT %v;", limits))
+	} else {
+		query.WriteString(";")
+	}
+
+	queryStr := query.String()
+	// fmt.Println(queryStr)
+	res, err := prdb.db.Query(queryStr)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +156,62 @@ func (prdb *liteDb) SelectTransaction() ([]*entity.DbTransaction, error) {
 			PaymentDestinationAddress: paymentDestinationAddress,
 			StellarNetworkToken:       stellarNetworkToken,
 			ServiceSessionId:          serviceSessionId,
-			Date:                      date,
+			Date:                      time.Time(date),
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTransactionItem, error) {
+	// TODO: Alexander, implement me please
+	// log.Debug(fmt.Sprintf("currentAddress: %s", currentAddress))
+	query := `
+		SELECT 
+			PaymentSourceAddress, 
+			PaymentDestinationAddress, 
+			Date,
+			MIN(Date) as MinDate,
+			SUM(AmountOut) Amount
+		FROM Transactoin 
+		WHERE Date>'%v'
+		AND Date<='%v'
+		GROUP BY strftime('%M', Date);`
+
+	now := time.Now()
+	dateFromStr := dbtime.SqlTime(dateFrom).String()
+	dateToStr := dbtime.SqlTime(now).String()
+	q := fmt.Sprintf(query, dateFromStr, dateToStr)
+	fmt.Println(q)
+	res, err := prdb.db.Query(q) //, dateFromStr, dateToStr)
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Close()
+	var items []*models.BookTransactionItem
+	for res.Next() {
+
+		var date dbtime.SqlTime
+		var source string
+		var target string
+		var amount int
+
+		err := res.Scan(
+			&date,
+			&source,
+			&target,
+			&amount,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		item := &models.BookTransactionItem{
+			Timestamp:     time.Time(date),
+			SourceAddress: source,
+			TargetAddress: target,
+			Value:         int64(amount),
 		}
 		items = append(items, item)
 	}

@@ -18,5 +18,12 @@ cd ../
 ./main_current SBDFVQ74RHGLF2ZCTRKSJXBF5LEN24HZKIURBC63EFIYKV77W7BPFCB6
 
 # for i in {1..10}; do 
-# curl -sb -r -H "Accept: application/json" http://104.209.193.242:28040/api/backend/createAccount | jq .Seed | xargs -I {} echo ./main_current {}
+# curl -sb -r -H "Accept: application/json" https://api-payment.torplus.com/api/backend/createAccount | jq .Seed | xargs -I {} echo ./main_current {}
 # done
+# Host: https://api-payment.torplus.com/api/backend/createAccount
+# Login: torpluse-api-payment-ny4KQDf3
+# Password: acbhKTwXnPJRpcAMMXPRNJc7TaWx5busFqFP7beQYZLayYvtmQdEeGvAdRJwTbusNpuCnj7hu2kTSqmzLVQP7Tn4zFep7N2pTXnp
+
+curl -u torpluse-api-payment-ny4KQDf3:acbhKTwXnPJRpcAMMXPRNJc7TaWx5busFqFP7beQYZLayYvtmQdEeGvAdRJwTbusNpuCnj7hu2kTSqmzLVQP7Tn4zFep7N2pTXnp  -H "Accept: application/json" https://api-payment.torplus.com/api/backend/createAccount
+
+c48fb3l3b6h9r05epkfg

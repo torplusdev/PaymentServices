@@ -208,7 +208,6 @@ func (n *nodeImpl) CreateTransaction(context context.Context, request *models.Cr
 
 func (n *nodeImpl) ValidatePayment(ctx context.Context, request *models.ValidatePaymentRequest) (*models.ValidatePaymentResponse, error) {
 	return n.commodityManager.ReverseCalculate(request.ServiceType, request.CommodityType, request.PaymentRequest.Amount, request.PaymentRequest.Asset)
-
 }
 
 func (n *nodeImpl) GetAddress() string {
@@ -564,7 +563,7 @@ func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCo
 	reply, err := u.CommandHandler(ctx, command)
 
 	if err != nil {
-		return nil, fmt.Errorf("command submitted")
+		return nil, fmt.Errorf("command handle error: %v", err)
 	} else {
 		return reply, nil
 	}

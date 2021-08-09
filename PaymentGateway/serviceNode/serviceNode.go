@@ -80,6 +80,7 @@ func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
 	router.Handle("/api/utility/transaction/{sessionId}", http.HandlerFunc(utilityController.HttpGetTransaction)).Methods("GET")
 	router.Handle("/api/utility/stellarAddress", http.HandlerFunc(utilityController.HttpGetStellarAddress)).Methods("GET")
 	router.Handle("/api/utility/processCommand", http.HandlerFunc(utilityController.HttpProcessCommand)).Methods("POST")
+
 	router.Handle("/api/utility/balance", http.HandlerFunc(utilityController.HttpGetBalance)).Methods("GET")
 
 	router.Handle("/api/book/history/{commodity}/{hours}/{bins}", http.HandlerFunc(utilityController.HttpBookHistory)).Methods("GET")

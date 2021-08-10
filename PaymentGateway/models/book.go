@@ -41,7 +41,8 @@ type BookHistoryResponse struct {
 	Items []*BookHistoryItem
 }
 type BookTransactionResponse struct {
-	Items []*BookTransactionItem
+	Items  []*BookTransactionItem
+	Length int
 }
 
 type BookHistoryItem struct {

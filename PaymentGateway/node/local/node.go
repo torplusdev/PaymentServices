@@ -46,7 +46,7 @@ type LocalPPNode interface {
 	// Additional
 	GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error)
 	GetTransactionHistory(limits int) (*models.BookTransactionResponse, error)
-	GetTransactionHistoryGroup(bins int, hours int) (*models.BookTransactionResponse, error)
+	GetTransactionHistoryGroup(hours int) (*models.BookTransactionResponse, error)
 
 	GetBookBalance() (*models.BookBalanceResponse, error)
 	//UI METHODS
@@ -599,19 +599,31 @@ func (n *nodeImpl) GetTransactionHistory(limits int) (*models.BookTransactionRes
 	}
 	defer n.db.Close()
 
-	currentAddress := n.GetAddress()
-	transactions, err := n.db.SelectTransactionGroup(limits, currentAddress)
+	// currentAddress := n.GetAddress()
+	transactions, err := n.db.SelectTransaction(limits)
 
 	if err != nil {
 		return nil, err
 	}
 
+	var items []*models.BookTransactionItem
+	for _, i := range transactions {
+		item := &models.BookTransactionItem{
+			Timestamp:     i.Date,
+			SourceAddress: i.PaymentSourceAddress,
+			TargetAddress: i.PaymentDestinationAddress,
+			Value:         int64(i.AmountOut),
+		}
+		items = append(items, item)
+	}
+
 	return &models.BookTransactionResponse{
-		Items: transactions,
+		Items:  items,
+		Length: len(items),
 	}, nil
 }
 
-func (n *nodeImpl) GetTransactionHistoryGroup(bins int, hours int) (*models.BookTransactionResponse, error) {
+func (n *nodeImpl) GetTransactionHistoryGroup(hours int) (*models.BookTransactionResponse, error) {
 	err := n.db.Open()
 	if err != nil {
 		return nil, err
@@ -620,16 +632,17 @@ func (n *nodeImpl) GetTransactionHistoryGroup(bins int, hours int) (*models.Book
 
 	stepDuration := time.Duration(hours) * time.Hour
 	till := time.Now().Truncate(stepDuration).Add(stepDuration)
-	from := till.Add(-stepDuration * time.Duration(bins))
-	currentAddress := n.GetAddress()
-	groups, err := n.db.SelectTransactionGroup(stepDuration, from, currentAddress)
+	from := till.Add(-stepDuration)
+	// currentAddress := n.GetAddress()
+	groups, err := n.db.SelectTransactionGroup(from)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &models.BookTransactionResponse{
-		Items: groups,
+		Items:  groups,
+		Length: len(groups),
 	}, nil
 }
 
@@ -642,6 +655,7 @@ func (n *nodeImpl) GetActiveTransactionsAmount() (amount models.TransactionAmoun
 	}
 	return amount
 }
+
 func (n *nodeImpl) GetBookBalance() (*models.BookBalanceResponse, error) {
 	amount := n.GetActiveTransactionsAmount()
 

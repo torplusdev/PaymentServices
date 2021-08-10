@@ -103,11 +103,10 @@ func (prdb *liteDb) SelectTransaction(limits int) ([]*entity.DbTransaction, erro
 		FROM Transactoin
 	`)
 
-	if limits > 0 {
-		query.WriteString(fmt.Sprintf("LIMIT %v;", limits))
-	} else {
-		query.WriteString(";")
+	if limits == 0 {
+		limits = 100
 	}
+	query.WriteString(fmt.Sprintf("LIMIT %v;", limits))
 
 	queryStr := query.String()
 	// fmt.Println(queryStr)
@@ -164,26 +163,26 @@ func (prdb *liteDb) SelectTransaction(limits int) ([]*entity.DbTransaction, erro
 }
 
 func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTransactionItem, error) {
-	// TODO: Alexander, implement me please
-	// log.Debug(fmt.Sprintf("currentAddress: %s", currentAddress))
-	query := `
+	var query strings.Builder
+
+	query.WriteString(`
 		SELECT 
 			PaymentSourceAddress, 
 			PaymentDestinationAddress, 
-			Date,
-			MIN(Date) as MinDate,
-			SUM(AmountOut) Amount
+			MIN(Date) as Date,
+			SUM(AmountOut) as Amount
 		FROM Transactoin 
 		WHERE Date>'%v'
 		AND Date<='%v'
-		GROUP BY strftime('%M', Date);`
+		GROUP BY %v;`)
 
 	now := time.Now()
 	dateFromStr := dbtime.SqlTime(dateFrom).String()
 	dateToStr := dbtime.SqlTime(now).String()
-	q := fmt.Sprintf(query, dateFromStr, dateToStr)
+	q := fmt.Sprintf(query.String(), dateFromStr, dateToStr, "strftime('%H', Date)")
+
 	fmt.Println(q)
-	res, err := prdb.db.Query(q) //, dateFromStr, dateToStr)
+	res, err := prdb.db.Query(q)
 	if err != nil {
 		return nil, err
 	}
@@ -191,16 +190,15 @@ func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTr
 	defer res.Close()
 	var items []*models.BookTransactionItem
 	for res.Next() {
-
-		var date dbtime.SqlTime
 		var source string
 		var target string
+		var date dbtime.SqlTime
 		var amount int
 
 		err := res.Scan(
-			&date,
 			&source,
 			&target,
+			&date,
 			&amount,
 		)
 		if err != nil {
@@ -208,12 +206,13 @@ func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTr
 		}
 
 		item := &models.BookTransactionItem{
-			Timestamp:     time.Time(date),
 			SourceAddress: source,
 			TargetAddress: target,
+			Timestamp:     time.Time(date),
 			Value:         int64(amount),
 		}
 		items = append(items, item)
 	}
+	fmt.Println(items)
 	return items, nil
 }

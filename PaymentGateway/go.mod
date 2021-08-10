@@ -31,4 +31,6 @@ require (
 	paidpiper.com/provider-service v0.0.0
 )
 
-replace paidpiper.com/provider-service => ./../payment-gateway-webui
+// replace paidpiper.com/provider-service => ./../payment-gateway-webui
+
+replace paidpiper.com/provider-service => ../../provider_service

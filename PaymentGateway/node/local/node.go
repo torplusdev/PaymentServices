@@ -45,7 +45,7 @@ type LocalPPNode interface {
 	ProcessCommand(ctx context.Context, command *models.UtilityCommand) (models.OutCommandType, error)
 	// Additional
 	GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error)
-	GetTransactionHistory(limits int) (*models.BookTransactionResponse, error)
+	GetTransactionHistory(direction common.TransactionDirection, limits int) (*models.BookTransactionResponse, error)
 	GetTransactionHistoryGroup(hours int) (*models.BookTransactionResponse, error)
 
 	GetBookBalance() (*models.BookBalanceResponse, error)
@@ -591,34 +591,23 @@ func (n *nodeImpl) GetBookHistory(commodity string, bins int, hours int) (*model
 	}, nil
 }
 
-func (n *nodeImpl) GetTransactionHistory(limits int) (*models.BookTransactionResponse, error) {
+func (n *nodeImpl) GetTransactionHistory(direction common.TransactionDirection, limits int) (*models.BookTransactionResponse, error) {
 	err := n.db.Open()
 	if err != nil {
 		return nil, err
 	}
 	defer n.db.Close()
 
-	// currentAddress := n.GetAddress()
-	transactions, err := n.db.SelectTransaction(limits)
-
+	currentAddress := n.GetAddress()
+	direct := common.DirectionText(int(direction))
+	transactions, err := n.db.SelectBookTransactionItems(limits, direct, currentAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	var items []*models.BookTransactionItem
-	for _, i := range transactions {
-		item := &models.BookTransactionItem{
-			Timestamp:     i.Date,
-			SourceAddress: i.PaymentSourceAddress,
-			TargetAddress: i.PaymentDestinationAddress,
-			Value:         int64(i.AmountOut),
-		}
-		items = append(items, item)
-	}
-
 	return &models.BookTransactionResponse{
-		Items:  items,
-		Length: len(items),
+		Items:  transactions,
+		Length: len(transactions),
 	}, nil
 }
 
@@ -634,7 +623,6 @@ func (n *nodeImpl) GetTransactionHistoryGroup(hours int) (*models.BookTransactio
 	from := till.Add(-stepDuration)
 	// currentAddress := n.GetAddress()
 	groups, err := n.db.SelectTransactionGroup(from)
-
 	if err != nil {
 		return nil, err
 	}

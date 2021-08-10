@@ -201,7 +201,14 @@ func (u *HttpUtilityController) HttpBookTransactions(w http.ResponseWriter, r *h
 		Respond(w, common.Error(500, "limits should be int"))
 	}
 
-	res, err := u.GetTransactionHistory(limitsValue)
+	direction := vars["direction"]
+	if !common.IsDirectionValid(direction) {
+		log.Errorf("Error - bad value for direction : %s", vars["direction"])
+		Respond(w, common.Error(500, "direction should be 'credit' or 'debit'"))
+	}
+	direct, err := common.GetDirectionByString(direction)
+
+	res, err := u.GetTransactionHistory(direct, limitsValue)
 	if err != nil {
 		log.Errorf("Error retrieving transaction history: %s", vars["limits"])
 		Respond(w, common.Error(500, err.Error()))

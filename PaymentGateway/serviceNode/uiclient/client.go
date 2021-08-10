@@ -3,6 +3,7 @@ package uiclient
 import (
 	webUiClient "paidpiper.com/provider-service/pkg/client"
 
+	"paidpiper.com/payment-gateway/common"
 	"paidpiper.com/payment-gateway/node/local"
 )
 
@@ -26,12 +27,16 @@ func (c *uiClient) GetBalance() (float64, error) {
 	return bal.Balance, nil
 }
 
-func (c *uiClient) GetTransactions(commodity string, hour int32, bins int32) (interface{}, error) {
-	return c.nodeNode.GetBookHistory(commodity, int(bins), int(hour))
+func (c *uiClient) GetTransactions(limits int32) (interface{}, error) {
+	trs, err := c.nodeNode.GetTransactionHistory(common.DirectionCredit, int(limits))
+	if err != nil {
+		return nil, err
+	}
+	return trs.Items, nil
 }
 
-func (c *uiClient) GetChartData(commodity string, hour int32, bins int32) (interface{}, error) {
-	trs, err := c.nodeNode.GetBookHistory(commodity, int(bins), int(hour))
+func (c *uiClient) GetChartData(hours int32) (interface{}, error) {
+	trs, err := c.nodeNode.GetTransactionHistoryGroup(int(hours))
 	if err != nil {
 		return nil, err
 	}

@@ -104,7 +104,7 @@ func (prdb *liteDb) SelectTransaction(limits int) ([]*entity.DbTransaction, erro
 	`)
 
 	if limits == 0 {
-		limits = 100
+		limits = 1000
 	}
 	query.WriteString(fmt.Sprintf("LIMIT %v;", limits))
 
@@ -180,6 +180,66 @@ func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTr
 	dateFromStr := dbtime.SqlTime(dateFrom).String()
 	dateToStr := dbtime.SqlTime(now).String()
 	q := fmt.Sprintf(query.String(), dateFromStr, dateToStr, "strftime('%H', Date)")
+
+	fmt.Println(q)
+	res, err := prdb.db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Close()
+	var items []*models.BookTransactionItem
+	for res.Next() {
+		var source string
+		var target string
+		var date dbtime.SqlTime
+		var amount int
+
+		err := res.Scan(
+			&source,
+			&target,
+			&date,
+			&amount,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		item := &models.BookTransactionItem{
+			SourceAddress: source,
+			TargetAddress: target,
+			Timestamp:     time.Time(date),
+			Value:         int64(amount),
+		}
+		items = append(items, item)
+	}
+	fmt.Println(items)
+	return items, nil
+}
+
+func (prdb *liteDb) SelectBookTransactionItems(limits int, direction string, currentAddress string) ([]*models.BookTransactionItem, error) {
+	var query strings.Builder
+
+	query.WriteString(`
+		SELECT 
+			PaymentSourceAddress, 
+			PaymentDestinationAddress, 
+			Date,
+			AmountOut as Amount
+		FROM Transactoin `)
+
+	if strings.EqualFold(direction, "credit") {
+		query.WriteString(fmt.Sprintf(`WHERE PaymentDestinationAddress = '%v'`, currentAddress))
+	} else {
+		query.WriteString(fmt.Sprintf(`WHERE PaymentSourceAddress = '%v'`, currentAddress))
+	}
+
+	if limits == 0 {
+		limits = 1000
+	}
+	query.WriteString(fmt.Sprintf("LIMIT %v;", limits))
+
+	q := query.String()
 
 	fmt.Println(q)
 	res, err := prdb.db.Query(q)

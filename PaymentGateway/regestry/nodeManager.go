@@ -2,9 +2,11 @@ package regestry
 
 import (
 	"fmt"
+
 	"strings"
 	"sync"
 
+	"paidpiper.com/payment-gateway/log"
 	"paidpiper.com/payment-gateway/node"
 )
 
@@ -46,6 +48,7 @@ func (m *nodeManager) AddSourceNode(address string, node node.PPNode) error {
 	if len(m.nodesBySequence) > 0 {
 		return fmt.Errorf("source node already exists")
 	}
+	log.Tracef("add source node: %v", address)
 	return m.addNode(address, node)
 }
 
@@ -55,6 +58,7 @@ func (m *nodeManager) AddChainNode(address string, node node.PPNode) error {
 	if m.chaincomplete {
 		return fmt.Errorf("chain already exists")
 	}
+	log.Tracef("add chain node: %v", address)
 	return m.addNode(address, node)
 }
 
@@ -64,6 +68,7 @@ func (m *nodeManager) AddDestinationNode(address string, node node.PPNode) error
 	if m.chaincomplete {
 		return fmt.Errorf("destination node already exists")
 	}
+	log.Tracef("add dest node: %v", address)
 	err := m.addNode(address, node)
 	if err != nil {
 		return err
@@ -102,7 +107,7 @@ func (m *nodeManager) GetAllNodes() []node.PPNode {
 func (m *nodeManager) addNode(address string, node node.PPNode) error {
 	_, ok := m.nodesByAddress[address]
 	if ok {
-		return fmt.Errorf("node already exists")
+		return fmt.Errorf("node already exists: cant add node_id %v", address)
 	}
 	m.nodesByAddress[address] = node
 	m.nodesBySequence = append(m.nodesBySequence, node)

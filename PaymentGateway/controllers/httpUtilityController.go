@@ -142,11 +142,11 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 		return
 	}
 	if data != nil {
-		MessageWithData(http.StatusOK, data)
+		log.Info("Process Command result success")
+		Respond(w, MessageWithData(http.StatusOK, data))
 		return
 	}
 	Respond(w, MessageWithStatus(http.StatusCreated, "success"))
-
 }
 
 func (u *HttpUtilityController) HttpGetBalance(w http.ResponseWriter, r *http.Request) {

@@ -47,9 +47,9 @@ build: build_current build_darwin build_windows build_linux build_current
 build_darwin:
 	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_darwin ./cmd/main/
 build_linux:
-	GOOS=linux GOARCH=386 CGO_ENABLED=0 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_linux  ./cmd/main/
+	GOOS=linux GOARCH=386 CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_linux  ./cmd/main/
 build_windows:
-	GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_windows ./cmd/main/
+	GOOS=windows GOARCH=386 CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION)" -o ./main_windows ./cmd/main/
 build_current:
 	go build -ldflags "$(LDFLAGSVERSION)" -o ./main_current ./cmd/main/
 run:

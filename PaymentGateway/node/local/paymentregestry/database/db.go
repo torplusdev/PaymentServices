@@ -24,8 +24,8 @@ type Db interface {
 	SelectPaymentRequest() ([]*entity.DbPaymentRequest, error)
 	SelectPaymentRequestById(id int) (*entity.DbPaymentRequest, error)
 	InsertTransaction(item *entity.DbTransaction) error
-	SelectTransaction() ([]*entity.DbTransaction, error)
-	SelectTransactionGroup(group time.Duration, where time.Time) ([]*models.BookTransactionItem, error)
+	SelectTransaction(limits int) ([]*entity.DbTransaction, error)
+	SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTransactionItem, error)
 
 	SelectPaymentRequestGroup(comodity string, group time.Duration, where time.Time) ([]*models.BookHistoryItem, error)
 }

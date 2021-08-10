@@ -192,6 +192,28 @@ func (u *HttpUtilityController) HttpBookHistory(w http.ResponseWriter, r *http.R
 }
 
 func (u *HttpUtilityController) HttpBookTransactions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	bins := vars["bins"]
+
+	binsValue, err := strconv.Atoi(bins)
+
+	if err != nil {
+		log.Errorf("Error - bad value for bins : %s", vars["bins"])
+		Respond(w, common.Error(500, "HISTORY_BINS should be int"))
+	}
+
+	res, err := u.GetTransactions()()
+
+	if err != nil {
+		log.Errorf("Error retrieving transaction history: %s", vars["hours"])
+		Respond(w, common.Error(500, err.Error()))
+	}
+	Respond(w, res)
+
+}
+
+func (u *HttpUtilityController) HttpBookTransactionsGroup(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
@@ -211,7 +233,7 @@ func (u *HttpUtilityController) HttpBookTransactions(w http.ResponseWriter, r *h
 		Respond(w, common.Error(500, "hours should be int"))
 	}
 
-	res, err := u.GetTransactionHistory(binsValue, hoursValue)
+	res, err := u.GetTransactionHistoryGroup(binsValue, hoursValue)
 
 	if err != nil {
 		log.Errorf("Error retrieving transaction history: %s", vars["hours"])
@@ -220,7 +242,6 @@ func (u *HttpUtilityController) HttpBookTransactions(w http.ResponseWriter, r *h
 	Respond(w, res)
 
 }
-
 
 func (u *HttpUtilityController) HttpBookBalance(w http.ResponseWriter, r *http.Request) {
 	res, err := u.GetBookBalance()

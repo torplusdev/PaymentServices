@@ -129,12 +129,33 @@ func TestSelectTransaction(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	trs, err := db.SelectTransaction()
+	trs, err := db.SelectTransaction(10)
 	if err != nil {
 		t.Error(err)
 	}
 	if len(trs) == 0 {
-		t.Errorf("transactions caount is zero")
+		t.Errorf("transactions count is zero")
+		return
+	}
+}
+
+func TestSelectTransactionGroup(t *testing.T) {
+	TestInsertTransaction(t)
+	db, err := NewLiteDB()
+	if err != nil {
+		t.Error(err)
+	}
+	err = db.Open()
+	if err != nil {
+		t.Error(err)
+	}
+	dateFrom := time.Now().Add(time.Hour * 48)
+	trs, err := db.SelectTransactionGroup(dateFrom)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(trs) == 0 {
+		t.Errorf("group transactions count is zero")
 		return
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"paidpiper.com/payment-gateway/log"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database"
-	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/dbtime"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 )
 
@@ -93,7 +92,7 @@ func (prdb *paymentRegistryWithDb) SaveTransaction(sequence int64, transaction *
 			PaymentDestinationAddress: transaction.PaymentDestinationAddress,
 			StellarNetworkToken:       transaction.StellarNetworkToken,
 			ServiceSessionId:          transaction.ServiceSessionId,
-			Date:                      dbtime.Now(),
+			Date:                      time.Now(),
 		})
 		if err != nil {
 			prdb.LogError(err)

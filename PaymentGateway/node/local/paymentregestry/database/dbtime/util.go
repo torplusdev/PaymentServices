@@ -12,6 +12,7 @@ var sqlForat = "2006-01-02 15:04:05.999999999Z07:00"
 func (t SqlTime) String() string {
 	return time.Time(t).Format(sqlForat)
 }
+
 func (t *SqlTime) Scan(v interface{}) error {
 	// Should be more strictly to check this type.
 	switch val := v.(type) {

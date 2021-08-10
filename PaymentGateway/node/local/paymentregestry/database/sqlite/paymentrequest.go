@@ -90,10 +90,6 @@ func (prdb *liteDb) UpdatePaymentRequestCompleteDate(sessionId string, time time
 	_, err = stmt.Exec(time, sessionId)
 	return err
 }
-func (prdb *liteDb) SelectTransactionGroup(group time.Duration, where time.Time) ([]*models.BookTransactionItem, error) {
-	// TODO: Alexander, implement me please
-	panic("implement me")
-}
 
 func (prdb *liteDb) SelectPaymentRequestGroup(comodity string, group time.Duration, where time.Time) ([]*models.BookHistoryItem, error) {
 	//select CAST((julianday('now') - 2440587.5)*86400.0  AS INT)/(60*60*24) as Timespan

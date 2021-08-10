@@ -55,8 +55,8 @@ type HistoryItem struct {
 }
 
 type BookTransactionItem struct {
-	Timestamp   time.Time
+	Timestamp     time.Time
 	SourceAddress string
 	TargetAddress string
-	Value float64
+	Value         int64
 }

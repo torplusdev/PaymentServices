@@ -45,7 +45,8 @@ type LocalPPNode interface {
 	ProcessCommand(ctx context.Context, command *models.UtilityCommand) (models.OutCommandType, error)
 	// Additional
 	GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error)
-	GetTransactionHistory(bins int, hours int) (*models.BookTransactionResponse, error)
+	GetTransactionHistory(limits int) (*models.BookTransactionResponse, error)
+	GetTransactionHistoryGroup(bins int, hours int) (*models.BookTransactionResponse, error)
 
 	GetBookBalance() (*models.BookBalanceResponse, error)
 	//UI METHODS
@@ -590,7 +591,26 @@ func (n *nodeImpl) GetBookHistory(commodity string, bins int, hours int) (*model
 	}, nil
 }
 
-func (n *nodeImpl) GetTransactionHistory(bins int, hours int) (*models.BookTransactionResponse, error) {
+func (n *nodeImpl) GetTransactionHistory(limits int) (*models.BookTransactionResponse, error) {
+	err := n.db.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer n.db.Close()
+
+	currentAddress := n.GetAddress()
+	transactions, err := n.db.SelectTransactionGroup(limits, currentAddress)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.BookTransactionResponse{
+		Items: transactions,
+	}, nil
+}
+
+func (n *nodeImpl) GetTransactionHistoryGroup(bins int, hours int) (*models.BookTransactionResponse, error) {
 	err := n.db.Open()
 	if err != nil {
 		return nil, err
@@ -600,7 +620,8 @@ func (n *nodeImpl) GetTransactionHistory(bins int, hours int) (*models.BookTrans
 	stepDuration := time.Duration(hours) * time.Hour
 	till := time.Now().Truncate(stepDuration).Add(stepDuration)
 	from := till.Add(-stepDuration * time.Duration(bins))
-	groups, err := n.db.SelectTransactionGroup( stepDuration, from)
+	currentAddress := n.GetAddress()
+	groups, err := n.db.SelectTransactionGroup(stepDuration, from, currentAddress)
 
 	if err != nil {
 		return nil, err

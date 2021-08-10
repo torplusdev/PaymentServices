@@ -149,7 +149,7 @@ func TestSelectTransactionGroup(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	dateFrom := time.Now().Add(time.Hour * 48)
+	dateFrom := time.Now().Add(-time.Hour * 24)
 	trs, err := db.SelectTransactionGroup(dateFrom)
 	if err != nil {
 		t.Error(err)

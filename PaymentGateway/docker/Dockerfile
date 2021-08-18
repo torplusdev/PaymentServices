@@ -1,5 +1,5 @@
 FROM pg_build as build
-FROM torplusserviceregistry.azurecr.io/private/tor_plus:latest
+FROM torplusserviceregistry.azurecr.io/private/tor:latest
 RUN apt-get update && \
     apt-get install -y curl gettext-base supervisor && \
     rm -rf /var/lib/apt/lists/*

@@ -95,13 +95,10 @@ steps:
   condition: eq(variables.osName, 'linux')
 
 - script: |
-    make az_pipeline_push
-  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
-  displayName: 'Docker build and push'
-  condition: eq(variables.osName, 'linux')
-
-- script: |
+    make build_image
+    make image
+    make push
     make clean_up
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
-  displayName: 'make clean_up'
+  displayName: 'Docker build and push'
   condition: eq(variables.osName, 'linux')

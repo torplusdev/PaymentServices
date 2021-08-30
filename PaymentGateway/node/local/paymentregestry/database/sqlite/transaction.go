@@ -162,9 +162,8 @@ func (prdb *liteDb) SelectTransaction(limits int) ([]*entity.DbTransaction, erro
 	return items, nil
 }
 
-func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTransactionItem, error) {
+func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time, currentAddress string) ([]*models.BookTransactionItem, error) {
 	var query strings.Builder
-
 	query.WriteString(`
 		SELECT 
 			PaymentSourceAddress, 
@@ -172,14 +171,32 @@ func (prdb *liteDb) SelectTransactionGroup(dateFrom time.Time) ([]*models.BookTr
 			MIN(Date) as Date,
 			SUM(AmountOut) as Amount
 		FROM Transactoin 
-		WHERE Date>'%v'
-		AND Date<='%v'
-		GROUP BY %v;`)
+		WHERE Date>'%[1]v'
+		AND Date<='%[2]v'
+		AND PaymentSourceAddress = '%[3]v'
+		GROUP BY %[4]v
+		UNION
+		SELECT PaymentSourceAddress,
+			PaymentDestinationAddress,
+			MIN(Date) as Date,
+			SUM(AmountOut) as Amount
+		FROM Transactoin
+		WHERE Date>'%[1]v'
+		AND Date<='%[2]v'
+		AND PaymentDestinationAddress = '%[3]v'
+		GROUP BY %[4]v
+		ORDER BY Date
+		`)
 
 	now := time.Now()
 	dateFromStr := dbtime.SqlTime(dateFrom).String()
 	dateToStr := dbtime.SqlTime(now).String()
-	q := fmt.Sprintf(query.String(), dateFromStr, dateToStr, "strftime('%H', Date)")
+
+	q := fmt.Sprintf(query.String(),
+		dateFromStr,
+		dateToStr,
+		currentAddress,
+		"strftime('%H', Date)")
 
 	fmt.Println(q)
 	res, err := prdb.db.Query(q)

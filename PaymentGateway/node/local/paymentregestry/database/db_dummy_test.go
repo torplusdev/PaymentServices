@@ -69,7 +69,7 @@ func TestCreateTransactionDummyDb(t *testing.T) {
 		return
 	}
 	defer db.Close()
-	currentAddress := "GDRBZVJP3QIGQZVWLWYHMFTZRJDLUQKTTWBP3HUNIEEWHPHW5ZL37LJ2"
+	currentAddress := "GDZXFNXSJGHKFNQJZASNHYS2GPISB4MXIT4OGFBIRCSA2N6C2XKECALP"
 	for end.Sub(current) > 0 {
 		amount := rand.Intn(max-min) + min
 		credit := &entity.DbTransaction{

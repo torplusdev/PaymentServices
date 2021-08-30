@@ -45,6 +45,11 @@ type BookTransactionResponse struct {
 	Length int
 }
 
+type BookTransactionGroupResponse struct {
+	Items  []*ChartTransactionItem
+	Length int
+}
+
 type BookHistoryItem struct {
 	Date   time.Time
 	Volume int64
@@ -60,4 +65,10 @@ type BookTransactionItem struct {
 	SourceAddress string
 	TargetAddress string
 	Value         int64
+}
+
+type ChartTransactionItem struct {
+	Timestamp time.Time
+	Debit     int64
+	Credit    int64
 }

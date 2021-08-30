@@ -46,7 +46,7 @@ type LocalPPNode interface {
 	// Additional
 	GetBookHistory(commodity string, bins int, hours int) (*models.BookHistoryResponse, error)
 	GetTransactionHistory(direction common.TransactionDirection, limits int) (*models.BookTransactionResponse, error)
-	GetTransactionHistoryGroup(hours int) (*models.BookTransactionResponse, error)
+	GetTransactionHistoryGroup(hours int) (*models.BookTransactionGroupResponse, error)
 
 	GetBookBalance() (*models.BookBalanceResponse, error)
 	//UI METHODS
@@ -611,24 +611,45 @@ func (n *nodeImpl) GetTransactionHistory(direction common.TransactionDirection, 
 	}, nil
 }
 
-func (n *nodeImpl) GetTransactionHistoryGroup(hours int) (*models.BookTransactionResponse, error) {
+func (n *nodeImpl) GetTransactionHistoryGroup(hours int) (*models.BookTransactionGroupResponse, error) {
 	err := n.db.Open()
 	if err != nil {
 		return nil, err
 	}
 	defer n.db.Close()
 
-	stepDuration := time.Duration(hours) * time.Hour
-	till := time.Now().Truncate(stepDuration).Add(stepDuration)
-	from := till.Add(-stepDuration)
-	// currentAddress := n.GetAddress()
-	groups, err := n.db.SelectTransactionGroup(from)
+	intDuration := hours * int(time.Hour)
+	duration := time.Duration(intDuration)
+	from := time.Now().Truncate(duration).Add(-duration)
+	currentAddress := n.GetAddress()
+
+	groups, err := n.db.SelectTransactionGroup(from, currentAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	return &models.BookTransactionResponse{
-		Items:  groups,
+	var items []*models.ChartTransactionItem
+
+	for i := 0; i < len(groups); i++ {
+		var debit = int64(0)
+		var credit = int64(0)
+
+		if groups[i].SourceAddress == currentAddress {
+			debit = groups[i].Value
+		} else {
+			credit = groups[i].Value
+		}
+		item := &models.ChartTransactionItem{
+			Timestamp: groups[i].Timestamp,
+			Debit:     debit,
+			Credit:    credit,
+		}
+
+		items = append(items, item)
+	}
+
+	return &models.BookTransactionGroupResponse{
+		Items:  items,
 		Length: len(groups),
 	}, nil
 }

@@ -3,6 +3,7 @@ build_image:
 	docker build -f ./Build.Dockerfile \
 				-t pg_build ../../ 
 image: 
+	docker pull torplusserviceregistry.azurecr.io/private/tor:latest
 	docker build --build-arg PG_VERSION=$(VERSION) -f ./Dockerfile -t paymentgateway \
 	-t torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
 	-t torplusserviceregistry.azurecr.io/private/paymentgateway:latest \

@@ -96,7 +96,20 @@
                 "28080"
             ]
         },
-
+        {
+            "name": "PG_PROD",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/main/",
+            "env": {},
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "SAKEPWZY6LD3QB5WHG6RMEBU3PNUAIIMYDS5E3XI76LGUHL23IVJWN24",
+                "28080"
+            ]
+        },
+        
         {
             "name": "PG_NO",
             "type": "go",

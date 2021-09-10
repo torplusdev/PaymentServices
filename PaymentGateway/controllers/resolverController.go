@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -18,6 +19,7 @@ type ResolverController struct {
 	http         *http.Client
 	lock         *sync.RWMutex
 	resolveCache map[string]string
+	resolveKey   string
 }
 
 type AnswerData struct {
@@ -51,13 +53,14 @@ type resolutionRequest struct {
 	Hostname string `json:"hostname"`
 }
 
-func NewResolverController() *ResolverController {
+func NewResolverController(resolveKey string) *ResolverController {
 	resolver := &ResolverController{
 		http: &http.Client{
 			Timeout: time.Second * 10,
 		},
 		lock:         &sync.RWMutex{},
 		resolveCache: map[string]string{},
+		resolveKey:   resolveKey,
 	}
 
 	//resolver.resolveCache["video.torplus.eth"] = "yta5tsernfhyqg4rztgqtxpfw5mzdvkwxavfny67xlf3lw5g5jrsz4qd.onion"
@@ -149,19 +152,110 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 		fragment = strings.ReplaceAll(fragment, "#", "")
 		domain = strings.ReplaceAll(domain, "sites.", fragment+".")
 	}
+	resolvedDomain, err := r.trySetupResolving(domain, domainKey)
+	if err != nil {
+		log.Error("Setup resolving error:", err)
 
-	r.lock.Lock()
-	defer r.lock.Unlock()
+		Respond(w, MessageWithStatus(http.StatusInternalServerError, err.Error()))
+		return
+	}
+	r.lock.RLock()
+	defer r.lock.RUnlock()
+	r.resolveCache[domain] = resolvedDomain
+	log.Infof("Associated %s => %s ", domainKey, resolvedDomain)
+	w.WriteHeader(http.StatusOK)
+	// var resolvedName = ""
+	// r.resolveCache[domainKey] = resolvedName // it is fix
+	// if strings.HasSuffix(domain, ".eth") {
+	// 	// Use ENS resolving
+	// 	ethName, err := r.resolveByEthLink(domain)
+	// 	if err != nil {
+	// 		log.Errorf("Error resolving domain (ens)(%s): %s", domain, err.Error())
+	// 		Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during resolution process"))
+	// 		return
+	// 	}
+
+	// 	resolvedName = ethName
+	// } else {
+
+	// 	topLevelDomain := domainutil.Domain(domain)
+
+	// 	// First attempt to resolve exact domain
+	// 	dnsNames, err := net.LookupTXT(domain)
+
+	// 	if err != nil {
+	// 		log.Infof("Direct resolution failed (%s), attempting root domain(%s): %s", domain, topLevelDomain, err.Error())
+
+	// 		// Use DNS resolving
+	// 		dnsNames, err = net.LookupTXT(topLevelDomain)
+
+	// 		if err != nil {
+	// 			log.Errorf("Error resolving root domain (dns)(%s): %s", topLevelDomain, err.Error())
+	// 			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during DNS resolution process: "+err.Error()))
+	// 			return
+	// 		}
+	// 	}
+
+	// 	if len(dnsNames) == 0 {
+	// 		log.Errorf("Error resolving domain (dns)(%s): No TXT entry", domain)
+	// 		Respond(w, MessageWithStatus(http.StatusInternalServerError, "No TXT entry was found for provided domain: "+domain))
+	// 		return
+	// 	}
+
+	// 	// Parse TXT entry into lookup
+	// 	ss := strings.Split(dnsNames[0], ",")
+	// 	m := make(map[string]string)
+	// 	for _, pair := range ss {
+	// 		z := strings.Split(pair, "=")
+	// 		m[z[0]] = z[1]
+	// 	}
+
+	// 	resolvedName = m[r.resolveKey]
+	// }
+
+	// //TODO: Parse the response using multiaddr
+	// if strings.HasPrefix(resolvedName, "/onion3/") {
+	// 	resolvedName = strings.TrimPrefix(resolvedName, "/onion3/") + ".onion"
+	// }
+
+	// // If the address is probably an onion address without .onion extension, add it
+	// if len(resolvedName) == 56 && !strings.ContainsRune(resolvedName, '.') {
+	// 	resolvedName = resolvedName + ".onion"
+	// }
+	// r.lock.Lock()
+	// defer r.lock.Unlock()
+	// r.resolveCache[domainKey] = resolvedName
+
+}
+func (r *ResolverController) trySetupResolving(domain string, domainKey string) (string, error) {
+
+	log.Infof("SetupResolving with %s, %s\n", domain, domainKey)
+
+	if (domainKey == "") || (domain == "") {
+		return "", fmt.Errorf("domain is empty")
+		//Respond(w, MessageWithStatus(http.StatusBadRequest, "Domain is empty"))
+		//return
+	}
+
+	// If there's a port, trim it
+	if strings.ContainsRune(domain, ':') {
+		var index = strings.LastIndex(domain, ":")
+		domain = domain[:index]
+	}
+
+	if strings.ContainsRune(domainKey, ':') {
+		var index = strings.LastIndex(domainKey, ":")
+		domainKey = domainKey[:index]
+	}
 
 	var resolvedName = ""
-
 	if strings.HasSuffix(domain, ".eth") {
 		// Use ENS resolving
 		ethName, err := r.resolveByEthLink(domain)
 		if err != nil {
 			log.Errorf("Error resolving domain (ens)(%s): %s", domain, err.Error())
-			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during resolution process"))
-			return
+
+			return "", fmt.Errorf("Error during resolution process")
 		}
 
 		resolvedName = ethName
@@ -180,15 +274,13 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 
 			if err != nil {
 				log.Errorf("Error resolving root domain (dns)(%s): %s", topLevelDomain, err.Error())
-				Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error during DNS resolution process: "+err.Error()))
-				return
+				return "", fmt.Errorf("Error during DNS resolution process: " + err.Error())
 			}
 		}
 
 		if len(dnsNames) == 0 {
 			log.Errorf("Error resolving domain (dns)(%s): No TXT entry", domain)
-			Respond(w, MessageWithStatus(http.StatusInternalServerError, "No TXT entry was found for provided domain: "+domain))
-			return
+			return "", fmt.Errorf("No TXT entry was found for provided domain: " + domain)
 		}
 
 		// Parse TXT entry into lookup
@@ -212,9 +304,8 @@ func (r *ResolverController) SetupResolving(w http.ResponseWriter, req *http.Req
 		resolvedName = resolvedName + ".onion"
 	}
 
-	r.resolveCache[domainKey] = resolvedName
 	log.Infof("Associated %s => %s ", domainKey, resolvedName)
-	w.WriteHeader(http.StatusOK)
+	return resolvedName, nil
 }
 
 func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request) {
@@ -227,7 +318,7 @@ func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request)
 		err := json.NewDecoder(req.Body).Decode(&d)
 
 		if err != nil {
-			log.Errorf("Couldn't parse data in headers or body (%s): %s", domain, err.Error())
+			log.Errorf("Resolving: Couldn't parse data in headers or body (%s): %s", domain, err.Error())
 			Respond(w, MessageWithStatus(http.StatusBadRequest, "Error parsing domain"))
 			return
 		}
@@ -238,27 +329,40 @@ func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request)
 			Respond(w, MessageWithStatus(http.StatusBadRequest, "Domain is empty"))
 		}
 	}
+	log.Info("Resolving: Try resolve for: ", domain)
 
-	r.lock.RLock()
-	defer r.lock.RUnlock()
-
-	if resolvedDomain, ok := r.resolveCache[domain]; ok {
-		response := EthResolutionResponse{
-			Resolved: resolvedDomain,
-		}
-
-		bytes, err := json.Marshal(response)
+	resolvedDomain, ok := r.resolveCache[domain]
+	if !ok {
+		resolvedDomain, err := r.trySetupResolving(domain, domain)
 		if err != nil {
-			log.Errorf("Error serializing domain resolution (%s => %s): %s", domain, resolvedDomain, err.Error())
-			Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error serializing resolved domain"))
+			log.Error("Setup resolving error:", err)
+		}
+		if err == nil {
+			ok = true
+			r.lock.RLock()
+			defer r.lock.RUnlock()
+			r.resolveCache[domain] = resolvedDomain
+		}
+	}
+	if ok {
+		if resolvedDomain != "" {
+			response := EthResolutionResponse{
+				Resolved: resolvedDomain,
+			}
+
+			err := json.NewEncoder(w).Encode(response)
+			if err != nil {
+				log.Errorf("Resolving: Error serializing domain resolution (%s => %s): %s", domain, resolvedDomain, err.Error())
+				Respond(w, MessageWithStatus(http.StatusInternalServerError, "Error serializing resolved domain"))
+				return
+			}
+			log.Info("Resolving: Resolve domain success:", domain, " => ", resolvedDomain)
+			w.WriteHeader(http.StatusOK)
+
 			return
 		}
-
-		w.Write(bytes)
-		w.WriteHeader(http.StatusOK)
-		return
 	}
-
+	log.Infof("Resolving: Domain resolution not found (%s)", domain)
 	Respond(w, MessageWithStatus(http.StatusNoContent, "Domain resolution not found"))
 
 }

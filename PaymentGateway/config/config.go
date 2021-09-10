@@ -77,6 +77,7 @@ type Configuration struct {
 	MaxConcurrency   int
 	TorAddressPrefix string
 	NodeConfig       NodeConfig
+	ResolveKey       string
 }
 
 const torAddressPrefix = "http://localhost:5817"
@@ -95,6 +96,7 @@ func DefaultCfg() *Configuration {
 		},
 
 		TorAddressPrefix: torAddressPrefix,
+		ResolveKey:       "torplus",
 		MaxConcurrency:   10,
 		RootApiConfig: RootApiConfig{
 			TransactionValiditySecs: 21600,
@@ -147,6 +149,9 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 	}
 	if instance.RootApiConfig.TransactionValiditySecs == 0 {
 		instance.RootApiConfig.TransactionValiditySecs = defCfg.RootApiConfig.TransactionValiditySecs
+	}
+	if instance.ResolveKey == "" {
+		instance.ResolveKey = defCfg.ResolveKey
 	}
 	instance.NodeConfig.AsyncMode = asyncMode
 	instance.NodeConfig.AccumulateTransactions = accumulateTransactions

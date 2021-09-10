@@ -46,7 +46,8 @@ func RunHttpServer(config *config.Configuration) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	server := HttpLocalNode(local, config.Port)
+	resolverController := controllers.NewResolverController(config.ResolveKey)
+	server := HttpLocalNode(local, resolverController, config.Port)
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -57,13 +58,11 @@ func RunHttpServer(config *config.Configuration) (func(), error) {
 	}, nil
 }
 
-func HttpLocalNode(localNode local.LocalPPNode, port int) *http.Server {
+func HttpLocalNode(localNode local.LocalPPNode, resolverController *controllers.ResolverController, port int) *http.Server {
 
 	utilityController := controllers.NewHttpUtilityController(localNode)
 
 	gatewayController := controllers.NewHttpGatewayController(localNode)
-
-	resolverController := controllers.NewResolverController()
 
 	router := &loggableWriter{
 		Router: *mux.NewRouter(),

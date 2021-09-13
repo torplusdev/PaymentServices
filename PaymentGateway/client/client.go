@@ -243,6 +243,9 @@ func (client *serviceClient) createTransactions(ctx context.Context, paymentRequ
 			return nil, errors.Errorf("error creating transaction for node %v: %v", sourceAddress, err)
 		}
 		tr := nodeTransaction.Transaction
+		if tr == nil {
+			return nil, fmt.Errorf("transaction is nil")
+		}
 		err = tr.PendingTransaction.Validate()
 		if err != nil {
 			return nil, err

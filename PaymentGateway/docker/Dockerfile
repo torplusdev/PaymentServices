@@ -13,5 +13,5 @@ COPY PaymentGateway/docker/pg-docker-entrypoint.sh /pg-docker-entrypoint.sh
 RUN chmod 755 /pg-docker-entrypoint.sh
 COPY PaymentGateway/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY PaymentGateway/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-ENTRYPOINT ["/usr/bin/supervisord"]
+COPY PaymentGateway/docker/debug-start.sh /debug-start.sh 
+ENTRYPOINT ["/debug-start.sh"]

@@ -10,14 +10,14 @@ image:
 	../../ || exit 1
 
 push: image
-	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
+	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) || exit 1
 	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:latest
 
 clean_up:
 	docker rmi --force paymentgateway \
 	torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
 	torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
-	torplusserviceregistry.azurecr.io/private/tor_plus:latest
+	torplusserviceregistry.azurecr.io/private/tor_plus:latest && \
 	docker image prune --force
 run: 
 	docker run -p 28080:28080 --rm torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)

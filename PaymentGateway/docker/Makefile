@@ -1,7 +1,7 @@
 VERSION:=$(shell git describe --tags --dirty --always)
 build_image:
 	docker build -f ./Build.Dockerfile \
-				-t pg_build ../../ 
+				-t pg_build ../../ || exit 1
 image: 
 	docker pull torplusserviceregistry.azurecr.io/private/tor:latest || exit 1
 	docker build --build-arg PG_VERSION=$(VERSION) -f ./Dockerfile -t paymentgateway \

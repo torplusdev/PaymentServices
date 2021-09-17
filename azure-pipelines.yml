@@ -96,9 +96,13 @@ steps:
 
 - script: |
     make build_image
+    echo Exit Code $?
     make image
+    echo Exit Code $?
     make push
+    echo Exit Code $?
     make clean_up
+    echo Exit Code $?
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
   displayName: 'Docker build and push'
   condition: eq(variables.osName, 'linux')

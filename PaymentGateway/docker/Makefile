@@ -3,11 +3,11 @@ build_image:
 	docker build -f ./Build.Dockerfile \
 				-t pg_build ../../
 image: 
-	docker pull torplusserviceregistry.azurecr.io/private/tor:latest 
+	docker pull torplusserviceregistry.azurecr.io/private/tor:latest || exit 1
 	docker build --build-arg PG_VERSION=$(VERSION) -f ./Dockerfile -t paymentgateway \
 	-t torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
 	-t torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
-	../../
+	../../ || exit 1
 
 push: image
 	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
@@ -25,3 +25,5 @@ run_it:
 	docker run -it -p 8080:8080 -p 28080:28080 --name pg --entrypoint /bin/bash --rm torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
 attach:
 	docker exec -it pg bash
+echo:
+	test || exit 1

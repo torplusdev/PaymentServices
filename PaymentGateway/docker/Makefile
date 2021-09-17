@@ -1,24 +1,24 @@
 VERSION:=$(shell git describe --tags --dirty --always)
 build_image:
 	docker build -f ./Build.Dockerfile \
-				-t pg_build ../../ || exit 1
+				-t pg_build ../../
 image: 
-	docker pull torplusserviceregistry.azurecr.io/private/tor:latest || exit 1
+	docker pull torplusserviceregistry.azurecr.io/private/tor:latest 
 	docker build --build-arg PG_VERSION=$(VERSION) -f ./Dockerfile -t paymentgateway \
 	-t torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
 	-t torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
-	../../ || exit 1
+	../../
 
 push: image
-	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) || exit 1
-	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:latest || exit 1
+	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
+	docker push torplusserviceregistry.azurecr.io/private/paymentgateway:latest
 
 clean_up:
 	docker rmi --force paymentgateway \
 	torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION) \
 	torplusserviceregistry.azurecr.io/private/paymentgateway:latest \
 	torplusserviceregistry.azurecr.io/private/tor_plus:latest
-	docker image prune --force || exit 1
+	docker image prune --force
 run: 
 	docker run -p 28080:28080 --rm torplusserviceregistry.azurecr.io/private/paymentgateway:$(VERSION)
 run_it:

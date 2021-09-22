@@ -47,6 +47,7 @@ type EthLinkResult struct {
 
 type EthResolutionResponse struct {
 	Resolved string `json:"resolved"`
+	Hostname string `json:"hostname"`
 }
 
 type resolutionRequest struct {
@@ -348,6 +349,7 @@ func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request)
 		if resolvedDomain != "" {
 			response := EthResolutionResponse{
 				Resolved: resolvedDomain,
+				Hostname: resolvedDomain,
 			}
 
 			err := json.NewEncoder(w).Encode(response)

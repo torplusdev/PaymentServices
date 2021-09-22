@@ -45,6 +45,7 @@ type EthLinkResult struct {
 	Question []QuestionData `json:"Question"`
 }
 
+// TODO REMOVE RESOLVED PROPERTY
 type EthResolutionResponse struct {
 	Resolved string `json:"resolved"`
 	Hostname string `json:"hostname"`

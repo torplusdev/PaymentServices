@@ -1,4 +1,4 @@
-FROM golang:latest as build
+FROM golang:1.16.8 as build
 WORKDIR /opt/paidpiper/go-payment-service
 ARG PG_VERSION
 ENV PG_VERSION $PG_VERSION

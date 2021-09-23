@@ -65,13 +65,13 @@ steps:
   displayName: 'Running all the tests'
   
 - script: |
-    go build -v -o payment-gateway$(ext) $(addldflags)  paidpiper.com/payment-gateway/cmd/main
+    make build_$(osName)
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
   displayName: 'Building Payment Gateway'
 
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway$(ext)'
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway-$(osName)$(ext)'
     includeRootFolder: true
     archiveType: '7z'
     sevenZipCompression: 'ultra'

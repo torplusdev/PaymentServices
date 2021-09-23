@@ -48,7 +48,7 @@ build_all: build_current build_mac build_windows build_linux build_current
 build_mac:
 	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGSVERSION) $(addldflags)" -o ./payment-gateway-mac ./cmd/main/
 build_linux:
-	GOOS=linux GOARCH=386 CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION)" -o ./payment-gateway-linux  ./cmd/main/
+	GOOS=linux CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION)" -o ./payment-gateway-linux  ./cmd/main/
 build_windows:
 	GOOS=windows GOARCH=386 CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION) -ldflags -H=windowsgui" -o ./payment-gateway-windows.exe ./cmd/main/
 

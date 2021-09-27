@@ -335,7 +335,8 @@ func (r *ResolverController) DoResolve(w http.ResponseWriter, req *http.Request)
 
 	resolvedDomain, ok := r.resolveCache[domain]
 	if !ok {
-		resolvedDomain, err := r.trySetupResolving(domain, domain)
+		var err error
+		resolvedDomain, err = r.trySetupResolving(domain, domain)
 		if err != nil {
 			log.Error("Setup resolving error:", err)
 		}

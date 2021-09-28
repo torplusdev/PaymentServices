@@ -50,7 +50,7 @@ build_mac:
 build_linux:
 	GOOS=linux CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION)" -o ./payment-gateway-linux  ./cmd/main/
 build_windows:
-	GOOS=windows GOARCH=386 CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION) -H=windowsgui" -o ./payment-gateway-windows.exe ./cmd/main/
+	go build -ldflags "$(LDFLAGSVERSION) -H=windowsgui" -o ./payment-gateway-windows.exe ./cmd/main/
 
 run:
 	go run ./cmd/main/ SAKEPWZY6LD3QB5WHG6RMEBU3PNUAIIMYDS5E3XI76LGUHL23IVJWN24 28080

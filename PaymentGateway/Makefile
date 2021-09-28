@@ -46,9 +46,9 @@ LDFLAGSVERSION:=-X $(PKG).commitHash=$(COMMIT_HASH) -X $(PKG).buildDate=$(BUILD_
 
 build_all: build_current build_mac build_windows build_linux build_current
 build_mac:
-	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGSVERSION) $(addldflags)" -o ./payment-gateway-mac ./cmd/main/
+	go build -ldflags "$(LDFLAGSVERSION) $(addldflags)" -o ./payment-gateway-mac ./cmd/main/
 build_linux:
-	GOOS=linux CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION)" -o ./payment-gateway-linux  ./cmd/main/
+	go build -ldflags "$(LDFLAGSVERSION)" -o ./payment-gateway-linux  ./cmd/main/
 build_windows:
 	go build -ldflags "$(LDFLAGSVERSION) -H=windowsgui" -o ./payment-gateway-windows.exe ./cmd/main/
 

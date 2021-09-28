@@ -66,12 +66,13 @@ steps:
   
 - script: |
     make build_$(osName)
+    mv payment-gateway-$(osName)$(ext) payment-gateway$(ext)
   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway
   displayName: 'Building Payment Gateway'
 
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway-$(osName)$(ext)'
+    rootFolderOrFile: '$(Build.SourcesDirectory)/PaymentGateway/payment-gateway$(ext)'
     includeRootFolder: true
     archiveType: '7z'
     sevenZipCompression: 'ultra'

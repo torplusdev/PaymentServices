@@ -1,6 +1,10 @@
 #!/bin/bash
 if [[ "${no_conf}" != "1" ]]; then
-
+  if [[ "${PP_ENV}" != "prod" ]]; then
+    export UseTestApi=false
+  else
+    export UseTestApi=true
+  fi
   cat /opt/paidpiper/config.json.tmpl | envsubst > /opt/paidpiper/config.json
 fi
 mkdir -p /opt/paidpiper/logs

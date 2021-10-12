@@ -86,24 +86,24 @@ steps:
     ArtifactName: 'payment-gateway'
     publishLocation: 'Container'
 
-- task: Docker@1
-  inputs:
-    containerregistrytype: 'Azure Container Registry'
-    azureSubscriptionEndpoint: 'U-BTech - CSP (Georest)(8a8eed1d-a101-45a3-bb4d-34065921a9aa)'
-    azureContainerRegistry: 'torplusserviceregistry.azurecr.io'
-    command: 'login'
-  displayName: 'Docker login'
-  condition: eq(variables.osName, 'linux')
+# - task: Docker@1
+#   inputs:
+#     containerregistrytype: 'Azure Container Registry'
+#     azureSubscriptionEndpoint: 'U-BTech - CSP (Georest)(8a8eed1d-a101-45a3-bb4d-34065921a9aa)'
+#     azureContainerRegistry: 'torplusserviceregistry.azurecr.io'
+#     command: 'login'
+#   displayName: 'Docker login'
+#   condition: eq(variables.osName, 'linux')
 
-- script: |
-    make build_image
-    echo Exit Code $?
-    make image
-    echo Exit Code $?
-    make push
-    echo Exit Code $?
-    make clean_up
-    echo Exit Code $?
-  workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
-  displayName: 'Docker build and push'
-  condition: eq(variables.osName, 'linux')
+# - script: |
+#     make build_image
+#     echo Exit Code $?
+#     make image
+#     echo Exit Code $?
+#     make push
+#     echo Exit Code $?
+#     make clean_up
+#     echo Exit Code $?
+#   workingDirectory: $(Build.SourcesDirectory)/PaymentGateway/docker
+#   displayName: 'Docker build and push'
+#   condition: eq(variables.osName, 'linux')

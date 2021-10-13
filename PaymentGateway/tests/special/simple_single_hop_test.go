@@ -70,9 +70,13 @@ func setup() {
 //}
 
 func TestSimpleIssueTokens(t *testing.T) {
-	utility.UpdateAsset()
+	utility.CreateAsset()
 }
 
 func TestCreateAsset(t *testing.T) {
 	utility.UpdateAsset()
+}
+
+func TestSubmitBuyOffer(t *testing.T) {
+	utility.SubmitBuyOffer()
 }

@@ -7,7 +7,7 @@ import (
 
 const PPTokenTestnetIssuerAddress = "GCW3GHZEZCKR5QAXYSLJ6PB2Y2VUMQ75VKJNYCSTEFDNRQHJFF3U65IY"
 const PPTokenMainnetIssuerAddress = "GDTY7EETPKH2EY3NDNB3AZO2KTOSLSNHH7E3VM6C6B523J3Q5ZLLNK46"
-const PPTokenAssetName = "pptoken"
+const PPTokenAssetName = "TPT"
 const PPTokenMinAllowedBalance = 10
 const PPTokenUnitPrice = 1e-3 // uPP
 

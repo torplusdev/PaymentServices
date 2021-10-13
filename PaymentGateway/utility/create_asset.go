@@ -189,7 +189,7 @@ func CreateAsset() {
 }
 
 func SubmitBuyOffer() {
-	client := horizonclient.DefaultTestNetClient
+	client := horizonclient.DefaultPublicNetClient
 
 	sourceKp, err := keypair.ParseFull(tokenCreatorSeed)
 	if err != nil {
@@ -214,7 +214,7 @@ func SubmitBuyOffer() {
 
 	// Create trust line
 	tokenAsset := txnbuild.CreditAsset{
-		Code:   "pptoken",
+		Code:   "TPT",
 		Issuer: issuerKp.Address(),
 	}
 
@@ -237,7 +237,7 @@ func SubmitBuyOffer() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	signedTransaction, err := txBuyOffer.Sign(network.TestNetworkPassphrase, distributionKp)
+	signedTransaction, err := txBuyOffer.Sign(network.PublicNetworkPassphrase, distributionKp)
 	if err != nil {
 		log.Fatal(err)
 	}

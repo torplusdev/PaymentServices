@@ -5,9 +5,9 @@ if [[ "${no_conf}" != "1" ]]; then
   else
     export UseTestApi=true
   fi
-  cat /opt/paidpiper/config.json.tmpl | envsubst > /opt/paidpiper/config.json
+  cat /opt/torplus/config.json.tmpl | envsubst > /opt/torplus/config.json
 fi
-mkdir -p /opt/paidpiper/logs
+mkdir -p /opt/torplus/logs
 function mark {
   match=$1
   file=$2
@@ -24,7 +24,7 @@ function mark {
 }
 if [ $# -eq 0 ]
 then
-    /opt/paidpiper/payment-gateway | mark "Server is ready!" ".pg_ready" &> /opt/paidpiper/logs/payment.log
+    /opt/torplus/payment-gateway | mark "Server is ready!" ".pg_ready" &> /opt/torplus/logs/payment.log
 else 
     exec "$@" | mark "Server is ready!" ".pg_ready"
 fi

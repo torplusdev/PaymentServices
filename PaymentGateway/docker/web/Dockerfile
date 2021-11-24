@@ -9,11 +9,11 @@ ENV PP_ENV=prod
 RUN apt-get update && \
     apt-get install -y curl gettext-base supervisor nginx && \
     rm -rf /var/lib/apt/lists/*
-WORKDIR /opt/paidpiper/
+WORKDIR /opt/torplus/
 ENV no_conf=0
 
 ENV role=hs_client
-COPY --from=build  /opt/paidpiper/main_linux payment-gateway
+COPY --from=build  /opt/torplus/main_linux payment-gateway
 COPY PaymentGateway/config.json config.json
 COPY PaymentGateway/docker/config.json.tmpl config.json.tmpl
 COPY PaymentGateway/docker/pg-docker-entrypoint.sh /pg-docker-entrypoint.sh

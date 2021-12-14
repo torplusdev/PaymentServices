@@ -427,7 +427,7 @@ func (n *nodeImpl) FlushTransactions(context context.Context) error {
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.GetAddress())
 	defer span.End()
 
-	log.Infof("FlushTransactions started")
+	//log.Infof("FlushTransactions started")
 
 	n.lastFlush = time.Now()
 

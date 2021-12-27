@@ -70,6 +70,7 @@ func New(rootClient root.RootApi,
 	paymentManager regestry.PaymentManagerRegestry,
 	callbackerFactory CallbackerFactory,
 	nodeConfig config.NodeConfig,
+	commodityManager commodity.Manager,
 ) (LocalPPNode, error) {
 
 	log.SetLevel(log.InfoLevel)
@@ -86,7 +87,7 @@ func New(rootClient root.RootApi,
 		rootClient:                   rootClient,
 		transactionFee:               nodeTransactionFee,
 		paymentRegistry:              paymentRegestry,
-		commodityManager:             commodity.New(),
+		commodityManager:             commodityManager,
 		paymentManagerRegestry:       paymentManager,
 		tracer:                       common.CreateTracer("node"),
 		callbackerFactory:            callbackerFactory,

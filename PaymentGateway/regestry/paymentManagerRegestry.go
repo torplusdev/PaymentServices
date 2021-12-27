@@ -79,8 +79,8 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 		nodeId := rn.NodeId
 
 		commandClient, responseHandler := g.commandClientFactory(commandCallbackUrl, sessionId, nodeId)
-
-		n := proxy.NewProxyNode(commandClient, responseHandler, rn.Address, 10)
+		fee := g.commodityManager.GetProxyNodeFee()
+		n := proxy.NewProxyNode(commandClient, responseHandler, rn.Address, fee)
 		err := paymentManager.AddChainNode(rn.Address, rn.NodeId, n)
 		if err != nil {
 			return nil, err

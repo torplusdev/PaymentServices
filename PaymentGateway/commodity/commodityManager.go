@@ -1,10 +1,23 @@
 package commodity
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"paidpiper.com/payment-gateway/models"
 )
+
+type ratesResponse struct {
+	Commodity []struct {
+		Type  string  `json:"type"`
+		Price float64 `json:"price"`
+	} `json:"commodity"`
+	Ipfs      float64 `json:"ipfs"`
+	Tor       float64 `json:"tor"`
+	Attention float64 `json:"attention"`
+	Fee       int     `json:"fee"`
+}
 
 type Descriptor struct {
 	UnitPrice float64
@@ -13,34 +26,80 @@ type Descriptor struct {
 type Manager interface {
 	Calculate(commodiryRequest *models.CreatePaymentInfo) (*models.PaymentRequstBase, error)
 	ReverseCalculate(service string, commodity string, price uint32, asset string) (*models.ValidatePaymentResponse, error)
+	GetProxyNodeFee() uint32
 }
 type manager struct {
-	priceTable map[string]map[string]Descriptor
+	priceTable   map[string]map[string]Descriptor
+	proxyNodeFee uint32
+}
+
+func FromUrl(address string) (Manager, error) {
+	host := "https://rates.torplus.com"
+	url := fmt.Sprintf("%v/api/%v/rates", host, address)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	respModel := &ratesResponse{}
+	err = json.NewDecoder(resp.Body).Decode(resp)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("SUCCESS LOADING")
+	fmt.Println(url)
+	return &manager{
+		priceTable: map[string]map[string]Descriptor{
+			"ipfs": {
+				"data": {
+					UnitPrice: respModel.Ipfs,
+					Asset:     models.PPTokenAssetName,
+				},
+			},
+			"tor": {
+				"data": {
+					UnitPrice: respModel.Tor,
+					Asset:     models.PPTokenAssetName,
+				},
+			},
+			"http": {
+				"attention": {
+					UnitPrice: respModel.Attention,
+					Asset:     models.PPTokenAssetName,
+				},
+			},
+		},
+		proxyNodeFee: uint32(respModel.Fee),
+	}, nil
 }
 
 func New() Manager {
-
-	return &manager{priceTable: map[string]map[string]Descriptor{
-		"ipfs": {
-			"data": {
-				UnitPrice: 0.00000002,
-				Asset:     models.PPTokenAssetName,
+	return &manager{
+		priceTable: map[string]map[string]Descriptor{
+			"ipfs": {
+				"data": {
+					UnitPrice: 0.00000002,
+					Asset:     models.PPTokenAssetName,
+				},
+			},
+			"tor": {
+				"data": {
+					UnitPrice: 0.1,
+					Asset:     models.PPTokenAssetName,
+				},
+			},
+			"http": {
+				"attention": {
+					UnitPrice: 0.1,
+					Asset:     models.PPTokenAssetName,
+				},
 			},
 		},
-		"tor": {
-			"data": {
-				UnitPrice: 0.1,
-				Asset:     models.PPTokenAssetName,
-			},
-		},
-		"http": {
-			"attention": {
-				UnitPrice: 0.1,
-				Asset:     models.PPTokenAssetName,
-			},
-		},
-	},
+		proxyNodeFee: 10,
 	}
+}
+
+func (cm *manager) GetProxyNodeFee() uint32 {
+	return cm.proxyNodeFee
 }
 
 func (cm *manager) Calculate(commodiryRequest *models.CreatePaymentInfo) (*models.PaymentRequstBase, error) {

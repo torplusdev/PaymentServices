@@ -58,15 +58,22 @@ func FromConfigWithClientFactory(config *config.Configuration, clientFactory reg
 func LocalHost(config *config.Configuration, rootClient root.RootApi,
 	torClient torclient.TorClient,
 	commandClientFactory regestry.CommandClientFactory) (LocalPPNode, error) {
-	commodityManager := commodity.New()
+	commodityManager, err := commodity.FromUrl(rootClient.GetAddress())
+	if err != nil {
+		return nil, err
+	}
 	paymentRegestry := regestry.NewPaymentManagerRegestry(
 		commodityManager,
 		client.New(rootClient),
 		commandClientFactory,
 		torClient)
-	localNode, err := New(rootClient, paymentRegestry,
+	localNode, err := New(
+		rootClient,
+		paymentRegestry,
 		newCallbacker,
-		config.NodeConfig)
+		config.NodeConfig,
+		commodityManager,
+	)
 
 	if err != nil {
 		glog.Infof("Error creating Node object: %s", err)

@@ -9,10 +9,6 @@ import (
 )
 
 type ratesResponse struct {
-	Commodity []struct {
-		Type  string  `json:"type"`
-		Price float64 `json:"price"`
-	} `json:"commodity"`
 	Ipfs      float64 `json:"ipfs"`
 	Tor       float64 `json:"tor"`
 	Attention float64 `json:"attention"`

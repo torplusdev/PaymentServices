@@ -28,7 +28,7 @@ strategy:
       addldflags: '-ldflags -H=windowsgui'
     mac:
       poolName: 'Azure Pipelines'
-      vmImage: 'macOS-10.14'
+      vmImage: 'macOS-10.15'
       osName: 'mac'
       ext: ''
       addldflags: ''

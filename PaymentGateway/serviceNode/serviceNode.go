@@ -44,7 +44,7 @@ func (r *loggableWriter) Handle(path string, handler http.Handler) *mux.Route {
 func RunHttpServer(config *config.Configuration) (func(), error) {
 	local, err := local.FromConfig(config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get config error: %v", err)
 	}
 	resolverController := controllers.NewResolverController(config.ResolveKey)
 	server := HttpLocalNode(local, resolverController, config.Port)

@@ -29,20 +29,30 @@ type manager struct {
 	proxyNodeFee uint32
 }
 
-func FromUrl(address string) (Manager, error) {
+func getConfigFromServer(address string) (*ratesResponse, error) {
 	host := "https://rates.torplus.com"
 	url := fmt.Sprintf("%v/api/%v/rates", host, address)
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("curl %v error %v", url, err)
 	}
 	respModel := &ratesResponse{}
 	err = json.NewDecoder(resp.Body).Decode(resp)
 	if err != nil {
+		return &ratesResponse{
+			Fee:       10,
+			Ipfs:      0.00000002,
+			Tor:       0.1,
+			Attention: 0.1,
+		}, nil
+	}
+	return respModel, nil
+}
+func FromUrl(address string) (Manager, error) {
+	respModel, err := getConfigFromServer(address)
+	if err != nil {
 		return nil, err
 	}
-	fmt.Println("SUCCESS LOADING")
-	fmt.Println(url)
 	return &manager{
 		priceTable: map[string]map[string]Descriptor{
 			"ipfs": {

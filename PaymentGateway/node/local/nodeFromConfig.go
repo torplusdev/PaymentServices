@@ -34,7 +34,6 @@ import (
 // }
 
 func FromConfig(config *config.Configuration) (LocalPPNode, error) {
-	//cfg := NewNodeStartConfig(config)
 	clientFactory := TorClientFactory(config.TorAddressPrefix)
 	return FromConfigWithClientFactory(config, clientFactory)
 }
@@ -47,7 +46,7 @@ func FromConfigWithClientFactory(config *config.Configuration, clientFactory reg
 
 	rootClient, err := CreateRootApi(config.RootApiConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create root api error:", err)
 	}
 	torClient := TorRouteBuilder(config.TorAddressPrefix)
 
@@ -60,13 +59,14 @@ func LocalHost(config *config.Configuration, rootClient root.RootApi,
 	commandClientFactory regestry.CommandClientFactory) (LocalPPNode, error) {
 	commodityManager, err := commodity.FromUrl(rootClient.GetAddress())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("commodity from url error:", err)
 	}
 	paymentRegestry := regestry.NewPaymentManagerRegestry(
 		commodityManager,
 		client.New(rootClient),
 		commandClientFactory,
 		torClient)
+
 	localNode, err := New(
 		rootClient,
 		paymentRegestry,
@@ -89,15 +89,13 @@ func CreateRootApi(cfg config.RootApiConfig) (root.RootApi, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// Account validation
 	err = rootClient.ValidateForPPNode()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client validation failed:%v", err)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("client creation failed")
-	}
 	balance, err := rootClient.GetMicroPPTokenBalance()
 
 	if err != nil {

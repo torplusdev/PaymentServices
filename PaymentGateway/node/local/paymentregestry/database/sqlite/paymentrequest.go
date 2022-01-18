@@ -91,7 +91,22 @@ func (prdb *liteDb) UpdatePaymentRequestCompleteDate(sessionId string, time time
 }
 func (prdb *liteDb) SelectPaymentRequestGroup(comodity string, group time.Duration, where time.Time) ([]*models.BookHistoryItem, error) {
 	//select CAST((julianday('now') - 2440587.5)*86400.0  AS INT)/(60*60*24) as Timespan
-	query := `
+	var q string
+	if comodity == "all" {
+		query := `
+		SELECT Asset,
+			MIN(Date) as Date,
+			SUM(Amount)
+		FROM PaymentRequest 
+		WHERE Date> '%v' AND Date<= '%v'  
+		GROUP BY Asset, CAST((julianday(Date) - 2440587.5)*86400.0  AS INT)/(%d);
+	`
+		now := time.Now()
+
+		groupSeconds := int(group.Seconds())
+		q = fmt.Sprintf(query, SqlTime(where).String(), SqlTime(now).String(), groupSeconds)
+	} else {
+		query := `
 		SELECT Asset,
 			MIN(Date) as Date,
 			SUM(Amount)
@@ -99,15 +114,16 @@ func (prdb *liteDb) SelectPaymentRequestGroup(comodity string, group time.Durati
 		WHERE Date> '%v' AND Date<= '%v' AND ServiceRef='%v' 
 		GROUP BY Asset, CAST((julianday(Date) - 2440587.5)*86400.0  AS INT)/(%d);
 	`
+		now := time.Now()
+
+		groupSeconds := int(group.Seconds())
+		q = fmt.Sprintf(query, SqlTime(where).String(), SqlTime(now).String(), comodity, groupSeconds)
+	}
+
 	/*
 		datetime(((CAST((julianday(Date) - 2440587.5)*86400.0  AS INT)/(21600))*21600),'unixepoch') as Date,
 	*/
-	//TODO ADD ServiceRef='%v'
-	//MIN(Date),
-	now := time.Now()
 
-	groupSeconds := int(group.Seconds())
-	q := fmt.Sprintf(query, SqlTime(where).String(), SqlTime(now).String(), comodity, groupSeconds)
 	res, err := prdb.db.Query(q)
 	if err != nil {
 		return nil, err

@@ -53,7 +53,7 @@ build_windows:
 	go build -ldflags "$(LDFLAGSVERSION) -H=windowsgui" -o ./payment-gateway-windows.exe ./cmd/main/
 
 run:
-	go run ./cmd/main/ SCLNCJRTS3RSWBV2NJRSBX7HVLYXZNVOLRMK7YOKADAXD6VBJFJBXDNM 28080
+	go run ./cmd/main/ SDNUQFJDYLROZMAIMR5SMBV2MG5IU3BHWJ5LUNMSHM6F573GGWEL6URP 28080
 
 generatordeps:
 	go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen

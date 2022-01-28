@@ -65,17 +65,17 @@ func (prdb *paymentRegistryWithDb) AddServiceUsage(sessionId string, pr *models.
 		if err != nil {
 			prdb.LogError(err)
 		}
+	} else {
+		log.Errorf("Can not open database")
 	}
 	prdb.PaymentRegistry.AddServiceUsage(sessionId, pr)
 }
 
 func (prdb *paymentRegistryWithDb) ReducePendingAmount(sessionId string, amount models.TransactionAmount) error {
-
 	return prdb.PaymentRegistry.ReducePendingAmount(sessionId, amount)
 }
 
 func (prdb *paymentRegistryWithDb) GetPendingAmount(sourceAddress string) (amount models.TransactionAmount, ok bool) {
-
 	return prdb.PaymentRegistry.GetPendingAmount(sourceAddress)
 }
 
@@ -88,20 +88,19 @@ func (prdb *paymentRegistryWithDb) SaveTransaction(sequence int64, transaction *
 		if err != nil {
 			prdb.LogError(err)
 		}
+	} else {
+		log.Errorf("Can not open database")
 	}
 
 	prdb.PaymentRegistry.SaveTransaction(sequence, transaction)
 }
 
 func (prdb *paymentRegistryWithDb) GetActiveTransactions() []*models.PaymentTransactionWithSequence {
-
 	return prdb.PaymentRegistry.GetActiveTransactions()
 }
 
 func (prdb *paymentRegistryWithDb) CompletePayment(paymentSourceAddress string, serviceSessionId string) {
-
 	prdb.PaymentRegistry.CompletePayment(paymentSourceAddress, serviceSessionId)
-
 }
 
 func (prdb *paymentRegistryWithDb) GetActiveTransaction(paymentSourceAddress string) *models.PaymentTransaction {
@@ -109,6 +108,5 @@ func (prdb *paymentRegistryWithDb) GetActiveTransaction(paymentSourceAddress str
 }
 
 func (prdb *paymentRegistryWithDb) GetTransactionBySessionId(sessionId string) *models.PaymentTransaction {
-
 	return prdb.PaymentRegistry.GetTransactionBySessionId(sessionId)
 }

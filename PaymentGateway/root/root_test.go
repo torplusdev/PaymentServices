@@ -18,9 +18,9 @@ const user1Seed = "SC33EAUSEMMVSN4L3BJFFR732JLASR4AQY7HBRGA6BVKAPJL5S4OZWLU"
 const service1Seed = "SBBNHWCWUFLM4YXTF36WUZP4A354S75BQGFGUMSAPCBTN645TERJAC34"
 
 func setup() {
-	testutils.CreateAndFundAccount(gw1Seed, testutils.Node)
-	testutils.CreateAndFundAccount(user1Seed, testutils.Node)
-	testutils.CreateAndFundAccount(service1Seed, testutils.Node)
+	// testutils.CreateAndFundAccount(gw1Seed, testutils.Node)
+	// testutils.CreateAndFundAccount(user1Seed, testutils.Node)
+	// testutils.CreateAndFundAccount(service1Seed, testutils.Node)
 }
 
 func shutdown() {

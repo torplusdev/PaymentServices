@@ -107,6 +107,12 @@ func createRootApi(withCore *rootApiCore, seed string, transactionValiditySecs i
 
 	err = rootApi.initialize()
 	if err != nil {
+		if herr, ok := err.(*horizonclient.Error); ok {
+			log.Info("Error has additional info")
+			log.Info(herr.ResultCodes())
+			log.Info(herr.ResultString())
+			log.Info(herr.Problem)
+		}
 		return nil, err
 	}
 	return rootApi, err
@@ -153,6 +159,12 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 
 	err := api.CheckSourceAddress(request.SourceAddress)
 	if err != nil {
+		if herr, ok := err.(*horizonclient.Error); ok {
+			log.Info("Error has additional info")
+			log.Info(herr.ResultCodes())
+			log.Info(herr.ResultString())
+			log.Info(herr.Problem)
+		}
 		return nil, err
 	}
 
@@ -216,6 +228,12 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 	})
 	//tx.Timebounds().
 	if err != nil {
+		if herr, ok := err.(*horizonclient.Error); ok {
+			log.Info("Error has additional info")
+			log.Info(herr.ResultCodes())
+			log.Info(herr.ResultString())
+			log.Info(herr.Problem)
+		}
 		return nil, fmt.Errorf("error creating transaction: %v", err)
 	}
 
@@ -234,6 +252,12 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 
 	err = tr.PendingTransaction.Validate()
 	if err != nil {
+		if herr, ok := err.(*horizonclient.Error); ok {
+			log.Info("Error has additional info")
+			log.Info(herr.ResultCodes())
+			log.Info(herr.ResultString())
+			log.Info(herr.Problem)
+		}
 		return nil, err
 	}
 	return tr, nil
@@ -242,10 +266,16 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 func (api *rootApi) ValidateForPPNode() error {
 	balance, err := api.GetMicroPPTokenBalance()
 	if err != nil {
+		if herr, ok := err.(*horizonclient.Error); ok {
+			log.Info("Error has additional info")
+			log.Info(herr.ResultCodes())
+			log.Info(herr.ResultString())
+			log.Info(herr.Problem)
+		}
 		return nil
 	}
 	if balance < models.PPTokenMinAllowedBalance {
-		log.Info("balance of PPToken  is too low %d. Should be at least %d", balance, models.PPTokenMinAllowedBalance)
+		log.Infof("balance of PPToken  is too low %d. Should be at least %d", balance, models.PPTokenMinAllowedBalance)
 	}
 	address := api.GetAddress()
 	nodeAccountDetail, err := api.GetAccount()
@@ -269,6 +299,12 @@ func (api *rootApi) CheckSourceAddress(a string) error {
 		horizonclient.AccountRequest{
 			AccountID: a})
 	if err != nil {
+		if herr, ok := err.(*horizonclient.Error); ok {
+			log.Info("Error has additional info")
+			log.Info(herr.ResultCodes())
+			log.Info(herr.ResultString())
+			log.Info(herr.Problem)
+		}
 		return fmt.Errorf("error getting source account data: %v, value: %v", err, a)
 	}
 	return nil
@@ -895,7 +931,7 @@ func (api *rootApi) CreateUser() error {
 		log.Fatal("Error submitting transaction:", hError, hError.Problem)
 	}
 
-	log.Infof("\nTransaction response: ", resp)
+	log.Info("Transaction response: ", resp)
 
 	return nil
 }

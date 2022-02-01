@@ -100,7 +100,7 @@ func DefaultCfg() *Configuration {
 		MaxConcurrency:   10,
 		RootApiConfig: RootApiConfig{
 			TransactionValiditySecs: 21600,
-			UseTestApi:              true,
+			UseTestApi:              useTestApi,
 		},
 
 		NodeConfig: NodeConfig{

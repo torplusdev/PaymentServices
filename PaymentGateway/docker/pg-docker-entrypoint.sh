@@ -1,9 +1,9 @@
 #!/bin/bash
 if [[ "${no_conf}" != "1" ]]; then
   if [[ "${PP_ENV}" != "prod" ]]; then
-    export UseTestApi=false
-  else
     export UseTestApi=true
+  else
+    export UseTestApi=false
   fi
   cat /opt/torplus/config.json.tmpl | envsubst > /opt/torplus/config.json
 fi

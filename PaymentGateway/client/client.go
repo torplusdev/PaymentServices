@@ -318,12 +318,12 @@ func (client *serviceClient) FinalizePayment(context context.Context,
 	defer span.End()
 
 	log.Infof("Started FinalizePayment (%s) %d => %s", pr.ServiceRef, pr.Amount, pr.Address)
-
+	selfAddress := client.RootApi.GetAddress()
 	// TODO: Refactor to minimize possible mid-chain errors
 	for _, tr := range transactions {
 		trans := tr.PendingTransaction
-		paymentNode := nodeManager.GetNodeByAddress(trans.PaymentDestinationAddress)
-		if paymentNode == nil {
+		paymentDestinationNode := nodeManager.GetNodeByAddress(trans.PaymentDestinationAddress)
+		if paymentDestinationNode == nil {
 			log.Print("Error retrieving node object: ")
 			return errors.Errorf("error retrieving node object ")
 		}
@@ -331,7 +331,7 @@ func (client *serviceClient) FinalizePayment(context context.Context,
 		// If this is a payment to the requesting node
 		if trans.PaymentDestinationAddress == pr.Address {
 			log.Infof("Requesting CommitServiceTransaction (%s) => %s", tr.PendingTransaction.ServiceSessionId, tr.PendingTransaction.PaymentDestinationAddress)
-			err := paymentNode.CommitServiceTransaction(ctx, &models.CommitServiceTransactionCommand{
+			err := paymentDestinationNode.CommitServiceTransaction(ctx, &models.CommitServiceTransactionCommand{
 				Transaction:    tr,
 				PaymentRequest: pr,
 			})
@@ -340,14 +340,25 @@ func (client *serviceClient) FinalizePayment(context context.Context,
 			}
 			continue
 		}
-		log.Infof("Requesting CommitChainTransaction (%s) => %s", tr.PendingTransaction.ServiceSessionId, tr.PendingTransaction.PaymentDestinationAddress)
-		err := paymentNode.CommitChainTransaction(ctx, &models.CommitChainTransactionCommand{
-			Transaction: tr,
-		})
-		if err != nil {
-			return fmt.Errorf("error committing transaction: %v", err)
-		}
+		if trans.PaymentSourceAddress == selfAddress {
 
+			log.Infof("Requesting CommitChainTransaction (%s) => %s", tr.PendingTransaction.ServiceSessionId, tr.PendingTransaction.PaymentDestinationAddress)
+			err := paymentDestinationNode.CommitSourceTransaction(ctx, &models.CommitChainTransactionCommand{
+				Transaction: tr,
+			})
+			if err != nil {
+				return fmt.Errorf("error committing transaction: %v", err)
+			}
+
+		} else {
+			log.Infof("Requesting CommitChainTransaction (%s) => %s", tr.PendingTransaction.ServiceSessionId, tr.PendingTransaction.PaymentDestinationAddress)
+			err := paymentDestinationNode.CommitChainTransaction(ctx, &models.CommitChainTransactionCommand{
+				Transaction: tr,
+			})
+			if err != nil {
+				return fmt.Errorf("error committing transaction: %v", err)
+			}
+		}
 	}
 
 	return nil

@@ -83,7 +83,15 @@ func (prdb *paymentRegistryWithDb) SaveTransaction(sequence int64, transaction *
 	if prdb.openDb() {
 		defer prdb.closeDb()
 		err := prdb.db.InsertTransaction(&entity.DbTransactoin{
-			Sequence: sequence,
+			Sequence:                  sequence,
+			TransactionSourceAddress:  transaction.TransactionSourceAddress,
+			ReferenceAmountIn:         int(transaction.ReferenceAmountIn),
+			AmountOut:                 int(transaction.AmountOut),
+			XDR:                       transaction.XDR.String(),
+			PaymentSourceAddress:      transaction.PaymentSourceAddress,
+			PaymentDestinationAddress: transaction.PaymentDestinationAddress,
+			StellarNetworkToken:       transaction.StellarNetworkToken,
+			ServiceSessionId:          transaction.ServiceSessionId,
 		})
 		if err != nil {
 			prdb.LogError(err)

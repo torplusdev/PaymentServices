@@ -94,6 +94,10 @@ func (n *nodeProxy) CommitServiceTransaction(context context.Context, command *m
 	return n.commandClient.CommitServiceTransaction(ctx, command)
 }
 
+func (n *nodeProxy) CommitSourceTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {
+	return fmt.Errorf("You should not call the method")
+}
+
 func (n *nodeProxy) CommitChainTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {
 	ctx, span := n.tracer.Start(context, "proxy-CommitChainTransaction-"+n.address)
 	defer span.End()

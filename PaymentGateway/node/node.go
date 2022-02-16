@@ -11,6 +11,7 @@ type PPNode interface {
 	CreateTransaction(ctx context.Context, command *models.CreateTransactionCommand) (*models.CreateTransactionResponse, error)
 	SignChainTransaction(ctx context.Context, command *models.SignChainTransactionCommand) (*models.SignChainTransactionResponse, error)
 	SignServiceTransaction(ctx context.Context, command *models.SignServiceTransactionCommand) (*models.SignServiceTransactionResponse, error)
+	CommitSourceTransaction(ctx context.Context, command *models.CommitChainTransactionCommand) error
 	CommitChainTransaction(ctx context.Context, command *models.CommitChainTransactionCommand) error
 	CommitServiceTransaction(ctx context.Context, command *models.CommitServiceTransactionCommand) error
 	GetAddress() string

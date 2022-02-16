@@ -15,6 +15,7 @@ import (
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry"
 	"paidpiper.com/payment-gateway/node/local/paymentregestry/database"
+	"paidpiper.com/payment-gateway/node/local/paymentregestry/database/entity"
 	"paidpiper.com/payment-gateway/regestry"
 	"paidpiper.com/payment-gateway/root"
 
@@ -357,6 +358,34 @@ func (n *nodeImpl) commitTransaction(context context.Context, transaction *model
 
 	return nil
 
+}
+
+func (n *nodeImpl) CommitSourceTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {
+
+	_, span := n.tracer.Start(context, "node-CommitSourceTransaction "+n.GetAddress())
+	defer span.End()
+
+	err := n.commitTransaction(context, &command.Transaction.PendingTransaction)
+	if err != nil {
+		return err
+	}
+	transaction := command.Transaction.PendingTransaction
+	err = n.db.InsertTransaction((&entity.DbTransactoin{
+		Sequence:                  0,
+		TransactionSourceAddress:  transaction.TransactionSourceAddress,
+		ReferenceAmountIn:         int(transaction.ReferenceAmountIn),
+		AmountOut:                 int(transaction.AmountOut),
+		XDR:                       transaction.XDR.String(),
+		PaymentSourceAddress:      transaction.PaymentSourceAddress,
+		PaymentDestinationAddress: transaction.PaymentDestinationAddress,
+		StellarNetworkToken:       transaction.StellarNetworkToken,
+		ServiceSessionId:          transaction.ServiceSessionId,
+	}))
+	if err != nil {
+		return fmt.Errorf("write to database error: %v", err)
+	}
+	command.Transaction.ToSpanAttributes(span, "single")
+	return err
 }
 
 func (n *nodeImpl) CommitChainTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {

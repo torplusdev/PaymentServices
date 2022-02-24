@@ -360,17 +360,12 @@ func (n *nodeImpl) commitTransaction(context context.Context, transaction *model
 
 }
 
-func (n *nodeImpl) CommitSourceTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {
+func (n *nodeImpl) SaveSourceTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {
 
 	_, span := n.tracer.Start(context, "node-CommitSourceTransaction "+n.GetAddress())
-	defer span.End()
 
-	err := n.commitTransaction(context, &command.Transaction.PendingTransaction)
-	if err != nil {
-		return err
-	}
 	transaction := command.Transaction.PendingTransaction
-	err = n.db.InsertTransaction((&entity.DbTransactoin{
+	err := n.db.InsertTransaction((&entity.DbTransactoin{
 		Sequence:                  0,
 		TransactionSourceAddress:  transaction.TransactionSourceAddress,
 		ReferenceAmountIn:         int(transaction.ReferenceAmountIn),

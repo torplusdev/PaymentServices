@@ -322,6 +322,7 @@ func (client *serviceClient) FinalizePayment(context context.Context,
 	// TODO: Refactor to minimize possible mid-chain errors
 	for _, tr := range transactions {
 		trans := tr.PendingTransaction
+		paymentSourceNode := nodeManager.GetNodeByAddress(trans.PaymentSourceAddress)
 		paymentDestinationNode := nodeManager.GetNodeByAddress(trans.PaymentDestinationAddress)
 		if paymentDestinationNode == nil {
 			log.Print("Error retrieving node object: ")
@@ -343,11 +344,16 @@ func (client *serviceClient) FinalizePayment(context context.Context,
 		if trans.PaymentSourceAddress == selfAddress {
 
 			log.Infof("Requesting CommitChainTransaction (%s) => %s", tr.PendingTransaction.ServiceSessionId, tr.PendingTransaction.PaymentDestinationAddress)
-			err := paymentDestinationNode.CommitSourceTransaction(ctx, &models.CommitChainTransactionCommand{
+			cchTr := &models.CommitChainTransactionCommand{
 				Transaction: tr,
-			})
+			}
+			err := paymentDestinationNode.CommitChainTransaction(ctx, cchTr)
 			if err != nil {
 				return fmt.Errorf("error committing transaction: %v", err)
+			}
+			err = paymentSourceNode.SaveSourceTransaction(ctx, cchTr)
+			if err != nil {
+				return fmt.Errorf("can not save self transaction: %v", err)
 			}
 
 		} else {

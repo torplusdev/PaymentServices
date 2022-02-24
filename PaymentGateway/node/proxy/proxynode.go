@@ -94,7 +94,7 @@ func (n *nodeProxy) CommitServiceTransaction(context context.Context, command *m
 	return n.commandClient.CommitServiceTransaction(ctx, command)
 }
 
-func (n *nodeProxy) CommitSourceTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {
+func (n *nodeProxy) SaveSourceTransaction(context context.Context, command *models.CommitChainTransactionCommand) error {
 	return fmt.Errorf("You should not call the method")
 }
 

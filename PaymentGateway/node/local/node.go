@@ -365,7 +365,12 @@ func (n *nodeImpl) SaveSourceTransaction(context context.Context, command *model
 	_, span := n.tracer.Start(context, "node-CommitSourceTransaction "+n.GetAddress())
 
 	transaction := command.Transaction.PendingTransaction
-	err := n.db.InsertTransaction((&entity.DbTransactoin{
+	err := n.db.Open()
+	if err != nil {
+		return err
+	}
+	defer n.db.Close()
+	err = n.db.InsertTransaction((&entity.DbTransactoin{
 		Sequence:                  0,
 		TransactionSourceAddress:  transaction.TransactionSourceAddress,
 		ReferenceAmountIn:         int(transaction.ReferenceAmountIn),
@@ -512,6 +517,7 @@ func (n *nodeImpl) ProcessPayment(ctx context.Context, request *models.ProcessPa
 	if n.paymentManagerRegestry.Has(sessionId) {
 		return nil, fmt.Errorf("duplicate session id")
 	}
+	n.paymentRegistry.AddServiceСonsumption(sessionId, request.PaymentRequest)
 	paymentManager, err := n.paymentManagerRegestry.New(ctx, n, request)
 	if err != nil {
 		return nil, err

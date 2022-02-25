@@ -8,7 +8,8 @@ import (
 )
 
 type PaymentRegistry interface {
-	AddServiceUsage(sourceAddress string, amount *models.PaymentRequest)
+	AddServiceUsage(sourceAddress string, pr *models.PaymentRequest)
+	AddServiceСonsumption(sessionId string, pr *models.PaymentRequest)
 	ReducePendingAmount(sourceAddress string, amount models.TransactionAmount) error
 	GetPendingAmount(sourceAddress string) (amount models.TransactionAmount, ok bool)
 
@@ -62,6 +63,10 @@ func New() (PaymentRegistry, error) {
 // 	}
 
 // }
+
+func (r *paymentRegistry) AddServiceСonsumption(sessionId string, pr *models.PaymentRequest) {
+
+}
 
 func (r *paymentRegistry) GetEntryByAddress(sourceAddress string) *paymentRegistryEntry {
 	r.mutex.Lock()

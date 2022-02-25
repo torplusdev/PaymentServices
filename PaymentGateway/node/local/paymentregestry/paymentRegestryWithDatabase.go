@@ -71,6 +71,28 @@ func (prdb *paymentRegistryWithDb) AddServiceUsage(sessionId string, pr *models.
 	prdb.PaymentRegistry.AddServiceUsage(sessionId, pr)
 }
 
+func (prdb *paymentRegistryWithDb) AddServiceСonsumption(sessionId string, pr *models.PaymentRequest) {
+	if prdb.openDb() {
+		defer prdb.closeDb()
+		err := prdb.db.InsertPaymentRequest(&entity.DbPaymentRequest{
+			SessionId:        sessionId,
+			Amount:           -int(pr.Amount),
+			Asset:            pr.Asset,
+			Address:          pr.Address,
+			ServiceRef:       pr.ServiceRef,
+			ServiceSessionId: pr.ServiceSessionId,
+			Date:             time.Now(),
+			CompleteDate:     sql.NullTime{},
+		})
+		if err != nil {
+			prdb.LogError(err)
+		}
+	} else {
+		log.Errorf("Can not open database")
+	}
+	prdb.PaymentRegistry.AddServiceUsage(sessionId, pr)
+}
+
 func (prdb *paymentRegistryWithDb) ReducePendingAmount(sessionId string, amount models.TransactionAmount) error {
 	return prdb.PaymentRegistry.ReducePendingAmount(sessionId, amount)
 }

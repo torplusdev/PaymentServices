@@ -6,6 +6,7 @@ import (
 
 	"paidpiper.com/payment-gateway/client"
 	"paidpiper.com/payment-gateway/commodity"
+	"paidpiper.com/payment-gateway/log"
 	"paidpiper.com/payment-gateway/models"
 	"paidpiper.com/payment-gateway/node"
 	"paidpiper.com/payment-gateway/node/proxy"
@@ -75,9 +76,9 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 		}
 	}
 
-	for _, rn := range routingNotes {
+	for i, rn := range routingNotes {
 		nodeId := rn.NodeId
-
+		log.Info("Route %v %v", i, nodeId)
 		commandClient, responseHandler := g.commandClientFactory(commandCallbackUrl, sessionId, nodeId)
 		fee := g.commodityManager.GetProxyNodeFee()
 		n := proxy.NewProxyNode(commandClient, responseHandler, rn.Address, fee)

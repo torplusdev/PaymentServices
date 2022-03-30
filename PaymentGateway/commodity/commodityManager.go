@@ -3,12 +3,13 @@ package commodity
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"paidpiper.com/payment-gateway/models"
 )
 
-type ratesResponse struct {
+type RatesResponse struct {
 	Ipfs      float64 `json:"ipfs"`
 	Tor       float64 `json:"tor"`
 	Attention float64 `json:"attention"`
@@ -29,17 +30,21 @@ type manager struct {
 	proxyNodeFee uint32
 }
 
-func getConfigFromServer(address string) (*ratesResponse, error) {
+func getConfigFromServer(address string) (*RatesResponse, error) {
 	host := "https://rates.torplus.com"
 	url := fmt.Sprintf("%v/api/%v/rates", host, address)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("curl %v error %v", url, err)
 	}
-	respModel := &ratesResponse{}
-	err = json.NewDecoder(resp.Body).Decode(resp)
+	respModel := &RatesResponse{}
+	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &ratesResponse{
+		return nil, err
+	}
+	err = json.Unmarshal(data, respModel)
+	if err != nil {
+		return &RatesResponse{
 			Fee:       10,
 			Ipfs:      0.00000002,
 			Tor:       0.1,

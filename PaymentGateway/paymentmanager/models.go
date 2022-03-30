@@ -1,6 +1,8 @@
 package paymentmanager
 
 import (
+	"fmt"
+
 	"paidpiper.com/payment-gateway/log"
 
 	"paidpiper.com/payment-gateway/models"
@@ -34,6 +36,7 @@ func (i *InitiatePaymentHandler) Handle(paymentHandler DebtRegestry, peerHandler
 		ServiceType:    "ipfs",
 		CommodityType:  "data",
 	}
+	fmt.Println("InitiatePaymentHandler ")
 	quantity, err := client.ValidatePayment(req)
 
 	if err != nil {
@@ -45,7 +48,7 @@ func (i *InitiatePaymentHandler) Handle(paymentHandler DebtRegestry, peerHandler
 	if quantity > debt.receivedBytes {
 		log.Warnf("invalid quantity requested: quantity: %v  receivedBytes: %v", quantity, debt.receivedBytes)
 	}
-
+	fmt.Println("InitiatePaymentHandler call %v", i.msg)
 	client.ProcessPayment(i.from, i.msg)
 }
 

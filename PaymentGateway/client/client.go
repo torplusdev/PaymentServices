@@ -221,6 +221,7 @@ func (client *serviceClient) createTransactions(ctx context.Context, paymentRequ
 	payChainLen := len(nodes)
 	transactions := make([]*models.PaymentTransactionReplacing, 0, payChainLen-1)
 	lastNodeIndex := payChainLen - 1
+	log.Infof("InitiatePayment: Payment Request %v (%v) ServiceRef (%v)", paymentRequest.Amount, paymentRequest.Asset, paymentRequest.ServiceRef)
 	// Generate initial transaction
 	for i := lastNodeIndex; i > 0; i-- {
 		sourceNode := nodes[i-1]

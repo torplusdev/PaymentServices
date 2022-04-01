@@ -49,6 +49,9 @@ build_mac:
 	go build -ldflags "$(LDFLAGSVERSION) $(addldflags)" -o ./payment-gateway-mac ./cmd/main/
 build_linux:
 	go build -ldflags "$(LDFLAGSVERSION)" -o ./payment-gateway-linux  ./cmd/main/
+
+build_linux_docker:
+	CGO_ENABLED=1 go build -ldflags "$(LDFLAGSVERSION)" -o /opt/torplus/main_linux ./cmd/main/
 build_windows:
 	go build -ldflags "$(LDFLAGSVERSION) -H=windowsgui" -o ./payment-gateway-windows.exe ./cmd/main/
 #go run ./cmd/main/ SDNUQFJDYLROZMAIMR5SMBV2MG5IU3BHWJ5LUNMSHM6F573GGWEL6URP 28080

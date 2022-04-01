@@ -14,7 +14,10 @@ import (
 )
 
 func main() {
-
+	if len(os.Args) == 2 && os.Args[1] == "version" {
+		log.Infof("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
+		return
+	}
 	stop := make(chan os.Signal, 1)
 	log.Infof("payment_gateway %v, built %v ", version.Version(), version.BuildDate())
 	config, err := config.ParseConfig()

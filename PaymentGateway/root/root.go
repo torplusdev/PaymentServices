@@ -223,7 +223,7 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 			},
 			SourceAccount: request.SourceAddress,
 		}},
-		BaseFee:    200,
+		BaseFee:    config.StellarImmediateOperationBaseFee,
 		Timebounds: txnbuild.NewTimeout(api.transactionValiditySecs),
 	})
 	//tx.Timebounds().

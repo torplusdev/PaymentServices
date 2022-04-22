@@ -78,7 +78,7 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 
 	for i, rn := range routingNotes {
 		nodeId := rn.NodeId
-		log.Info("Route %v %v", i, nodeId)
+		log.Infof("Route %v %v", i, nodeId)
 		commandClient, responseHandler := g.commandClientFactory(commandCallbackUrl, sessionId, nodeId)
 		fee := g.commodityManager.GetProxyNodeFee()
 		n := proxy.NewProxyNode(commandClient, responseHandler, rn.Address, fee)

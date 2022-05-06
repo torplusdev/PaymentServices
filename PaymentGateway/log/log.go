@@ -12,6 +12,8 @@ type Logger interface {
 	Info(msg string)
 	Warn(msg string)
 	Error(msg string)
+	Errorf(msg string, args ...interface{})
+	Debugf(msg string, args ...interface{})
 	Fatal(msg string)
 }
 

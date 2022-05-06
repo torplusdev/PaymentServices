@@ -43,7 +43,6 @@ BUILD_DATE:=$(shell date "+%Y-%m-%d")
 PKG:=paidpiper.com/payment-gateway/version
 LDFLAGSVERSION:=-X $(PKG).commitHash=$(COMMIT_HASH) -X $(PKG).buildDate=$(BUILD_DATE) -X $(PKG).version=$(VERSION)
 
-
 build_all: build_current build_mac build_windows build_linux build_current
 build_mac:
 	go build -ldflags "$(LDFLAGSVERSION) $(addldflags)" -o ./payment-gateway-mac ./cmd/main/

@@ -48,9 +48,7 @@ func NewClientWithProxy() (*http.Client, error) {
 		} else {
 			return nil, errors.New("Failed type assertion to DialContext")
 		}
-		// logger.Debug("Using SOCKS5 proxy for http client",
-		// 	zap.String("host", proxyHost),
-		// )
+
 	} else {
 		dialContext = (baseDialer).DialContext
 	}

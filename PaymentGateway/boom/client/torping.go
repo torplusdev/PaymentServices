@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	PROXY_ADDR = "127.0.0.1:9050"
+	PROXY_ADDR = "127.0.0.1:29050"
 )
 
 type DialContext func(ctx context.Context, network, addr string) (net.Conn, error)

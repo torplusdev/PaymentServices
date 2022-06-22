@@ -25,6 +25,7 @@ type jsonCnfiguration struct {
 	MaxConcurrency               int
 	TransactionValidityPeriodSec int64
 	UseTestApi                   bool
+	RequestTokenUrl              string
 }
 
 type Duration struct {
@@ -57,6 +58,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 type NodeConfig struct {
+	RequestTokenUrl        string
 	AutoFlushPeriod        time.Duration
 	AsyncMode              bool
 	AccumulateTransactions bool
@@ -107,6 +109,7 @@ func DefaultCfg() *Configuration {
 			AutoFlushPeriod:        15 * time.Minute,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
+			RequestTokenUrl:        "http://torplus-accounting.torplus.com/api/accounting/request/token",
 		},
 	}
 }
@@ -137,6 +140,7 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 			AutoFlushPeriod:        rawConfig.AutoFlushPeriod.Duration,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
+			RequestTokenUrl:        rawConfig.RequestTokenUrl,
 		},
 	}
 
@@ -152,6 +156,9 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 	}
 	if instance.ResolveKey == "" {
 		instance.ResolveKey = defCfg.ResolveKey
+	}
+	if instance.NodeConfig.RequestTokenUrl == "" {
+		instance.NodeConfig.RequestTokenUrl = defCfg.NodeConfig.RequestTokenUrl
 	}
 	instance.NodeConfig.AsyncMode = asyncMode
 	instance.NodeConfig.AccumulateTransactions = accumulateTransactions

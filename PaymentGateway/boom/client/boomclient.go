@@ -12,22 +12,24 @@ import (
 	"paidpiper.com/payment-gateway/log"
 )
 
-func New(host string) boom.BoomDataProvider {
+func New(host string, proxy string) boom.BoomDataProvider {
 	host = strings.ReplaceAll(host, ":", ".onion:")
 	host = strings.ReplaceAll(host, "/onion3/", "http://")
 	host = strings.ReplaceAll(host, "4001", "30500")
 	return &boomClient{
-		host: host,
+		host:  host,
+		proxy: proxy,
 	}
 }
 
 type boomClient struct {
-	host string
+	host  string
+	proxy string
 }
 
 func (bc *boomClient) Connections() (*data.Connections, error) {
 
-	httpClient, err := NewClientWithProxy()
+	httpClient, err := NewClientWithProxy(bc.proxy)
 	if err != nil {
 		log.Errorf("create client error: %v", err)
 		return nil, err
@@ -57,7 +59,7 @@ func (bc *boomClient) Connections() (*data.Connections, error) {
 	return response, nil
 }
 func (bc *boomClient) Elements() ([]*data.FrequencyContentMetadata, error) {
-	httpClient, err := NewClientWithProxy()
+	httpClient, err := NewClientWithProxy(bc.proxy)
 	if err != nil {
 		log.Errorf("create client error: %v", err)
 		return nil, err

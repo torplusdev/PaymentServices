@@ -61,10 +61,13 @@ type nodeImpl struct {
 	commodityManager             commodity.Manager
 	tracer                       trace.Tracer
 	autoFlushPeriod              *time.Ticker
+	requestTokenPeriod           *time.Ticker
 	flushMux                     sync.Mutex
 	asyncMode                    bool
 	callbackerFactory            CallbackerFactory
 	lastFlush                    time.Time
+	lastRequestToken             time.Time
+	requestTokenUrl              string
 }
 
 func New(rootClient root.RootApi,
@@ -95,14 +98,43 @@ func New(rootClient root.RootApi,
 		flushMux:                     sync.Mutex{}, //TODO MOVE TO PAYMENT REGESTRY
 		accumulatingTransactionsMode: nodeConfig.AccumulateTransactions,
 		asyncMode:                    nodeConfig.AsyncMode,
+		requestTokenUrl:              nodeConfig.RequestTokenUrl,
 		lastFlush:                    time.Time{},
+		lastRequestToken:             time.Time{},
 	}
 
-	node.runTicker(nodeConfig.AutoFlushPeriod)
+	node.runFlushTicker(nodeConfig.AutoFlushPeriod)
+	node.runFlushTicker(time.Hour * 24)
 	return node, nil
 }
+func (n *nodeImpl) runRequstTokenTicker(period time.Duration) {
+	if n.requestTokenPeriod != nil {
+		if period == 0 {
+			n.requestTokenPeriod.Stop()
+		} else {
+			n.requestTokenPeriod.Reset(period)
+		}
+		return
+	}
+	if period > 0 {
+		n.requestTokenPeriod = time.NewTicker(period)
+		go func(n *nodeImpl) {
+			address := n.GetAddress()
+			for now := range n.autoFlushPeriod.C {
+				log.Debugf("Node %s request token: %s", address, now.String())
+				err := n.RequestToken(context.Background())
+				if err != nil {
+					log.Errorf("Error during request token of node %s: %s", address, err)
+				}
+			}
+		}(n)
+		log.Debugf("run request token with: %v", period)
+	} else {
+		log.Debugf("node %s: request token disabled.", n.GetAddress())
+	}
 
-func (n *nodeImpl) runTicker(autoFlushPeriod time.Duration) {
+}
+func (n *nodeImpl) runFlushTicker(autoFlushPeriod time.Duration) {
 	if n.autoFlushPeriod != nil {
 		if autoFlushPeriod == 0 {
 			n.autoFlushPeriod.Stop()
@@ -141,7 +173,7 @@ func (n *nodeImpl) SetAccumulatingTransactionsMode(accumulateTransactions bool) 
 }
 
 func (n *nodeImpl) SetAutoFlush(autoFlush time.Duration) {
-	n.runTicker(autoFlush)
+	n.runFlushTicker(autoFlush)
 }
 
 func (n *nodeImpl) SetTransactionValiditySecs(transactionValiditySecs int64) {
@@ -452,6 +484,15 @@ func (n *nodeImpl) GetTransaction(sessionId string) *models.PaymentTransaction {
 	return n.paymentRegistry.GetTransactionBySessionId(sessionId)
 }
 
+func (n *nodeImpl) RequestToken(context context.Context) error {
+	address := n.GetAddress()
+	err := requestToken(n.requestTokenUrl, address)
+	if err != nil {
+		return err
+	}
+	n.lastRequestToken = time.Now()
+	return nil
+}
 func (n *nodeImpl) FlushTransactions(context context.Context) error {
 
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.GetAddress())

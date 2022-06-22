@@ -31,7 +31,7 @@ func newClient(dialContext DialContext) *http.Client {
 	}
 }
 
-func NewClientWithProxy() (*http.Client, error) {
+func NewClientWithProxy(proxyAddress string) (*http.Client, error) {
 	baseDialer := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
@@ -39,7 +39,7 @@ func NewClientWithProxy() (*http.Client, error) {
 	var dialContext DialContext
 
 	if PROXY_ADDR != "" {
-		dialSocksProxy, err := proxy.SOCKS5("tcp", PROXY_ADDR, nil, baseDialer)
+		dialSocksProxy, err := proxy.SOCKS5("tcp", proxyAddress, nil, baseDialer)
 		if err != nil {
 			return nil, errors.Wrap(err, "Error creating SOCKS5 proxy")
 		}

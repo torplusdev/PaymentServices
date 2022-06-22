@@ -15,7 +15,7 @@ type IPFS interface {
 	Get(b [][]byte) error
 }
 
-func Fill(selfProvider boom.BoomDataProvider, ipfs IPFS, ch chan string) error {
+func Fill(selfProvider boom.BoomDataProvider, ipfs IPFS, proxy string, ch chan string) error {
 	contentIDs := map[string]*data.FrequencyContentMetadata{}
 	conn, err := selfProvider.Connections()
 	if err != nil {
@@ -27,7 +27,7 @@ func Fill(selfProvider boom.BoomDataProvider, ipfs IPFS, ch chan string) error {
 			continue
 		}
 		log.Infof("Call host for freq elements: %v", host)
-		clientOfMain := client.New(host)
+		clientOfMain := client.New(host, proxy)
 		ch <- "Call " + host + " for frequest"
 		els, err := clientOfMain.Elements()
 		if err != nil {

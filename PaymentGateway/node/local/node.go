@@ -62,12 +62,15 @@ type nodeImpl struct {
 	tracer                       trace.Tracer
 	autoFlushPeriod              *time.Ticker
 	requestTokenPeriod           *time.Ticker
+	checkBalanceTicker           *time.Ticker
 	flushMux                     sync.Mutex
 	asyncMode                    bool
 	callbackerFactory            CallbackerFactory
 	lastFlush                    time.Time
 	lastRequestToken             time.Time
+	lastCheckBalance             time.Time
 	requestTokenUrl              string
+	requestTokenMinBalance       float64
 }
 
 func New(rootClient root.RootApi,
@@ -99,14 +102,19 @@ func New(rootClient root.RootApi,
 		accumulatingTransactionsMode: nodeConfig.AccumulateTransactions,
 		asyncMode:                    nodeConfig.AsyncMode,
 		requestTokenUrl:              nodeConfig.RequestTokenUrl,
-		lastFlush:                    time.Time{},
-		lastRequestToken:             time.Time{},
+		requestTokenMinBalance:       nodeConfig.RequestTokenMinBalance,
+
+		lastFlush:        time.Time{},
+		lastRequestToken: time.Time{},
+		lastCheckBalance: time.Time{},
 	}
 
 	node.runFlushTicker(nodeConfig.AutoFlushPeriod)
-	node.runFlushTicker(time.Hour * 24)
+	node.runRequstTokenTicker(*nodeConfig.RequestTokenPeriod)
+	node.runCheckBalanceTicker(*nodeConfig.CheckBalancePeriod)
 	return node, nil
 }
+
 func (n *nodeImpl) runRequstTokenTicker(period time.Duration) {
 	if n.requestTokenPeriod != nil {
 		if period == 0 {
@@ -120,7 +128,7 @@ func (n *nodeImpl) runRequstTokenTicker(period time.Duration) {
 		n.requestTokenPeriod = time.NewTicker(period)
 		go func(n *nodeImpl) {
 			address := n.GetAddress()
-			for now := range n.autoFlushPeriod.C {
+			for now := range n.requestTokenPeriod.C {
 				log.Debugf("Node %s request token: %s", address, now.String())
 				err := n.RequestToken(context.Background())
 				if err != nil {
@@ -132,8 +140,35 @@ func (n *nodeImpl) runRequstTokenTicker(period time.Duration) {
 	} else {
 		log.Debugf("node %s: request token disabled.", n.GetAddress())
 	}
-
 }
+
+func (n *nodeImpl) runCheckBalanceTicker(period time.Duration) {
+	if n.checkBalanceTicker != nil {
+		if period == 0 {
+			n.checkBalanceTicker.Stop()
+		} else {
+			n.checkBalanceTicker.Reset(period)
+		}
+		return
+	}
+	if period > 0 {
+		n.checkBalanceTicker = time.NewTicker(period)
+		go func(n *nodeImpl) {
+			address := n.GetAddress()
+			for now := range n.checkBalanceTicker.C {
+				log.Debugf("Node %s check balance %s", address, now.String())
+				err := n.CheckBlance(context.Background())
+				if err != nil {
+					log.Errorf("Error during check balance of node %s: %s", address, err)
+				}
+			}
+		}(n)
+		log.Debugf("run check balance with: %v", period)
+	} else {
+		log.Debugf("node %s: check balance disabled.", n.GetAddress())
+	}
+}
+
 func (n *nodeImpl) runFlushTicker(autoFlushPeriod time.Duration) {
 	if n.autoFlushPeriod != nil {
 		if autoFlushPeriod == 0 {
@@ -493,6 +528,25 @@ func (n *nodeImpl) RequestToken(context context.Context) error {
 	n.lastRequestToken = time.Now()
 	return nil
 }
+
+func (n *nodeImpl) CheckBlance(context context.Context) error {
+	balance, err := n.rootClient.GetPPTokenBalance()
+	if err != nil {
+		return err
+	}
+	if balance < n.requestTokenMinBalance {
+		address := n.GetAddress()
+		err := requestToken(n.requestTokenUrl, address)
+		if err != nil {
+			return err
+		}
+	}
+	//address := n.GetAccount()
+
+	n.lastCheckBalance = time.Now()
+	return nil
+}
+
 func (n *nodeImpl) FlushTransactions(context context.Context) error {
 
 	_, span := n.tracer.Start(context, "node-FlushTransactions "+n.GetAddress())

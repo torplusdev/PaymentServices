@@ -26,6 +26,9 @@ type jsonCnfiguration struct {
 	TransactionValidityPeriodSec int64
 	UseTestApi                   bool
 	RequestTokenUrl              string
+	RequestTokenPeriod           Duration
+	CheckBalancePeriod           Duration
+	RequestTokenMinBalance       float64
 }
 
 type Duration struct {
@@ -62,6 +65,9 @@ type NodeConfig struct {
 	AutoFlushPeriod        time.Duration
 	AsyncMode              bool
 	AccumulateTransactions bool
+	RequestTokenPeriod     *time.Duration
+	CheckBalancePeriod     *time.Duration
+	RequestTokenMinBalance float64
 }
 type RootApiConfig struct {
 	UseTestApi              bool
@@ -90,6 +96,10 @@ const jaegerUrl = "http://192.168.162.128:14268/api/traces"
 const jaegerServiceURL = "PaymentGatewayTest"
 
 func DefaultCfg() *Configuration {
+
+	requestTokenPeriod := 15 * time.Minute
+	checkBalancePeriod := 15 * time.Minute
+
 	return &Configuration{
 
 		JaegerConfig: &JaegerConfig{
@@ -107,6 +117,9 @@ func DefaultCfg() *Configuration {
 
 		NodeConfig: NodeConfig{
 			AutoFlushPeriod:        15 * time.Minute,
+			RequestTokenPeriod:     &requestTokenPeriod,
+			CheckBalancePeriod:     &checkBalancePeriod,
+			RequestTokenMinBalance: 100,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
 			RequestTokenUrl:        "http://torplus-accounting.torplus.com/api/accounting/request/token",
@@ -140,11 +153,17 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 			AutoFlushPeriod:        rawConfig.AutoFlushPeriod.Duration,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
+			CheckBalancePeriod:     &rawConfig.CheckBalancePeriod.Duration,
 			RequestTokenUrl:        rawConfig.RequestTokenUrl,
+			RequestTokenPeriod:     &rawConfig.RequestTokenPeriod.Duration,
+			RequestTokenMinBalance: rawConfig.RequestTokenMinBalance,
 		},
 	}
 
 	defCfg := DefaultCfg()
+
+	instance.NodeConfig.AsyncMode = asyncMode
+	instance.NodeConfig.AccumulateTransactions = accumulateTransactions
 	if instance.Port == 0 {
 		instance.Port = defCfg.Port
 	}
@@ -160,8 +179,19 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 	if instance.NodeConfig.RequestTokenUrl == "" {
 		instance.NodeConfig.RequestTokenUrl = defCfg.NodeConfig.RequestTokenUrl
 	}
-	instance.NodeConfig.AsyncMode = asyncMode
-	instance.NodeConfig.AccumulateTransactions = accumulateTransactions
+
+	if instance.NodeConfig.CheckBalancePeriod == nil {
+		instance.NodeConfig.CheckBalancePeriod = defCfg.NodeConfig.CheckBalancePeriod
+	}
+
+	if instance.NodeConfig.RequestTokenPeriod == nil {
+		instance.NodeConfig.RequestTokenPeriod = defCfg.NodeConfig.RequestTokenPeriod
+	}
+
+	if instance.NodeConfig.RequestTokenMinBalance == 0 {
+		instance.NodeConfig.RequestTokenMinBalance = defCfg.NodeConfig.RequestTokenMinBalance
+	}
+
 	return instance, nil
 }
 

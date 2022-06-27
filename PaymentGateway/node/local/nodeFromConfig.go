@@ -46,7 +46,7 @@ func FromConfigWithClientFactory(config *config.Configuration, clientFactory reg
 
 	rootClient, err := CreateRootApi(config.RootApiConfig)
 	if err != nil {
-		return nil, fmt.Errorf("create root api error:", err)
+		return nil, fmt.Errorf("create root api error: %v", err)
 	}
 	torClient := TorRouteBuilder(config.TorAddressPrefix)
 
@@ -59,7 +59,7 @@ func LocalHost(config *config.Configuration, rootClient root.RootApi,
 	commandClientFactory regestry.CommandClientFactory) (LocalPPNode, error) {
 	commodityManager, err := commodity.FromUrl(rootClient.GetAddress())
 	if err != nil {
-		return nil, fmt.Errorf("commodity from url error:", err)
+		return nil, fmt.Errorf("commodity from url error: %v", err)
 	}
 	paymentRegestry := regestry.NewPaymentManagerRegestry(
 		commodityManager,

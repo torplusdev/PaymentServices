@@ -110,7 +110,7 @@ func New(rootClient root.RootApi,
 	}
 
 	node.runFlushTicker(nodeConfig.AutoFlushPeriod)
-	node.runRequstTokenTicker(*nodeConfig.RequestTokenPeriod)
+	//node.runRequstTokenTicker(*nodeConfig.RequestTokenPeriod)
 	node.runCheckBalanceTicker(*nodeConfig.CheckBalancePeriod)
 	return node, nil
 }

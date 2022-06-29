@@ -122,7 +122,7 @@ func DefaultCfg() *Configuration {
 			RequestTokenMinBalance: 10,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
-			RequestTokenUrl:        "http://torplus-accounting.torplus.com/api/accounting/request/token",
+			RequestTokenUrl:        "https://torplus-accounting.torplus.com/api/accounting/request/token",
 		},
 	}
 }

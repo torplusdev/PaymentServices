@@ -157,7 +157,7 @@ func (n *nodeImpl) runCheckBalanceTicker(period time.Duration) {
 			address := n.GetAddress()
 			for now := range n.checkBalanceTicker.C {
 				log.Debugf("Node %s check balance %s", address, now.String())
-				err := n.CheckBlance(context.Background())
+				err := n.CheckBalance(context.Background())
 				if err != nil {
 					log.Errorf("Error during check balance of node %s: %s", address, err)
 				}
@@ -529,15 +529,19 @@ func (n *nodeImpl) RequestToken(context context.Context) error {
 	return nil
 }
 
-func (n *nodeImpl) CheckBlance(context context.Context) error {
+func (n *nodeImpl) CheckBalance(context context.Context) error {
+	log.Infof("CheckBalance started")
 	balance, err := n.rootClient.GetPPTokenBalance()
 	if err != nil {
 		return err
 	}
+	log.Infof("Balance is %f", balance)
 	if balance < n.requestTokenMinBalance {
 		address := n.GetAddress()
+		log.Infof("Request token")
 		err := requestToken(n.requestTokenUrl, address)
 		if err != nil {
+			log.Infof("Request token error: %v", err)
 			return err
 		}
 	}

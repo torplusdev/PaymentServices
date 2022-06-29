@@ -112,6 +112,7 @@ func New(rootClient root.RootApi,
 	node.runFlushTicker(nodeConfig.AutoFlushPeriod)
 	//node.runRequstTokenTicker(*nodeConfig.RequestTokenPeriod)
 	node.runCheckBalanceTicker(*nodeConfig.CheckBalancePeriod)
+	fmt.Printf("CheckBalancePeriod: %v %v\n", nodeConfig.CheckBalancePeriod, nodeConfig.RequestTokenMinBalance)
 	return node, nil
 }
 
@@ -536,7 +537,7 @@ func (n *nodeImpl) CheckBalance(context context.Context) error {
 		return err
 	}
 	log.Infof("Balance is %f", balance)
-	if balance < n.requestTokenMinBalance {
+	if balance < 100 {
 		address := n.GetAddress()
 		log.Infof("Request token")
 		err := requestToken(n.requestTokenUrl, address)

@@ -98,7 +98,7 @@ const jaegerServiceURL = "PaymentGatewayTest"
 func DefaultCfg() *Configuration {
 
 	requestTokenPeriod := 15 * time.Minute
-	checkBalancePeriod := 15 * time.Minute
+	checkBalancePeriod := 15 * time.Second
 
 	return &Configuration{
 
@@ -119,7 +119,7 @@ func DefaultCfg() *Configuration {
 			AutoFlushPeriod:        15 * time.Minute,
 			RequestTokenPeriod:     &requestTokenPeriod,
 			CheckBalancePeriod:     &checkBalancePeriod,
-			RequestTokenMinBalance: 100,
+			RequestTokenMinBalance: 10,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
 			RequestTokenUrl:        "http://torplus-accounting.torplus.com/api/accounting/request/token",
@@ -180,7 +180,7 @@ func ParseConfiguration(configFile string) (*Configuration, error) {
 		instance.NodeConfig.RequestTokenUrl = defCfg.NodeConfig.RequestTokenUrl
 	}
 
-	if instance.NodeConfig.CheckBalancePeriod == nil {
+	if instance.NodeConfig.CheckBalancePeriod == nil || instance.NodeConfig.CheckBalancePeriod.Microseconds() == 0 {
 		instance.NodeConfig.CheckBalancePeriod = defCfg.NodeConfig.CheckBalancePeriod
 	}
 

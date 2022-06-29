@@ -538,7 +538,7 @@ func (n *nodeImpl) CheckBalance(context context.Context) error {
 		return err
 	}
 	log.Infof("Balance is %f", balance)
-	if balance < 100 {
+	if balance < n.requestTokenMinBalance {
 		address := n.GetAddress()
 		log.Infof("Request token")
 		err := requestToken(n.requestTokenUrl, address)

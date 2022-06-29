@@ -9,7 +9,7 @@ const PPTokenTestnetIssuerAddress = "GCW3GHZEZCKR5QAXYSLJ6PB2Y2VUMQ75VKJNYCSTEFD
 const PPTokenMainnetIssuerAddress = "GC4EEF32WLRFI7ZU7SKZ4Q7PMITKYAAMZK65AKD2PLI6E5WKYCN7OZCE"
 const PPTokenAssetName = "TPT"
 const PPTokenMinAllowedBalance = 10
-const PPTokenUnitPrice = 1e-3 // uPP
+const PPTokenUnitPrice = 1e-6 // uPP
 
 func PPTokenToString(amount TransactionAmount) string {
 	return strconv.FormatFloat(PPTokenUnitPrice*float64(amount), 'f', 7, 64)
@@ -30,7 +30,3 @@ func PPtoken2MicroPP(pptoken TransactionAmount) float64 {
 
 type PPTokenAsset struct {
 }
-
-//func (token *PPTokenAsset) GetPendingTransaction() *PaymentTransaction {
-//
-//}

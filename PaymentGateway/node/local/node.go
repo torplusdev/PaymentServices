@@ -228,6 +228,7 @@ func (n *nodeImpl) NewPaymentRequest(ctx context.Context, request *models.Create
 	if err != nil {
 		return nil, errors.Errorf("invalid commodity")
 	}
+	log.Infof("PaymentRequest: %v %v %v", paymentRequest.ServiceRef, paymentRequest.Asset, paymentRequest.Amount)
 	sessionId := xid.New().String()
 	pr := &models.PaymentRequest{
 		Address:          nodeAddress,

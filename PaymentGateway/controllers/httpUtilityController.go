@@ -78,7 +78,7 @@ func (u *HttpUtilityController) HttpNewPaymentRequest(w http.ResponseWriter, r *
 
 	request := &models.CreatePaymentInfo{}
 	err := json.NewDecoder(r.Body).Decode(request)
-
+	log.Infof("CreatePaymentInfo: %v %v %v", request.CommodityType, request.ServiceType, request.Amount)
 	if err != nil {
 		log.Errorf("Error decoding new payment request: %s", err.Error())
 		Respond(w, MessageWithStatus(http.StatusBadRequest, "Invalid request"))

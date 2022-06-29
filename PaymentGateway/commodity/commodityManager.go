@@ -114,6 +114,7 @@ func (cm *manager) GetProxyNodeFee() uint32 {
 }
 
 func (cm *manager) Calculate(commodiryRequest *models.CreatePaymentInfo) (*models.PaymentRequstBase, error) {
+
 	st, ok := cm.priceTable[commodiryRequest.ServiceType]
 
 	if !ok {

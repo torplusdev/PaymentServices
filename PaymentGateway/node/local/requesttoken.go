@@ -38,7 +38,7 @@ func requestToken(url, address string) error {
 		fmt.Println("Create reqeust error")
 		return err
 	}
-	if res.StatusCode == http.StatusOK {
+	if res.StatusCode != http.StatusOK {
 		fmt.Printf("response is not ok %v\n", res.Status)
 		return nil
 	}

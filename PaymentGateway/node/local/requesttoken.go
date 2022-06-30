@@ -26,7 +26,7 @@ func requestToken(url, address string) error {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(request))
 	if err != nil {
-		fmt.Println("Create reqeust error")
+		fmt.Printf("create reqeust error: %v\n", err)
 		return err
 	}
 
@@ -35,7 +35,7 @@ func requestToken(url, address string) error {
 	res, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		fmt.Println("Create reqeust error")
+		fmt.Printf("Create reqeust error: %v\n", err)
 		return err
 	}
 	if res.StatusCode != http.StatusOK {
@@ -44,7 +44,7 @@ func requestToken(url, address string) error {
 	}
 	d, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println("Read response body error")
+		fmt.Printf("Read response body error %v\n", err)
 		return err
 	}
 	return fmt.Errorf("error: %v", string(d))

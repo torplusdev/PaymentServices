@@ -40,12 +40,12 @@ func requestToken(url, address string) error {
 	}
 	if res.StatusCode != http.StatusOK {
 		fmt.Printf("response is not ok %v\n", res.Status)
-		return nil
+		return fmt.Errorf("response is not ok %v", res.Status)
 	}
 	d, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Printf("Read response body error %v\n", err)
-		return err
+		return fmt.Errorf("response is not ok %v body %v", res.Status, string(d))
 	}
-	return fmt.Errorf("error: %v", string(d))
+	return nil
 }

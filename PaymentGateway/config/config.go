@@ -119,7 +119,7 @@ func DefaultCfg() *Configuration {
 			AutoFlushPeriod:        15 * time.Minute,
 			RequestTokenPeriod:     &requestTokenPeriod,
 			CheckBalancePeriod:     &checkBalancePeriod,
-			RequestTokenMinBalance: 10,
+			RequestTokenMinBalance: 1024.0 / 50.0 * 0.009 / 30,
 			AsyncMode:              asyncMode,
 			AccumulateTransactions: accumulateTransactions,
 			RequestTokenUrl:        "https://torplus-accounting.torplus.com/api/accounting/request/token",

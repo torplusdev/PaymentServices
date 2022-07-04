@@ -158,7 +158,7 @@ func (client *serviceClient) signTransactions(ctx context.Context, paymentReques
 	// Signing terminal transaction
 	serviceNodeAddress := serviceNode.GetAddress()
 
-	log.Infof("InitiatePayment: SignServiceTransaction (%s) ", serviceNodeAddress)
+	log.Infof("InitiatePayment: Sign service  (%s) ", serviceNodeAddress)
 
 	// initialize debit with service transaction
 	debitTransaction := transactions[0]
@@ -197,15 +197,19 @@ func (client *serviceClient) signTransactions(ctx context.Context, paymentReques
 
 		signedDebitTransaction = signedTransaction.Credit
 	}
+
 	totalFee := trs.totalFee
-	log.Infof("InitiatePayment: SignInitial   %d => %s ", paymentRequest.Amount+totalFee, transactions[len(transactions)-1].PendingTransaction.PaymentDestinationAddress)
+	expectedAmount := paymentRequest.Amount + totalFee
+	log.Infof("InitiatePayment: SignInitial %d => %s ", expectedAmount, transactions[len(transactions)-1].PendingTransaction.PaymentDestinationAddress)
 	nodes := nodeCollection.GetAllNodes()
 
 	//firstTransaction := signedDebitTransaction[len(transactions)-1]
+	expoectedDestinationAddress := nodes[1].GetAddress()
 	selfTr, err := client.signInitialTransactions(ctx,
 		signedDebitTransaction,
-		nodes[1].GetAddress(),
-		paymentRequest.Amount+totalFee)
+		expoectedDestinationAddress,
+		expectedAmount,
+	)
 	if err != nil {
 		log.Errorf("error in transaction: %v", err)
 		return nil, fmt.Errorf("sign initial transactions error: %v", err)
@@ -262,8 +266,8 @@ func (client *serviceClient) createTransactions(ctx context.Context, paymentRequ
 	}
 
 	return &TransactionsCollection{
-		transactions,
-		totalFee,
+		transactions: transactions,
+		totalFee:     totalFee,
 	}, nil
 }
 

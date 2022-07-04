@@ -95,6 +95,7 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 	proxyNode := proxy.NewProxyNode(commandClient, responseHandler, address, 0)
 	err = paymentManager.AddDestinationNode(address, nodeId, proxyNode)
 	if err != nil {
+		log.Infof("Destination node %v already exists in chain ", nodeId)
 		return nil, err
 	}
 	return paymentManager, nil

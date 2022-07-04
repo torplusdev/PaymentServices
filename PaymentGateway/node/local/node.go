@@ -272,6 +272,7 @@ func (n *nodeImpl) CreateTransaction(context context.Context, request *models.Cr
 		return nil, err
 	}
 	tr.ToSpanAttributes(span, "create")
+
 	return &models.CreateTransactionResponse{
 		Transaction: tr,
 	}, nil
@@ -674,7 +675,7 @@ func (u *nodeImpl) CommandHandler(ctx context.Context, cmd *models.UtilityComman
 }
 
 func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCommand) (models.OutCommandType, error) {
-	log.Info("ProcessCommand: SessionId=%v, CommandId=%v, CommandType=%v CallbackUrl=%v", command.SessionId, command.CommandId, command.CommandType, command.CallbackUrl)
+	log.Infof("ProcessCommand: SessionId=%v, CommandId=%v, CommandType=%v CallbackUrl=%v", command.SessionId, command.CommandId, command.CommandType, command.CallbackUrl)
 	if command.CallbackUrl != "" {
 		callbacker := u.callbackerFactory(command)
 		go func(callbacker CallBacker) {

@@ -7,5 +7,5 @@ import (
 )
 
 type TorClient interface {
-	GetRoute(ctx context.Context, sessionId string) (*models.RouteResponse, error)
+	GetRoute(ctx context.Context, sessionId string, excludeNodeId, excludeAddress string) (*models.RouteResponse, error)
 }

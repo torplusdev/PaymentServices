@@ -17,7 +17,7 @@ func FromStatic(route *models.RouteResponse, err error) TorClient {
 	}
 }
 
-func (c *staticTorClient) GetRoute(ctx context.Context, sessionId string) (*models.RouteResponse, error) {
+func (c *staticTorClient) GetRoute(ctx context.Context, sessionId string, excludeNodeId, excludeAddress string) (*models.RouteResponse, error) {
 
 	return c.route, c.err
 }

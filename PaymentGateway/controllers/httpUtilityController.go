@@ -146,7 +146,7 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 		Respond(w, MessageWithData(http.StatusOK, data))
 		return
 	} else {
-		log.Info("Command to queue: SessionId=%v, CommandId=%v, CommandType=%v", command.SessionId, command.CommandId, command.CommandType)
+		log.Infof("Command to queue: SessionId=%v, CommandId=%v, CommandType=%v", command.SessionId, command.CommandId, command.CommandType)
 
 		Respond(w, MessageWithStatus(http.StatusCreated, "success"))
 	}

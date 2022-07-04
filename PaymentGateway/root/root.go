@@ -176,6 +176,8 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 		}
 		log.Infof("Sequence number initialization: %d", seq)
 		api.lastSequenceId = seq
+	} else {
+		log.Infof("Last Sequence number is: %d", api.lastSequenceId)
 	}
 	var sequenceProvider int64
 	// If this is the first transaction for the node+client pair and there's no reference transaction
@@ -404,7 +406,7 @@ func (n *rootApi) verifyTransactionSequence(context context.Context, transaction
 		return errors.Errorf("Error deserializing transaction from XDR: %v", e)
 	}
 
-	t, result := transactionWrapper.Transaction()
+	stelarTransaction, result := transactionWrapper.Transaction()
 
 	if !result {
 		return errors.Errorf("Error deserializing transaction from XDR (GenericTransaction)")
@@ -420,7 +422,7 @@ func (n *rootApi) verifyTransactionSequence(context context.Context, transaction
 		return fmt.Errorf("error getting sequence: %v", err)
 	}
 
-	account := t.SourceAccount()
+	account := stelarTransaction.SourceAccount()
 	transactionSequence, err := account.GetSequenceNumber()
 	if err != nil {
 		return err

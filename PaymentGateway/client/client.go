@@ -256,9 +256,10 @@ func (client *serviceClient) createTransactions(ctx context.Context, paymentRequ
 			return nil, err
 		}
 
-		log.Infof("InitiatePayment: Transaction created  %s %d => %s", nodeTransaction.Transaction.PendingTransaction.PaymentSourceAddress,
+		log.Infof("InitiatePayment: Transaction created  %s %d => %s ", nodeTransaction.Transaction.PendingTransaction.PaymentSourceAddress,
 			nodeTransaction.Transaction.PendingTransaction.AmountOut,
-			nodeTransaction.Transaction.PendingTransaction.PaymentDestinationAddress)
+			nodeTransaction.Transaction.PendingTransaction.PaymentDestinationAddress,
+		)
 
 		transactions = append(transactions, nodeTransaction.Transaction)
 		// Accumulate fees

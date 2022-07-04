@@ -63,7 +63,7 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 
 	commandCallbackUrl := request.CallbackUrl
 	if len(routingNotes) == 0 {
-		routeResponse, err := g.torClient.GetRoute(ctx, sessionId)
+		routeResponse, err := g.torClient.GetRoute(ctx, sessionId, request.NodeId.String(), request.PaymentRequest.Address)
 		if err != nil {
 			return nil, err
 		}

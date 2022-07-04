@@ -169,7 +169,7 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 	}
 
 	// Uninitialized
-	if api.lastSequenceId == 0 {
+	if api.lastSequenceId == 0 { // TODO sequence
 		seq, err := api.GetSequenceNumber()
 		if err != nil {
 			return nil, err

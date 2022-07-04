@@ -142,11 +142,15 @@ func (u *HttpUtilityController) HttpProcessCommand(w http.ResponseWriter, r *htt
 		return
 	}
 	if data != nil {
-		log.Info("Process Command result success")
+		log.Info("Process Command result success: OutType=%v", data.OutType())
 		Respond(w, MessageWithData(http.StatusOK, data))
 		return
+	} else {
+		log.Info("Command to queue: SessionId=%v, CommandId=%v, CommandType=%v", command.SessionId, command.CommandId, command.CommandType)
+
+		Respond(w, MessageWithStatus(http.StatusCreated, "success"))
 	}
-	Respond(w, MessageWithStatus(http.StatusCreated, "success"))
+
 }
 
 func (u *HttpUtilityController) HttpGetBalance(w http.ResponseWriter, r *http.Request) {

@@ -90,7 +90,7 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 
 	nodeId := request.NodeId.String()
 	address := request.PaymentRequest.Address
-
+	log.Infof("Route %v %v", "last", nodeId)
 	commandClient, responseHandler := g.commandClientFactory(request.CallbackUrl, sessionId, nodeId)
 	proxyNode := proxy.NewProxyNode(commandClient, responseHandler, address, 0)
 	err = paymentManager.AddDestinationNode(address, nodeId, proxyNode)

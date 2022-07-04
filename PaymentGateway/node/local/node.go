@@ -667,12 +667,14 @@ func (u *nodeImpl) CommandHandler(ctx context.Context, cmd *models.UtilityComman
 		}
 		return &models.CommitServiceTransactionResponse{}, nil
 	default:
+		log.Errorf("Error: unknow command type:  SessionId=%v, CommandType=%v", cmd.SessionId, cmd.CommandType)
 		return nil, fmt.Errorf("unknow command type: %v", body)
 	}
 
 }
 
 func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCommand) (models.OutCommandType, error) {
+	log.Info("ProcessCommand: SessionId=%v, CommandId=%v, CommandType=%v CallbackUrl=%v", command.SessionId, command.CommandId, command.CommandType, command.CallbackUrl)
 	if command.CallbackUrl != "" {
 		callbacker := u.callbackerFactory(command)
 		go func(callbacker CallBacker) {
@@ -681,7 +683,7 @@ func (u *nodeImpl) ProcessCommand(ctx context.Context, command *models.UtilityCo
 				log.Errorf("CommandHandler error: %v", err)
 				return
 			}
-			log.Infof("callbacker: CommandId: %v SessionId: %v Url: ", command.CommandId, command.SessionId, command.CallbackUrl)
+			log.Infof("callbacker: CommandId: %v SessionId: %v Url: %v", command.CommandId, command.SessionId, command.CallbackUrl)
 			err = callbacker.call(reply, err)
 			if err != nil {
 				log.Errorf("Callback error: %v", err)

@@ -2,6 +2,7 @@ package regestry
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"paidpiper.com/payment-gateway/client"
@@ -65,6 +66,11 @@ func (g *paymentManagerRegestryImpl) New(ctx context.Context, source node.PPNode
 	if len(routingNotes) == 0 {
 		routeResponse, err := g.torClient.GetRoute(ctx, sessionId, request.NodeId.String(), request.PaymentRequest.Address)
 		if err != nil {
+			return nil, err
+		}
+		if len(routeResponse.Route) != 3 {
+			err := fmt.Errorf("route len is not 3 (3!= %v)", len(routeResponse.Route))
+			log.Error(err)
 			return nil, err
 		}
 		routingNotes = routeResponse.Route

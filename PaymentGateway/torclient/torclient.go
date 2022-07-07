@@ -22,6 +22,7 @@ func NewTorClient(url string) TorClient {
 
 func (c *torClient) GetRoute(ctx context.Context, sessionId string, excludeNodeId, excludeAddress string) (*models.RouteResponse, error) {
 	url := c.torUrl + sessionId + "?exclude_node_id=" + excludeNodeId + "&exclude_address=" + excludeAddress
+	log.Infof("Tor request url: %v", url)
 	resp, err := common.HttpGetWithContext(ctx, url)
 
 	if err != nil {

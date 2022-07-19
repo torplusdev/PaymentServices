@@ -87,7 +87,6 @@ func CreateRootApiFactory(useTestApi bool) RootApiFactory {
 	} else {
 		return createPublicRootApi
 	}
-
 }
 
 func createRootApi(withCore *rootApiCore, seed string, transactionValiditySecs int64) (*rootApi, error) {
@@ -265,6 +264,114 @@ func (api *rootApi) CreateTransaction(request *models.CreateTransactionCommand, 
 	return tr, nil
 }
 
+/*
+func (api *rootApi) ValidateForPPNode(seed string) error {
+
+	client := api.client
+
+	kp, err := keypair.ParseFull(seed)
+
+	if err != nil {
+		return errors.Errorf("Error parsing client seed " + err.Error())
+	}
+	address := kp.Address()
+
+	clientAccountDetail, err := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: address,
+		},
+	)
+
+	if err != nil {
+		return errors.Errorf("Error reading client account details: " + err.Error())
+	}
+
+	distributionAccountDetail, err := client.AccountDetail(
+		horizonclient.AccountRequest{
+			AccountID: g.kpDistribution.Address(),
+		},
+	)
+
+	if err != nil {
+		return errors.Errorf("Error reading distribution account details: " + err.Error())
+	}
+
+	_ = distributionAccountDetail
+
+	// Read feestats
+	fees, err := api.client.FeeStats()
+
+	if err != nil {
+		return errors.Errorf("Error reading feestats: " + err.Error())
+	}
+
+	minFee := fees.FeeCharged.P20 + g.config.MinFeeExtra
+	// begin SponsoringFutureReserves
+	beginSponsoringFutureReserves := &txnbuild.BeginSponsoringFutureReserves{
+		SourceAccount: g.kpDistribution.Address(),
+		SponsoredID:   kp.Address(),
+	}
+	// Create trust line TPT
+	tokenAsset := txnbuild.CreditAsset{
+		Code:   "TPT",
+		Issuer: api.kpIssuer.Address(),
+	}
+
+	changeTrustTpt := &txnbuild.ChangeTrust{
+		SourceAccount: clientAccountDetail.AccountID,
+		Line:          txnbuild.ChangeTrustAssetWrapper{Asset: tokenAsset},
+		Limit:         strconv.Itoa(g.ppTokenLimit),
+	}
+	// begin SponsoringFutureReserves
+	endSponsoringFutureReserves := &txnbuild.EndSponsoringFutureReserves{
+		SourceAccount: kp.Address(),
+	}
+	txCreateTrustLine, err := txnbuild.NewTransaction(txnbuild.TransactionParams{
+		SourceAccount:        &distributionAccountDetail,
+		IncrementSequenceNum: true,
+		BaseFee:              minFee,
+		Operations: []txnbuild.Operation{
+			beginSponsoringFutureReserves,
+			changeTrustTpt,
+			endSponsoringFutureReserves,
+		},
+		Timebounds: txnbuild.NewTimeout(300),
+	})
+
+	if err != nil {
+		return errors.Errorf("Error creating transaction: " + err.Error())
+	}
+
+	//var signedTransaction = &txnbuild.Transaction{}
+
+	distributorSignedTransaction, err := txCreateTrustLine.Sign(g.networkPhrase, g.kpDistribution)
+
+	clientSignedTransaction, err := distributorSignedTransaction.Sign(g.networkPhrase, kp)
+	signedTransaction := clientSignedTransaction
+
+	// Sign differently whether ppManager is assigned as a signer to the account
+	//if _, ok := clientAccountDetail.SignerSummary()[g.kpPpManager.Address()]; ok {
+	//	signedTransaction, err = clientSignedTransaction.Sign(g.networkPhrase, g.kpPpManager)
+	//}
+
+	//signedTransaction2, err := signedTransaction.Sign(network.TestNetworkPassphrase,g.kpDistribution)
+
+	if err != nil {
+		return errors.Errorf("Error signing transaction: " + err.Error())
+	}
+
+	resultTransaction, err := client.SubmitTransaction(signedTransaction)
+
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	_ = resultTransaction
+
+	return nil
+}
+*/
 func (api *rootApi) ValidateForPPNode() error {
 	balance, err := api.GetMicroPPTokenBalance()
 	if err != nil {

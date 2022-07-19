@@ -22,6 +22,13 @@ function mark {
     fi
   done
 }
+BODY="{
+    \"seed\": \"$seed\"
+}"
+
+curl -X POST "https://api-payment.torplus.com/api/backend/setupAccount" \
+  -u torpluse-api-payment-ny4KQDf3:acbhKTwXnPJRpcAMMXPRNJc7TaWx5busFqFP7beQYZLayYvtmQdEeGvAdRJwTbusNpuCnj7hu2kTSqmzLVQP7Tn4zFep7N2pTXnp \
+	--data "${BODY}"
 if [ $# -eq 0 ]
 then
     /opt/torplus/payment-gateway | mark "Server is ready!" ".pg_ready" &> /opt/torplus/logs/payment.log

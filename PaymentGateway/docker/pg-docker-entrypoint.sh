@@ -26,7 +26,7 @@ BODY="{
     \"seed\": \"$seed\"
 }"
 
-curl -X POST "https://api-payment.torplus.com/api/backend/setupAccount" \
+curl -X POST -v "https://api-payment.torplus.com/api/backend/setupAccount" \
   -u torpluse-api-payment-ny4KQDf3:acbhKTwXnPJRpcAMMXPRNJc7TaWx5busFqFP7beQYZLayYvtmQdEeGvAdRJwTbusNpuCnj7hu2kTSqmzLVQP7Tn4zFep7N2pTXnp \
 	--data "${BODY}"
 if [ $# -eq 0 ]

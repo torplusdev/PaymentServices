@@ -56,7 +56,6 @@ build_windows:
 #go run ./cmd/main/ SDNUQFJDYLROZMAIMR5SMBV2MG5IU3BHWJ5LUNMSHM6F573GGWEL6URP 28080
 run:
 	go run ./cmd/main/ SBDBI3QX4BWWKIS35AY7GEJLJ5LE5WYYMR3UXCX2FHKGSIALTVYDMAPK 28080
-
 generatordeps:
 	go get github.com/deepmap/oapi-codegen/cmd/oapi-codegen
 	

@@ -1,4 +1,6 @@
 #!/bin/bash
+
+echo "Starting PAYMENT PLUS"
 if [[ "${no_conf}" != "1" ]]; then
   if [[ "${PP_ENV}" != "prod" ]]; then
     export UseTestApi=true

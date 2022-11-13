@@ -1,10 +1,10 @@
 package module
 
 import (
-	"encoding/base64"
 	"fmt"
 	"strings"
 
+	"github.com/ipfs/go-cid"
 	"paidpiper.com/payment-gateway/boom"
 	"paidpiper.com/payment-gateway/boom/client"
 	"paidpiper.com/payment-gateway/boom/data"
@@ -40,7 +40,15 @@ func Fill(selfProvider boom.BoomDataProvider, ipfs IPFS, proxy string, ch chan s
 		}
 		ch <- fmt.Sprintf("Get %v cid", len(els))
 		for _, el := range els {
-			key := base64.StdEncoding.EncodeToString(el.Cid)
+
+			v, cid, err := cid.CidFromBytes(el.Cid)
+
+			if err != nil {
+				log.Errorf("error parsing cid (v%d): %v",v, err)
+			}
+
+			key  := cid.String()
+
 			if item, ok := contentIDs[key]; ok {
 				item.Frequency += el.Frequency //NEED?
 			} else {
